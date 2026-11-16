@@ -4,11 +4,17 @@ import { ZiweiChart, BirthFormState } from '../lib/ziwei/types';
 import {
   VI_STEMS,
   VI_BRANCHES,
+  formatChartSummaryVi,
   translateWuxingJu,
   translateStarName,
 } from '../lib/ziwei/vi-i18n';
+import type { ContextualChatContextPayload } from '../lib/dossier-chat-ui';
 import MarkdownContent from './MarkdownContent';
-import { HeartHandshake, Sparkles, RefreshCw, Users, CheckCircle2 } from 'lucide-react';
+import { HeartHandshake, Sparkles, RefreshCw, Users, CheckCircle2, MessageSquareText } from 'lucide-react';
+
+interface HemingViewProps {
+  onOpenContextualChat?: (context: ContextualChatContextPayload) => void;
+}
 
 function buildLocalHemingFallback(chartA: ZiweiChart, chartB: ZiweiChart): string {
   const mingA = chartA.palaces.find((p) => p.isMingGong);
@@ -50,7 +56,7 @@ function buildLocalHemingFallback(chartA: ZiweiChart, chartB: ZiweiChart): strin
 2. **Phân Công Vai Trò:** Người có nhóm sao Đế Tinh / Khai Sáng (Tử Vi, Thiên Phủ, Vũ Khúc, Thất Sát) nên đảm nhận hoạch định chiến lược; người có nhóm sao Trí Tuệ / Hòa Hợp (Thiên Cơ, Thái Âm, Thiên Lương, Thiên Đồng) nên nắm giữ hậu phương và quản trị rủi ro.`;
 }
 
-export default function HemingView() {
+export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
   const [chartA, setChartA] = useState<ZiweiChart | null>(null);
   const [chartB, setChartB] = useState<ZiweiChart | null>(null);
   const [result, setResult] = useState('');
@@ -232,7 +238,7 @@ export default function HemingView() {
       </div>
 
       {/* Action Button */}
-      <div className="flex justify-center">
+      <div className="flex flex-wrap justify-center items-center gap-3">
         <button
           type="button"
           onClick={handleAnalyze}
@@ -248,16 +254,77 @@ export default function HemingView() {
               : 'Khởi Động Luận Giải Hợp Bàn'}
           </span>
         </button>
+
+        {onOpenContextualChat && chartA && chartB && (
+          <button
+            type="button"
+            onClick={() => {
+              const nameA = chartA.birthInfo.name || 'Bên A';
+              const nameB = chartB.birthInfo.name || 'Bên B';
+              const factSheetVi = `=== LÁ SỐ BÊN A (${nameA}) ===\n${formatChartSummaryVi(chartA)}\n\n=== LÁ SỐ BÊN B (${nameB}) ===\n${formatChartSummaryVi(chartB)}`;
+              const excerptVi = result.trim() || buildLocalHemingFallback(chartA, chartB);
+              const bKey = `${chartB.birthInfo.year}_${chartB.birthInfo.month}_${chartB.birthInfo.day}_${chartB.birthInfo.hour}_${chartB.birthInfo.gender}`;
+              onOpenContextualChat({
+                chart: chartA,
+                chartB,
+                contextMode: 'heming',
+                contextKey: `heming_${bKey}`,
+                sectionTitle: `Hợp Bàn: ${nameA} & ${nameB}`,
+                factSheetVi,
+                excerptVi,
+                starterQuestions: [
+                  `Điểm bổ khuyết lớn nhất giữa Mệnh của ${nameA} và ${nameB} là gì?`,
+                  `Cung Phu Thê và Tứ Hóa hai lá số có xung khắc nào cần hóa giải?`,
+                  `Hai người nên phân công vai trò tài chính và gia đạo thế nào cho bền vững?`,
+                ],
+              });
+            }}
+            className="px-4 py-3 rounded-xl font-semibold text-xs sm:text-sm transition-all cursor-pointer inline-flex items-center gap-2 border border-[var(--t-gold)]/50 bg-[var(--t-gold)]/10 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 whitespace-nowrap shrink-0"
+          >
+            <MessageSquareText className="w-4 h-4" />
+            <span>Hỏi đáp sâu về cặp đôi này</span>
+          </button>
+        )}
       </div>
 
       {/* Result Card */}
       {(result || loading) && (
         <div className="rounded-xl p-5 sm:p-6 border bg-[var(--t-card)] border-[var(--t-gold)]/50 space-y-3">
-          <div className="flex items-center justify-between border-b border-[var(--t-border)] pb-2.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--t-border)] pb-2.5">
             <h3 className="text-sm font-bold text-[var(--t-gold)]">
               Bản Luận Giải Hợp Bàn ({chartA?.birthInfo.name || 'Bên A'} & {chartB?.birthInfo.name || 'Bên B'})
             </h3>
-            {loading && <RefreshCw className="w-4 h-4 text-[var(--t-gold)] animate-spin" />}
+            <div className="flex items-center gap-2">
+              {loading && <RefreshCw className="w-4 h-4 text-[var(--t-gold)] animate-spin" />}
+              {onOpenContextualChat && chartA && chartB && !loading && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const nameA = chartA.birthInfo.name || 'Bên A';
+                    const nameB = chartB.birthInfo.name || 'Bên B';
+                    const factSheetVi = `=== LÁ SỐ BÊN A (${nameA}) ===\n${formatChartSummaryVi(chartA)}\n\n=== LÁ SỐ BÊN B (${nameB}) ===\n${formatChartSummaryVi(chartB)}`;
+                    const bKey = `${chartB.birthInfo.year}_${chartB.birthInfo.month}_${chartB.birthInfo.day}_${chartB.birthInfo.hour}_${chartB.birthInfo.gender}`;
+                    onOpenContextualChat({
+                      chart: chartA,
+                      chartB,
+                      contextMode: 'heming',
+                      contextKey: `heming_${bKey}`,
+                      sectionTitle: `Hợp Bàn: ${nameA} & ${nameB}`,
+                      factSheetVi,
+                      excerptVi: result.trim() || buildLocalHemingFallback(chartA, chartB),
+                      starterQuestions: [
+                        `Tương tác Tứ Hóa giữa ${nameA} và ${nameB} thuận hay nghịch ở điểm nào?`,
+                        `Khi gặp năm xung cung Phu Thê, cặp đôi cần lưu ý điều gì?`,
+                      ],
+                    });
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--t-gold)]/50 bg-[var(--t-gold)]/10 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <MessageSquareText className="w-3.5 h-3.5" />
+                  <span>Hỏi đáp Hợp Bàn</span>
+                </button>
+              )}
+            </div>
           </div>
           <div className="text-xs sm:text-sm text-[var(--t-text)] leading-relaxed">
             <MarkdownContent content={result} />

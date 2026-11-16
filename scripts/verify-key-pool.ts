@@ -13,10 +13,16 @@ import { maskApiKey, parseBatchKeys } from '../server/key-pool/parser.ts';
 import { SerializedWriteQueue } from '../server/key-pool/crypto-store.ts';
 import { AiClientFactory, PoolExhaustedError } from '../server/key-pool/executor.ts';
 import {
+  applyBatchItemToSnapshot,
+  buildCooldownProbeQueue,
+  canTriggerBatchCooldownProbe,
   hasValidCachedPeriodEntry,
   resolveNextModelSelection,
+  runClientBatchCooldownProbe,
   shouldShowCompletedContinuationBadge,
   shouldShowInterruptedContinuationBadge,
+  type BatchCooldownItemResult,
+  type CooldownProbeKeyShape,
 } from '../src/lib/key-pool-ui.ts';
 
 function fakeKey(suffix: string): string {
@@ -832,7 +838,228 @@ async function runTests() {
       console.log('  -> Đạt: Huy hiệu "nối tiếp luồng hoàn chỉnh" chỉ hiện khi bản cuối hoàn chỉnh & đã lưu cache.');
     }
 
-    console.log('\n=== TẤT CẢ 14 BÀI KIỂM THỬ UNIT & INTEGRATION ĐỀU ĐẠT ===');
+    // ── BÀI 15: Batch Cooldown Probe — Thứ tự ưu tiên, 4 kỷ luật Short-Circuit & Debounce ─
+    {
+      console.log('\n[15/16] Kiểm thử Batch Cooldown Probe (thứ tự ưu tiên, 4 kỷ luật Project, debounce, snapshot)...');
+      assert.strictEqual(canTriggerBatchCooldownProbe(true, 5, false), false, 'ReadOnly phải khóa nút batch probe');
+      assert.strictEqual(canTriggerBatchCooldownProbe(false, 0, false), false, 'N = 0 phải khóa nút batch probe');
+      assert.strictEqual(canTriggerBatchCooldownProbe(false, 5, true), false, 'Đang chạy phải khóa nút batch probe');
+      assert.strictEqual(canTriggerBatchCooldownProbe(false, 5, false), true, 'Có quyền ghi + N > 0 + chưa chạy -> cho phép');
+
+      const mkKey = (overrides: Partial<CooldownProbeKeyShape> & { id: string }): CooldownProbeKeyShape => ({
+        label: overrides.id,
+        maskedKey: `AIza...${overrides.id}`,
+        status: 'cooldown',
+        detectedProjectNumber: null,
+        healthScore: 60,
+        cooldownUntil: 2_000_000_000_000,
+        remainingCooldownSec: 21600,
+        cooldownReason: 'QUOTA_PROJECT_ZERO',
+        stats: {
+          lastErrorType: 'QUOTA_PROJECT_ZERO',
+          lastErrorMessage: null,
+          lastErrorAt: 1_900_000_000_000,
+          lastTestLatencyMs: null,
+          lastTestedAt: null,
+        },
+        ...overrides,
+      });
+
+      const poolKeys: CooldownProbeKeyShape[] = [
+        mkKey({ id: 'ready_skip', status: 'ready', healthScore: 100, cooldownReason: 'NONE', remainingCooldownSec: 0 }),
+        mkKey({ id: 'disabled_skip', status: 'disabled', healthScore: 0, cooldownReason: 'AUTH_INVALID_KEY', remainingCooldownSec: 0 }),
+        mkKey({ id: 'pz_1', cooldownReason: 'QUOTA_PROJECT_ZERO', detectedProjectNumber: 'P100' }),
+        mkKey({ id: 'pz_2_same_p100', cooldownReason: 'QUOTA_PROJECT_ZERO', detectedProjectNumber: 'P100' }),
+        mkKey({ id: 'pz_null_1', cooldownReason: 'QUOTA_PROJECT_ZERO', detectedProjectNumber: null }),
+        mkKey({ id: 'pz_null_2', cooldownReason: 'QUOTA_PROJECT_ZERO', detectedProjectNumber: null }),
+        mkKey({ id: 'daily_1', cooldownReason: 'QUOTA_DAILY_EXHAUSTED', detectedProjectNumber: 'P200' }),
+        mkKey({ id: 'rpm_1', cooldownReason: 'RATE_LIMIT_RPM', detectedProjectNumber: 'P300' }),
+        mkKey({ id: 'net_1', cooldownReason: 'NETWORK_OR_5XX', detectedProjectNumber: 'P400' }),
+        mkKey({ id: 'net_2_same_p400', cooldownReason: 'NETWORK_OR_5XX', detectedProjectNumber: 'P400' }),
+        mkKey({ id: 'debounce_key', cooldownReason: 'RATE_LIMIT_RPM', detectedProjectNumber: 'P500', remainingCooldownSec: 5 }),
+      ];
+
+      const queue = buildCooldownProbeQueue(poolKeys);
+      assert.strictEqual(queue.length, 9, 'Chỉ giữ 9 key cooldown, loại ready và disabled');
+      assert.strictEqual(queue[0].id, 'net_1', 'NETWORK_OR_5XX phải đứng đầu');
+      assert.strictEqual(queue[1].id, 'net_2_same_p400', 'NETWORK_OR_5XX đứng trước RPM');
+      assert.strictEqual(queue[2].id, 'debounce_key', 'RPM có remainingCooldownSec nhỏ hơn lên trước');
+      assert.strictEqual(queue[3].id, 'rpm_1');
+      assert.strictEqual(queue[4].id, 'daily_1', 'QUOTA_DAILY_EXHAUSTED đứng sau RPM');
+      assert.strictEqual(queue[5].id, 'pz_1', 'QUOTA_PROJECT_ZERO đứng cuối');
+
+      const probedIds: string[] = [];
+      const repCooldownUntil = 1_999_999_999_000;
+      const controller = new AbortController();
+      const progress = await runClientBatchCooldownProbe({
+        keys: poolKeys,
+        delayBetweenRealProbesMs: 0,
+        signal: controller.signal,
+        probeSingleKey: async (keyId) => {
+          probedIds.push(keyId);
+          if (keyId === 'net_1') {
+            return {
+              kind: 'probed',
+              ok: false,
+              latencyMs: 320,
+              modelUsed: 'gemini-3.5-flash-lite',
+              status: 'cooldown',
+              healthScore: 80,
+              detectedProjectNumber: 'P400',
+              errorCategory: 'NETWORK_OR_5XX',
+              sanitizedMessage: '503 timeout',
+              cooldownUntil: 1_999_900_000_000,
+            };
+          }
+          if (keyId === 'net_2_same_p400') {
+            return {
+              kind: 'probed',
+              ok: true,
+              latencyMs: 190,
+              modelUsed: 'gemini-3.5-flash-lite',
+              status: 'ready',
+              healthScore: 95,
+              detectedProjectNumber: 'P400',
+            };
+          }
+          if (keyId === 'debounce_key') {
+            return {
+              kind: 'deferred_debounce',
+              message: 'Vui lòng chờ 4 giây giữa 2 lần kiểm tra.',
+            };
+          }
+          if (keyId === 'pz_1') {
+            return {
+              kind: 'probed',
+              ok: false,
+              latencyMs: 140,
+              modelUsed: 'gemini-3.5-flash-lite',
+              status: 'cooldown',
+              healthScore: 45,
+              detectedProjectNumber: 'P100',
+              errorCategory: 'QUOTA_PROJECT_ZERO',
+              sanitizedMessage: 'quota_limit_value: 0',
+              cooldownUntil: repCooldownUntil,
+            };
+          }
+          if (keyId === 'pz_null_1' || keyId === 'pz_null_2') {
+            return {
+              kind: 'probed',
+              ok: false,
+              latencyMs: 150,
+              modelUsed: 'gemini-3.5-flash-lite',
+              status: 'cooldown',
+              healthScore: 40,
+              detectedProjectNumber: null,
+              errorCategory: 'QUOTA_PROJECT_ZERO',
+              sanitizedMessage: 'quota_limit_value: 0 (no project)',
+              cooldownUntil: repCooldownUntil,
+            };
+          }
+          return {
+            kind: 'probed',
+            ok: true,
+            latencyMs: 180,
+            modelUsed: 'gemini-3.5-flash-lite',
+            status: 'ready',
+            healthScore: 98,
+          };
+        },
+      });
+
+      // Kỷ luật (a): net_1 lỗi NETWORK_OR_5XX -> net_2_same_p400 KHÔNG bị nhảy cóc và hồi phục thành công!
+      assert.ok(probedIds.includes('net_2_same_p400'), 'Kỷ luật (a): TUYỆT ĐỐI KHÔNG nhảy cóc sau NETWORK_OR_5XX');
+      // Kỷ luật (b): pz_null_1 & pz_null_2 đều có detectedProjectNumber=null -> cả hai được probe độc lập
+      assert.ok(probedIds.includes('pz_null_1') && probedIds.includes('pz_null_2'), 'Kỷ luật (b): key null project luôn probe độc lập');
+      // Kỷ luật (c): pz_2_same_p100 bị nhảy cóc do cùng Project P100 gặp QUOTA_PROJECT_ZERO, đồng bộ cooldownUntil từ đại diện
+      assert.ok(!probedIds.includes('pz_2_same_p100'), 'pz_2_same_p100 phải được nhảy cóc Same-Project');
+      const skippedItem = progress.results.find((r) => r.id === 'pz_2_same_p100')!;
+      assert.strictEqual(skippedItem.outcome, 'skipped_same_project');
+      assert.strictEqual(skippedItem.isRealProbe, false);
+      assert.strictEqual(skippedItem.representativeKeyId, 'pz_1');
+      assert.strictEqual(skippedItem.cooldownUntil, repCooldownUntil, 'Kỷ luật (c): cooldownUntil phải đồng bộ theo key đại diện');
+      // Bộ đếm debounced không làm sai lệch lỗi
+      assert.strictEqual(progress.counts.skippedSameProject, 1, 'Không tính null project vào skippedSameProject');
+      assert.strictEqual(progress.counts.deferred, 1, 'Key 429 debounce phải vào deferred');
+      assert.strictEqual(progress.counts.recovered, 3, 'net_2_same_p400 + rpm_1 + daily_1 hồi phục');
+      assert.strictEqual(progress.counts.stillFailing, 4, 'net_1 + pz_1 + pz_null_1 + pz_null_2');
+
+      // Kiểm tra applyBatchItemToSnapshot cập nhật đơn lẻ không làm mất phần còn lại
+      const initSnap = {
+        keys: poolKeys,
+        summary: { total: poolKeys.length, ready: 1, cooldown: 9, disabled: 1 },
+      };
+      const recoveredNet2 = progress.results.find((r) => r.id === 'net_2_same_p400') as BatchCooldownItemResult;
+      const snapAfter = applyBatchItemToSnapshot(initSnap, recoveredNet2, 1_900_000_000_000);
+      assert.strictEqual(snapAfter.summary.ready, 2);
+      assert.strictEqual(snapAfter.summary.cooldown, 8);
+      assert.strictEqual(snapAfter.keys.find((k) => k.id === 'net_2_same_p400')?.status, 'ready');
+
+      // Kiểm tra stop giữa chừng bảo toàn kết quả đã probe và bỏ phần còn lại
+      let stopFlag = false;
+      const partialCtrl = new AbortController();
+      const partialRes = await runClientBatchCooldownProbe({
+        keys: [mkKey({ id: 's1' }), mkKey({ id: 's2' }), mkKey({ id: 's3' })],
+        delayBetweenRealProbesMs: 0,
+        signal: partialCtrl.signal,
+        shouldStop: () => stopFlag,
+        probeSingleKey: async (kid) => {
+          if (kid === 's1') stopFlag = true;
+          return {
+            kind: 'probed',
+            ok: true,
+            latencyMs: 120,
+            modelUsed: 'gemini-3.5-flash-lite',
+            status: 'ready',
+            healthScore: 100,
+          };
+        },
+      });
+      assert.strictEqual(partialRes.stoppedEarly, true);
+      assert.strictEqual(partialRes.processed, 1, 'Dừng sau key hiện tại, bảo toàn 1 kết quả đã xong');
+      console.log('  -> Đạt: Thứ tự ưu tiên, 4 kỷ luật Same-Project, debounce, stop giữa chừng và cập nhật 1 dòng snapshot chuẩn.');
+    }
+
+    // ── BÀI 16: Allocator đồng bộ cooldown sang peer ĐÃ cooldown cùng GCP Project ─
+    {
+      console.log('\n[16/16] Kiểm thử allocator.recordFailure đồng bộ cooldown sang peer đang cooldown cùng Project...');
+      const dir16 = fs.mkdtempSync(path.join(tmpDir, 'peer-sync-'));
+      const mgr16 = new KeyPoolManager(dir16);
+      const kRep = fakeKey('RepKeySameProj00000000000000001');
+      const kAlreadyCd = fakeKey('AlreadyCdSameProj00000000000002');
+      const prev16 = mgr16.previewBatchImport(`${kRep}, ${kAlreadyCd}`);
+      mgr16.confirmBatchImport(prev16.previewSessionId);
+
+      const [repId, cdPeerId] = mgr16._getRawKeyIdsForVerification();
+      const cdPeer = mgr16._findKeyRecord(cdPeerId)!;
+      cdPeer.detectedProjectNumber = '555666777';
+      cdPeer.status = 'cooldown';
+      cdPeer.cooldownReason = 'QUOTA_PROJECT_ZERO';
+      cdPeer.healthScore = 70;
+      cdPeer.cooldownUntil = 1_700_000_010_000;
+
+      const alloc16 = mgr16._getAllocatorForVerification();
+      const tProbe = 1_700_500_000_000;
+      alloc16.recordFailure(
+        repId,
+        {
+          category: 'QUOTA_PROJECT_ZERO',
+          projectNumber: '555666777',
+          retryDelaySec: null,
+          sanitizedSummary: '429 quota_limit_value: "0" projects/555666777',
+        },
+        tProbe,
+        true,
+      );
+
+      const repAfter = mgr16._findKeyRecord(repId)!;
+      const peerAfter = mgr16._findKeyRecord(cdPeerId)!;
+      assert.strictEqual(peerAfter.cooldownUntil, repAfter.cooldownUntil, 'Peer đang cooldown cùng Project phải đồng bộ cooldownUntil theo key đại diện');
+      assert.strictEqual(peerAfter.healthScore, 70, 'KHÔNG phạt trừ thêm healthScore đối với peer đã ở trạng thái cooldown');
+      console.log('  -> Đạt: Peer đang cooldown cùng GCP Project được đồng bộ cooldownUntil mà không trừ oan healthScore.');
+    }
+
+    console.log('\n=== TẤT CẢ 16 BÀI KIỂM THỬ KHO KHÓA & BATCH PROBE ĐỀU ĐẠT ===');
   } finally {
     if (origEnvKey !== undefined) process.env.GEMINI_API_KEY = origEnvKey;
     if (origEnvKeys !== undefined) process.env.GEMINI_API_KEYS = origEnvKeys;

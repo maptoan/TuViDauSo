@@ -3,6 +3,7 @@ import { ZiweiChart, Palace } from '../lib/ziwei/types';
 import {
   VI_BRANCHES,
   VI_STEMS,
+  formatChartSummaryVi,
   translatePalaceName,
   translateStarName,
   translateSiHua,
@@ -17,6 +18,11 @@ import {
   shouldShowCompletedContinuationBadge,
   shouldShowInterruptedContinuationBadge,
 } from '../lib/key-pool-ui';
+import type {
+  AiExecutionMeta,
+  AiPeriodEntry,
+  ContextualChatContextPayload,
+} from '../lib/dossier-chat-ui';
 import type { ActiveSihua } from './TimeNav';
 import MarkdownContent from './MarkdownContent';
 import {
@@ -25,11 +31,13 @@ import {
   RefreshCw,
   Compass,
   MessageSquare,
+  MessageSquareText,
   Layers,
   AlertTriangle,
   Bot,
   CheckCircle2,
   KeyRound,
+  BookOpen,
 } from 'lucide-react';
 
 const TOPICS = [
@@ -43,30 +51,6 @@ const TOPICS = [
 
 type TopicKey = (typeof TOPICS)[number]['key'];
 
-interface AiExecutionMeta {
-  keyId: string;
-  maskedKey: string;
-  label: string;
-  modelUsed: string;
-  usedFallbackModel: boolean;
-  failoverAttempts: number;
-  latencyMs: number;
-  continuedFromPartial?: boolean;
-  continuationCount?: number;
-  interrupted?: boolean;
-}
-
-interface AiPeriodEntry {
-  text?: string;
-  incompleteText?: string;
-  incomplete?: boolean;
-  interruptedReason?: string;
-  meta?: AiExecutionMeta;
-  error?: string;
-  errorCode?: string;
-  notConfigured?: boolean;
-}
-
 interface InsightPanelProps {
   chart: ZiweiChart;
   activeSihua: ActiveSihua;
@@ -75,6 +59,10 @@ interface InsightPanelProps {
   externalAiRequestTick?: number;
   onAiLoadingChange?: (loading: boolean) => void;
   onOpenKeyPool?: () => void;
+  aiPeriodCache?: Record<string, AiPeriodEntry>;
+  onAiPeriodCacheChange?: React.Dispatch<React.SetStateAction<Record<string, AiPeriodEntry>>>;
+  onOpenDossierModal?: () => void;
+  onOpenContextualChat?: (context: ContextualChatContextPayload) => void;
 }
 
 export default function InsightPanel({
@@ -85,6 +73,10 @@ export default function InsightPanel({
   externalAiRequestTick = 0,
   onAiLoadingChange,
   onOpenKeyPool,
+  aiPeriodCache: propAiPeriodCache,
+  onAiPeriodCacheChange: propOnAiPeriodCacheChange,
+  onOpenDossierModal,
+  onOpenContextualChat,
 }: InsightPanelProps) {
   const [activeTopic, setActiveTopic] = useState<TopicKey>('overall');
   const [cache, setCache] = useState<Record<string, string>>({});
@@ -93,8 +85,10 @@ export default function InsightPanel({
   const [qaList, setQaList] = useState<{ q: string; a: string }[]>([]);
   const [qaLoading, setQaLoading] = useState(false);
 
-  // Bộ nhớ đệm kết quả AI theo (lá số + loại kỳ + kỳ): periodContext.cacheKey
-  const [aiPeriodCache, setAiPeriodCache] = useState<Record<string, AiPeriodEntry>>({});
+  // Bộ nhớ đệm kết quả AI theo (lá số + loại kỳ + kỳ): periodContext.cacheKey (đồng bộ 2 chiều với Hồ Sơ 8 Chương nếu được truyền từ App)
+  const [localAiPeriodCache, setLocalAiPeriodCache] = useState<Record<string, AiPeriodEntry>>({});
+  const aiPeriodCache = propAiPeriodCache ?? localAiPeriodCache;
+  const setAiPeriodCache = propOnAiPeriodCacheChange ?? setLocalAiPeriodCache;
   const [incompleteTopicKeys, setIncompleteTopicKeys] = useState<Record<string, boolean>>({});
   const [aiPeriodLoading, setAiPeriodLoading] = useState(false);
 
@@ -322,7 +316,7 @@ export default function InsightPanel({
         setAiLoadingState(false);
       }
     },
-    [chart, periodContext, aiPeriodCache, setAiLoadingState]
+    [chart, periodContext, aiPeriodCache, setAiPeriodCache, setAiLoadingState]
   );
 
   // Nhận tín hiệu bấm nút "Luận giải AI cho kỳ này" từ thanh TimeNav
@@ -589,27 +583,39 @@ export default function InsightPanel({
   return (
     <div className="rounded-xl p-4 sm:p-5 border bg-[var(--t-card)] border-[var(--t-border)] flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--t-border)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-[var(--t-border)]">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-[var(--t-gold)] shrink-0" />
           <h3 className="text-sm font-semibold text-[var(--t-text)]">
             Luận Giải Chuyên Sâu — Tâm Pháp Thiên Kỷ Nghê Hải Hạ
           </h3>
         </div>
-        <button
-          type="button"
-          onClick={() => {
-            setCache((prev) => ({
-              ...prev,
-              [currentKey]: getFallbackText(activeTopic),
-            }));
-          }}
-          className="inline-flex items-center gap-1 text-xs text-[var(--t-text2)] hover:text-[var(--t-gold)] cursor-pointer whitespace-nowrap shrink-0"
-          title="Phân tích lại"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          <span>Làm mới</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {onOpenDossierModal && (
+            <button
+              type="button"
+              onClick={onOpenDossierModal}
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--t-gold)]/50 bg-[var(--t-gold)]/10 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Hồ Sơ 8 Chương</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              setCache((prev) => ({
+                ...prev,
+                [currentKey]: getFallbackText(activeTopic),
+              }));
+            }}
+            className="inline-flex items-center gap-1 text-xs text-[var(--t-text2)] hover:text-[var(--t-gold)] cursor-pointer whitespace-nowrap shrink-0"
+            title="Phân tích lại"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            <span>Làm mới</span>
+          </button>
+        </div>
       </div>
 
       {/* ─── TẦNG VẬN HẠN KẾT HỢP: KHUNG DỮ KIỆN XÁC ĐỊNH + AI DIỄN GIẢI ─── */}
@@ -700,7 +706,35 @@ export default function InsightPanel({
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                {onOpenContextualChat && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onOpenContextualChat({
+                        chart,
+                        contextMode: 'period',
+                        contextKey: periodContext.cacheKey,
+                        sectionTitle: periodContext.periodTitleVi,
+                        periodContext,
+                        factSheetVi: periodContext.factTableMarkdown,
+                        excerptVi:
+                          currentAiEntry?.text ||
+                          currentAiEntry?.incompleteText ||
+                          periodContext.deterministicInterpretationMarkdown,
+                        starterQuestions: [
+                          `Trong ${periodContext.periodTitleVi}, trọng tâm cát lợi và rủi ro lớn nhất nằm ở cung nào?`,
+                          `Tứ Hóa kỳ hạn đang kích hoạt cung ${periodContext.activatedPalace.natalPalaceNameVi} tác động ra sao?`,
+                          `Chiến lược hành động thực tế cho đương số trong kỳ hạn này?`,
+                        ],
+                      })
+                    }
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--t-gold)]/50 bg-[var(--t-gold)]/10 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <MessageSquareText className="w-3.5 h-3.5" />
+                    <span>Hỏi đáp kỳ hạn</span>
+                  </button>
+                )}
                 {onOpenKeyPool && (
                   <button
                     type="button"
@@ -888,26 +922,68 @@ export default function InsightPanel({
         </div>
       ) : null}
 
-      {/* Main Content Display (6 Topic Tabs) */}
-      <div className="min-h-[210px] rounded-lg p-3.5 sm:p-4 border border-[var(--t-border)] bg-[var(--t-surface)] text-xs sm:text-sm leading-relaxed text-[var(--t-text)]">
-        {loading && !currentContent && (
-          <div className="flex items-center gap-2 text-[var(--t-gold)] py-8 justify-center">
-            <RefreshCw className="w-4 h-4 animate-spin" />
-            <span>Đang suy diễn tinh bàn & đối chiếu Cổ Phú Tử Vi...</span>
+      {/* Topic / Palace Contextual Action Header + Main Content Display */}
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+          <div className="text-xs font-semibold text-[var(--t-text2)]">
+            {selectedMutagen
+              ? `Luận giải Tứ Hóa: ${translateStarName(selectedMutagen.starName)} Hóa ${translateSiHua(selectedMutagen.mutagen)}`
+              : selectedPalace
+                ? `Chuyên sâu: ${translatePalaceName(selectedPalace.name)}`
+                : `Chủ đề: ${TOPICS.find((t) => t.key === activeTopic)?.label ?? 'Tổng Quan'}`}
           </div>
-        )}
-        {currentContent ? (
-          <div className="leading-relaxed">
-            <MarkdownContent content={currentContent} />
-            {loading && <span className="inline-block w-1.5 h-4 bg-[var(--t-gold)] animate-pulse ml-1" />}
-          </div>
-        ) : (
-          !loading && (
-            <span className="text-[var(--t-faint)]">
-              Chọn một chủ đề phía trên hoặc nhấn trực tiếp vào từng Cung trên lá số để xem luận giải chi tiết.
-            </span>
-          )
-        )}
+          {onOpenContextualChat && (
+            <button
+              type="button"
+              onClick={() => {
+                const sectionTitle = selectedMutagen
+                  ? `${translateStarName(selectedMutagen.starName)} Hóa ${translateSiHua(selectedMutagen.mutagen)} tại ${translatePalaceName(selectedMutagen.palaceName)}`
+                  : selectedPalace
+                    ? `Cung ${translatePalaceName(selectedPalace.name)} (${VI_BRANCHES[selectedPalace.branch]})`
+                    : TOPICS.find((t) => t.key === activeTopic)?.label ?? 'Tổng Quan Mệnh Cách';
+                onOpenContextualChat({
+                  chart,
+                  contextMode: 'natal',
+                  contextKey: currentKey,
+                  sectionTitle,
+                  periodContext,
+                  factSheetVi: formatChartSummaryVi(chart),
+                  excerptVi: currentContent,
+                  starterQuestions: [
+                    `Điểm nổi bật và thế mạnh cốt lõi trong ${sectionTitle} là gì?`,
+                    `Tam Phương Tứ Chính và Tứ Hóa ảnh hưởng tới phần này ra sao?`,
+                    `Lời khuyên thực tế để đương số tối ưu hóa khía cạnh này?`,
+                  ],
+                });
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium border border-[var(--t-gold)]/50 bg-[var(--t-gold)]/10 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <MessageSquareText className="w-3.5 h-3.5" />
+              <span>Hỏi đáp phần này</span>
+            </button>
+          )}
+        </div>
+
+        <div className="min-h-[210px] rounded-lg p-3.5 sm:p-4 border border-[var(--t-border)] bg-[var(--t-surface)] text-xs sm:text-sm leading-relaxed text-[var(--t-text)]">
+          {loading && !currentContent && (
+            <div className="flex items-center gap-2 text-[var(--t-gold)] py-8 justify-center">
+              <RefreshCw className="w-4 h-4 animate-spin" />
+              <span>Đang suy diễn tinh bàn & đối chiếu Cổ Phú Tử Vi...</span>
+            </div>
+          )}
+          {currentContent ? (
+            <div className="leading-relaxed">
+              <MarkdownContent content={currentContent} />
+              {loading && <span className="inline-block w-1.5 h-4 bg-[var(--t-gold)] animate-pulse ml-1" />}
+            </div>
+          ) : (
+            !loading && (
+              <span className="text-[var(--t-faint)]">
+                Chọn một chủ đề phía trên hoặc nhấn trực tiếp vào từng Cung trên lá số để xem luận giải chi tiết.
+              </span>
+            )
+          )}
+        </div>
       </div>
 
       {/* Custom Question Input */}

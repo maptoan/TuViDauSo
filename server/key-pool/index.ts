@@ -371,6 +371,7 @@ export class KeyPoolManager {
     modelUsed: string;
     status: string;
     healthScore: number;
+    detectedProjectNumber: string | null;
     errorCategory?: string;
     sanitizedMessage?: string;
     cooldownUntil?: number | null;
@@ -421,6 +422,7 @@ export class KeyPoolManager {
         modelUsed: modelToTest,
         status: key.status,
         healthScore: key.healthScore,
+        detectedProjectNumber: key.detectedProjectNumber,
       };
     } catch (err) {
       const latencyMs = Math.max(1, Date.now() - startMs);
@@ -432,6 +434,7 @@ export class KeyPoolManager {
         modelUsed: modelToTest,
         status: key.status,
         healthScore: key.healthScore,
+        detectedProjectNumber: key.detectedProjectNumber,
         errorCategory: classified.category,
         sanitizedMessage: classified.sanitizedSummary,
         cooldownUntil: key.cooldownUntil,

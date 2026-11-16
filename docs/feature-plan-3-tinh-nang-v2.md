@@ -4,7 +4,20 @@
 **Tác giả:** Gemini 4 Argon (Kiến trúc sư trưởng & Điều phối viên Panel)  
 **Ngày lập:** 2026-11-17 *(kế thừa và nâng cấp từ bản v1.0 lập ngày 2026-11-16 tại `docs/feature-plan-3-tinh-nang.md`)*  
 **Biên bản phản biện đối chiếu:** `docs/feature-plan-panel-review.md`  
-**Trạng thái:** Sẵn sàng trình duyệt quyết định `QĐ-F1` → `QĐ-F5` trước khi sang pha thi công (CHƯA sửa code)
+**Trạng thái:** **ĐÃ PHÊ DUYỆT BỘ QUYẾT ĐỊNH `F1–F7` (17/11/2026) — Sẵn sàng thi công Phần A & Phần B**
+
+---
+
+## QUYẾT ĐỊNH ĐÃ ĐƯỢC NGƯỜI DÙNG DUYỆT 17/11/2026
+
+> **Văn bản chốt quyết định (nguyên văn từ Chủ dự án lúc 01:35 ngày 17/11/2026):**  
+> F1 Định dạng xuất bản: cả 3 (HTML in độc lập + Markdown + sao chép/in trực tiếp). F2 Cấu trúc hồ sơ: 8 chương, sàn 250–350 từ/cung, gom nhóm cung theo v1 (như trên), nhịp nghỉ giữa chương 2,2 giây. F3 Probe: client-orchestrated như trên. F4 Lưu lịch sử chat: sessionStorage theo cặp (lá số + phần luận giải), tối đa 10 mạch, có LRU/dọn an toàn — KHÔNG dùng localStorage/IndexedDB như v2 §4.4 đã viết. F5 Nút chat tại: khối kỳ hạn InsightPanel, khối chủ đề/cung InsightPanel, modal hồ sơ, màn Hợp Bàn. F6 Mở modal hồ sơ: tự động chạy tuần tự 8 chương + nút tạm dừng + cho sinh lẻ từng chương. F7 Hàng rào quota chat: nghỉ tối thiểu 8 giây giữa 2 câu (đếm ngược trên nút Gửi), trần mềm 15 câu/phiên/lá số (nhắc ở câu 10, nút mở thêm 5 ở câu 15), khóa tuần tự phía client (không gửi chat khi đang stream sinh chương hồ sơ). Chốt cứng: giữ nguyên SI_HUA_TABLE; cấu hình kho key không đổi (model chính gemini-3.5-flash-lite, dự phòng gemini-3.8-flash, ngân sách failover 35 giây/5 key, QĐ-6 giữ nguyên).
+
+### Nguyên tắc ràng buộc khi có điểm lệch giữa bản v2 và Bộ quyết định `F1–F7`
+**KHI BẢN v2 VÀ BỘ QUYẾT ĐỊNH `F1–F7` LỆCH NHAU, BỘ QUYẾT ĐỊNH `F1–F7` LUÔN THẮNG.** Cụ thể 3 điểm lệch bắt buộc tuân theo `F1–F7`:
+1. **`F3` thắng `v2 QĐ-F1` & `Mục 2.3`:** Cơ chế probe Tính năng 1 là **CLIENT-ORCHESTRATED** hoàn toàn trong `src/components/KeyPoolModal.tsx`, gọi tuần tự route sẵn có `POST /api/key-pool/:id/test`. **KHÔNG** tạo endpoint batch mới trên server (`POST /api/key-pool/test-cooldown`) và không tạo cờ `batchProbe`/`bypassDebounce`.
+2. **`F4` thắng `v2 §4.4`:** Lịch sử chat Tính năng 3 lưu trong **`sessionStorage`** theo cặp `(lá số + phần luận giải)`, giữ tối đa **10 mạch hội thoại**, có cơ chế **LRU / dọn an toàn** — **KHÔNG** dùng `localStorage`/`IndexedDB` như v2 §4.4 đã viết trước đó.
+3. **`F2` thắng `v2 §3.2`:** Gom nhóm 12 cung cho Chương 2–4 **THEO ĐÚNG 3 NHÓM CỦA BẢN v1** (`Nhóm 1 — core`: **Mệnh Cung, Quan Lộc, Tài Bạch, Thiên Di**; `Nhóm 2 — family`: **Phu Thê, Tử Nữ, Điền Trạch, Phúc Đức**; `Nhóm 3 — social_health`: **Phụ Mẫu, Huynh Đệ, Giao Hữu, Tật Ách**), **KHÔNG** theo cách chia lại của v2 §3.2 (vốn đưa Điền Trạch/Phúc Đức sang Chương 4 và Phụ Mẫu/Huynh Đệ sang Chương 3).
 
 ---
 
@@ -31,14 +44,14 @@ Hệ thống **Tử Vi Thiên Kỷ** hiện vận hành trên kiến trúc Full-
 1. **Module Kho Khóa Gemini (`server/key-pool/*`)**:
    - Đã triển khai hoàn chỉnh theo `docs/key-pool-design-plan.md` (cập nhật ngày `16/11/2026`) và bản vá Pha B (`docs/stream-interruption-diagnosis.md`).
    - Hỗ trợ lưu trữ AES-256-GCM tại `.data/gemini-key-pool.enc.json` (`crypto-store.ts`), phân bổ khóa ưu tiên tier + điểm sức khỏe + nhảy cóc theo `detectedProjectNumber` (`allocator.ts`), thực thi luồng SSE kèm **Tự Động Tiếp Nối Luồng (Seamless Continuation)** khi đứt luồng giữa chừng và nhảy sang `fallbackModel` (`gemini-3.8-flash`) trên cùng key khi gặp `RATE_LIMIT_RPM` hoặc `MODEL_UNAVAILABLE` (`executor.ts`).
-   - Hiện trạng kho khóa thực tế (đo ngày `16–17/11/2026`): tổng **10 khóa**, trong đó **7 khóa thuộc 4 GCP Project có `limit: 0` (`QUOTA_PROJECT_ZERO`)** đang nằm ở trạng thái `cooldown` 6 giờ, và **3 khóa khỏe (`active`, `free` tier)** đang gánh toàn bộ lưu lượng AI của ứng dụng.
+   - Hiện trạng kho khóa thực tế (đo ngày `16–17/11/2026`): tổng **23 key**, trong đó **3 key khỏe (`ready`, `free` tier)** đang gánh toàn bộ lưu lượng AI của ứng dụng, **20 key đang `cooldown` (`QUOTA_PROJECT_ZERO`)**, và **0 key vô hiệu (`disabled`)**. *(Lưu ý: `detectedProjectNumber` của nhiều key trong 20 key đang nguội hiện chưa biết trước cho đến khi được probe thực tế; số GCP Project khác nhau thực sự sẽ chỉ xác định được sau khi probe).*
 2. **Engine Tử Vi Đẩu Số (`src/lib/ziwei/*`)**:
-   - Tính toán 100% tất định (deterministic) trên trình duyệt không cần mạng: lập 12 cung, an Chính/Phụ/Tạp tinh (`engine.ts`), tính độ sáng sao, Phi Tinh 12 cung (`palace-flier.ts`), Cách Cục (`patterns.ts`), vận hạn Đại Vận / Lưu Niên / Lưu Nguyệt / Lưu Nhật (`yunxian.ts`), và xuất hồ sơ ngữ cảnh tiếng Việt có cấu trúc (`vi-i18n.ts`: `formatChartSummaryVi`, `yunxian-context.ts`: `buildYunxianPeriodContext`).
+   - Tính toán 100% tất định (deterministic) trên trình duyệt không cần mạng: lập 12 cung, an Chính/Phụ/Tạp tinh (`algorithm.ts`), tính độ sáng sao, Các Cách Cục (`patterns.ts`), vận hạn Đại Vận / Lưu Niên / Lưu Nguyệt / Lưu Nhật (`yunxian-context.ts`, `sihua.ts`), và xuất hồ sơ ngữ cảnh tiếng Việt có cấu trúc (`vi-i18n.ts`: `formatChartSummaryVi`, `yunxian-context.ts`: `buildYunxianPeriodContext`).
 
 ### 1.2. Ba tính năng mới cần thiết kế và mối liên kết tổng thể
 Ba tính năng mới tạo thành một chu trình khép kín giữa **Quản trị Hạ tầng Kho Khóa (Tính năng 1)** và **Trải nghiệm Luận Giải Chuyên Sâu Đa Tầng (Tính năng 2 & 3)**:
-- **Tính năng 1 (Kiểm tra lại các khóa đang tạm nghỉ / Cooldown Batch Re-check)**: Cung cấp công cụ kiểm chứng chủ động cho quản trị viên ngay trong `KeyPoolModal.tsx` để đánh thức sớm các khóa đã hồi phục hoặc xác nhận các khóa `QUOTA_PROJECT_ZERO` (như 7 khóa hiện tại) với cơ chế **Nhảy cóc cùng Project có kỷ luật (`Same-Project Short-Circuit`)**, tránh đốt thời gian và quota vô ích.
-- **Tính năng 2 (Luận giải Lá Số Toàn Diện — "Hồ Sơ Mệnh Lý Toàn Diện" / Full Natal & Multi-Year Dossier)**: Mở rộng từ luận giải từng nhịp đơn lẻ (`InsightPanel.tsx`) sang bộ hồ sơ chuyên khảo **8 chương tuần tự** (bao phủ Tổng quan, 12 cung chia 3 nhóm Tam Hợp/Chức năng, chi tiết 2026, chi tiết 2027, tầm nhìn 5 năm `2026–2030`, và đại cục 10 năm `2026–2035`), điều phối nhịp độ an toàn trên nền tảng 3 khóa sống hiện có.
+- **Tính năng 1 (Kiểm tra lại các khóa đang tạm nghỉ / Client-Orchestrated Cooldown Batch Re-check)**: Cung cấp công cụ kiểm chứng chủ động cho quản trị viên ngay trong `KeyPoolModal.tsx` để đánh thức sớm các khóa đã hồi phục hoặc xác nhận các khóa `QUOTA_PROJECT_ZERO` (như 20 key đang nguội hiện tại) thông qua vòng lặp client gọi route sẵn có `POST /api/key-pool/:id/test` kèm cơ chế **Nhảy cóc cùng Project có 4 kỷ luật (`Same-Project Short-Circuit`)**, tránh đốt thời gian và quota vô ích.
+- **Tính năng 2 (Luận giải Lá Số Toàn Diện — "Hồ Sơ Mệnh Lý Toàn Diện" / Full Natal & Multi-Year Dossier)**: Mở rộng từ luận giải từng nhịp đơn lẻ (`InsightPanel.tsx`) sang bộ hồ sơ chuyên khảo **8 chương tuần tự** (bao phủ Tổng quan, 12 cung chia 3 nhóm theo bản v1 `Mệnh-Quan-Tài-Di`, `Phu-Tử-Điền-Phúc`, `Phụ-Huynh-Hữu-Tật`, chi tiết 2026, chi tiết 2027, tầm nhìn 5 năm `2026–2030`, và đại cục 10 năm `2026–2035`), điều phối nhịp độ an toàn trên nền tảng 3 khóa sống hiện có.
 - **Tính năng 3 (Khung Chat Hỏi Đáp Chuyên Sâu — Contextual Ziwei Q&A Drawer)**: Cho phép người dùng đặt câu hỏi tương tác trực tiếp ngay sau khi xem lá số, xem luận giải vận hạn, xem Hồ Sơ Toàn Diện, hoặc xem Hợp Hôn (`HemingView.tsx`), nơi AI trả lời dựa trên **Ngữ Cảnh Ghim Chặt (Pinned Context Architecture)** thay vì suy diễn tự do, kết hợp **Hàng Rào Quota Mềm Kép** để bảo vệ kho khóa.
 
 ### 1.3. Nguyên tắc bất biến: "Engine Tính Toán Tất Định — AI Chỉ Diễn Giải Có Kiểm Soát" (Anti-Hallucination & SiHua Layer Attribution Guardrail)
@@ -425,8 +438,9 @@ Khác với chatbot thông thường, Khung Chat Hỏi Đáp của **Tử Vi Thi
   3. Trên màn hình kết quả `HemingView.tsx`: Nút **`"Hỏi đáp sâu về cặp đôi này"`**.
 - **Chip Câu Hỏi Gợi Ý Thông Minh (Dynamic Starter Chips)**:
   - Tự động sinh 4 câu hỏi gợi ý sát với lá số hiện tại (ví dụ: *"Vì sao cung Tài Bạch của tôi có Hóa Kỵ cần lưu ý gì năm 2026?"*, *"Trong giai đoạn 2026–2030 năm nào thuận lợi nhất để thay đổi công việc?"*, *"Cách hóa giải xung khắc ở cung Phu Thê?"*).
-- **Lưu trữ bền vững theo chữ ký lá số (`chartSignature`)**:
-  - Lưu lịch sử hội thoại vào `localStorage` + `IndexedDB` theo khóa `ziwei_chat_history_v1_${chartSig}` (hoặc `ziwei_chat_heming_v1_${sigA}_${sigB}`), giữ tối đa 30 tin nhắn gần nhất kèm nút `"Xóa lịch sử trò chuyện"`.
+- **Lưu trữ lịch sử hội thoại theo quyết định `F4` (thắng v2 §4.4)**:
+  - Lưu lịch sử hội thoại **hoàn toàn phía client trong `sessionStorage`** theo cặp `(Lá số + Phần luận giải đang xem)`, giữ **tối đa `10` mạch hội thoại** kèm cơ chế **LRU / dọn an toàn** khi vượt giới hạn dung lượng hoặc quá 10 mạch (kèm nút `"Xóa lịch sử trò chuyện"`).
+  - **KHÔNG** dùng `localStorage`/`IndexedDB` và **KHÔNG** lưu lịch sử hội thoại phía server.
 
 ---
 
@@ -438,9 +452,9 @@ Giả định mỗi khóa `free` tier của Gemini có hạn mức `5 – 15 RPM
 
 | Tác vụ người dùng | Số lượng API Calls thực tế | Ước lượng Input Tokens / call | Ước lượng Output Tokens / call | Tốc độ tiêu thụ RPM tối đa (có nhịp nghỉ) | Đánh giá độ an toàn cho 3 khóa sống |
 |---|---|---|---|---|---|
-| **1. Kiểm tra lại các khóa tạm nghỉ (Tính năng 1)** | `4 calls` (cho 7 khóa lỗi thuộc 4 Project, nhờ `Same-Project Short-Circuit` tiết kiệm 3 calls) | `~10 tokens` (`"Trả lời ngắn: OK"`) | `~2 – 5 tokens` | `~4 calls / 5 giây` (chỉ gọi trên các khóa đang `cooldown`, **0 tác động** lên 3 khóa `active`) | **Tuyệt đối an toàn** (không chạm vào quota của 3 khóa đang sống). |
-| **2. Lập Hồ Sơ Mệnh Lý Toàn Diện 8 chương (Tính năng 2)** | **`6 – 8 calls`** (chỉ `6 calls` nếu đã có cache năm 2026 & 2027; tối đa `8 calls` nếu tạo mới hoàn toàn; cộng thêm `1–2 calls` nếu có chương phải `Seamless Continuation`) | `~1,800 – 2,800 tokens` / chương | `~1,300 – 2,100 tokens` / chương (`800 – 1,400 từ`) | **Tối đa `2.5 – 3.5 RPM`** (do mỗi chương stream mất `15–25s` + nghỉ `2.2s` giữa 2 chương) | **Rất an toàn**: Bộ điều phối xoay vòng (`Round-Robin` theo điểm sức khỏe + `lastUsedAt`) tự động rải 8 chương đều qua 3 khóa sống (~2–3 chương/khóa trong 2–3 phút). |
-| **3. Chat Hỏi Đáp Chuyên Sâu (Tính năng 3)** | `1 call / câu hỏi` (tối đa `15 calls / phiên` trước chốt xác nhận mềm) | `~2,200 – 3,500 tokens` / lượt | `~400 – 800 tokens` / lượt (`250 – 500 từ`) | **Tối đa `4 – 5 RPM`** (nhờ thời gian stream `~5–8s` + khoảng nghỉ bắt buộc `8s` giữa 2 câu hỏi) | **Rất an toàn**: Kể cả khi hỏi đủ 15 câu liên tiếp trong 3–4 phút, mỗi khóa sống chỉ chịu trung bình `5 requests`. |
+| **1. Kiểm tra lại toàn bộ 20 key đang nguội (Tính năng 1)** | **Tối đa `20 calls`** nếu cả 20 key thuộc 20 Project khác nhau; nếu nhiều key dùng chung Project thì giảm xuống còn **$P$ calls** (bằng số Project khác nhau nhờ `Same-Project Short-Circuit`). *(Lưu ý: số Project khác nhau thực tế chỉ xác định được sau khi probe vì `detectedProjectNumber` của nhiều key trong 20 key nguội hiện chưa biết).* | `~10 tokens` (`"Trả lời đúng 1 từ: OK"`) | `~2 – 5 tokens` | `~1 call / ~2 giây` (tuần tự `concurrency = 1`, giãn cách `1,2s` giữa 2 key qua `POST /api/key-pool/:id/test`; **0 tác động** lên 3 key `ready`) | **Tuyệt đối an toàn** (chỉ gọi trên 20 key `cooldown`, không chạm vào quota của 3 key `ready`). |
+| **2. Lập Hồ Sơ Mệnh Lý Toàn Diện 8 chương (Tính năng 2)** | **`6 – 8 calls`** (chỉ `6 calls` nếu đã có cache năm 2026 & 2027; tối đa `8 calls` nếu tạo mới hoàn toàn; cộng thêm `1–2 calls` nếu có chương phải `Seamless Continuation`) | `~1,800 – 2,800 tokens` / chương | `~1,300 – 2,100 tokens` / chương (`1,000 – 1,400 từ` cho chương nhóm cung; `750 – 1,100 từ` cho tổng quan & thời gian) | **Tối đa `2.5 – 3.5 RPM`** (do mỗi chương stream mất `15–25s` + nghỉ `2.2s` giữa 2 chương) | **Rất an toàn**: Bộ điều phối xoay vòng (`Round-Robin` theo điểm sức khỏe + `lastUsedAt`) tự động rải 8 chương đều qua 3 khóa sống (~2–3 chương/khóa trong 2–3 phút). |
+| **3. Chat Hỏi Đáp Chuyên Sâu (Tính năng 3)** | `1 call / câu hỏi` (tối đa `15 calls / phiên` trước chốt xác nhận mềm) | `~2,200 – 3,500 tokens` / lượt | `~250 – 600 tokens` / lượt (`150 – 350 từ`) | **Tối đa `4 – 5 RPM`** (nhờ thời gian stream `~4–7s` + khoảng nghỉ bắt buộc `8s` giữa 2 câu hỏi) | **Rất an toàn**: Kể cả khi hỏi đủ 15 câu liên tiếp trong 3–4 phút, mỗi khóa sống chỉ chịu trung bình `5 requests`. |
 
 ### 5.2. Bảng Ma Trận Rủi Ro & Biện Pháp Giảm Thiểu (Cập nhật v2 — Đã hạ `R-1` xuống Thấp & Bổ sung `R-3` Mức Cao)
 
@@ -521,3 +535,44 @@ Triển khai tuần tự qua **3 Pha độc lập**, mỗi pha đều có thể 
 - **Lựa chọn B (Giới hạn cứng khóa chặt)**: Khóa cứng tối đa 5 câu hỏi/ngày không cho mở thêm.
 - **Lựa chọn C — KHUYẾN NGHỊ CỦA PANEL (Hàng Rào Quota Mềm Kép + Khóa Tuần Tự)**:
   - Áp dụng khoảng nghỉ tối thiểu **`8 giây`** giữa 2 câu hỏi liên tiếp + trần mềm **`15 câu hỏi / phiên / lá số`** (nhắc nhẹ ở câu 10, hiện nút xác nhận **`"Mở thêm 5 lượt hỏi"`** ở câu 15) + **Khóa tuần tự Client-side** không cho gửi Chat đồng thời khi đang chạy stream tạo chương Hồ Sơ Toàn Diện.
+
+---
+
+## MỤC 8 — KẾ HOẠCH KIỂM CHỨNG (VERIFICATION MATRIX)
+
+*(Theo mẫu §5 của v1 và cập nhật đầy đủ theo Bộ quyết định `F1–F7`)*
+
+### 8.1. Kiểm chứng Tính năng 1 (Client-Orchestrated Batch Probe trong `KeyPoolModal.tsx`)
+1. **Kịch bản 1.1 — Thứ tự ưu tiên & 4 kỷ luật `Same-Project Short-Circuit`**:
+   - Chỉ lấy các key `status === 'cooldown'` (loại trừ `disabled`), sắp xếp đúng thứ tự ưu tiên lý do nguội: `NETWORK_OR_5XX` → `RATE_LIMIT_RPM` → `QUOTA_DAILY_EXHAUSTED` → `QUOTA_PROJECT_ZERO`.
+   - **Kỷ luật (a):** Chỉ nhảy cóc khi key đại diện vừa probe lỗi thuộc 3 mã cấp Project (`QUOTA_PROJECT_ZERO`, `QUOTA_DAILY_EXHAUSTED`, `RATE_LIMIT_RPM`); **tuyệt đối không** nhảy cóc nếu lỗi là `NETWORK_OR_5XX`, `MODEL_UNAVAILABLE`, `AUTH_INVALID_KEY`.
+   - **Kỷ luật (b):** Key có `detectedProjectNumber === null` hoặc `undefined` luôn được gọi probe độc lập và không tính vào bộ đếm `Bỏ qua trùng Project`.
+   - **Kỷ luật (c):** Key bị nhảy cóc được đồng bộ `cooldownUntil` theo key đại diện vừa probe, và tổng kết phân biệt rõ `Probe thật` với `Đồng bộ theo key đại diện`.
+   - **Kỷ luật (d) & Debounce:** Gọi qua route sẵn có `POST /api/key-pool/:id/test` (không tạo `batchProbe`/`bypassDebounce`); nếu bị debounce 5–10s từ server (`429`), ghi nhận `Chưa thử (đang chờ)` và tiếp tục vòng lặp, không tính vào bộ đếm lỗi.
+2. **Kịch bản 1.2 — Trạng thái UI, Khóa nút & Hủy giữa chừng**:
+   - Nút `"Test lại toàn bộ key đang nguội (N)"` bị khóa khi `isReadOnly === true` hoặc `N === 0` (hiển thị chú thích khi `N === 0`).
+   - Hiển thị cảnh báo trước khi chạy về việc probe thất bại sẽ tính lại thời gian nguội từ thời điểm probe (`QUOTA_PROJECT_ZERO → +6 giờ`).
+   - Bấm `"Dừng kiểm tra"` hoặc đóng modal hủy vòng lặp ngay sau key đang chạy, giữ nguyên kết quả đã có.
+
+### 8.2. Kiểm chứng Tính năng 2 (`dossier-context.ts` & `POST /api/interpret-dossier-section`)
+1. **Kịch bản 2.1 — Độ phủ 12 cung theo 3 nhóm v1 (`F2`)**:
+   - `buildPalaceGroupFactSheetVi(chart, 'core' | 'family' | 'social_health')` phải phủ đủ 12 cung (`core`: Mệnh, Quan Lộc, Tài Bạch, Thiên Di; `family`: Phu Thê, Tử Nữ, Điền Trạch, Phúc Đức; `social_health`: Phụ Mẫu, Huynh Đệ, Giao Hữu, Tật Ách), mỗi nhóm đúng 4 cung, không trùng, không sót, có tiền tố tầng Tứ Hóa tường minh.
+2. **Kịch bản 2.2 — Ma trận 8 nhóm trường/năm & Trường hợp trẻ em chưa vào Đại Hạn**:
+   - `buildMultiYearHorizonContext(chart, 2026, 2030)` trả về đúng 5 dòng năm; `buildMultiYearHorizonContext(chart, 2026, 2035)` trả về đúng 10 dòng năm.
+   - Mỗi dòng năm đủ cả **8 nhóm trường**: (1) năm + can chi; (2) tuổi danh nghĩa; (3) Đại Hạn chủ quản; (4) quan hệ Đại Hạn–Lưu Niên; (5) cung bản mệnh kích hoạt; (6) bộ Lưu Tứ Hóa đủ cả 4 (`Lộc/Quyền/Khoa/Kỵ`) kèm sao, cung tọa thủ, cung xung chiếu; (7) sao lưu động chính; (8) cờ xung hợp nổi bật khi dữ kiện xác định có.
+   - Với lá số trẻ em có năm chưa vào Đại Hạn (`effDxIdx === -1`), hàm xử lý an toàn không lỗi và ghi rõ `"chưa vào Đại Hạn"` ở dòng năm đó.
+3. **Kịch bản 2.3 — Cache 2 chiều, Nhãn nguồn & Đầu vào Endpoint**:
+   - Chương 5 (`2026`) và Chương 6 (`2027`) tái sử dụng `POST /api/interpret-period` và đồng bộ cache 2 chiều kèm `sourceBadge` tường minh.
+   - `POST /api/interpret-dossier-section` từ chối gọn (HTTP `400`, không gọi AI) khi `sectionId` không hợp lệ hoặc thiếu `chart`.
+
+### 8.3. Kiểm chứng Tính năng 3 (`POST /api/interpret-chat` & Hàng rào `F4`/`F7`)
+1. **Kịch bản 3.1 — Kiểm tra đầu vào & Ràng buộc Server**:
+   - `POST /api/interpret-chat` từ chối gọn (HTTP `400`, không gọi AI) khi `question` rỗng hoặc vượt quá `400 ký tự`; cắt an toàn `excerpt` (`6.000 ký tự`) và `history` (tối đa `6` tin nhắn gần nhất, mỗi tin `1.200 ký tự`); prompt có rào chống bịa chỉ dựa trên dữ kiện xác định + văn bản đã có.
+2. **Kịch bản 3.2 — Hàng rào Quota `F7` & Giới hạn `sessionStorage` `F4` (Phần B)**:
+   - Nghỉ tối thiểu `8 giây` giữa 2 câu hỏi (đếm ngược trên nút Gửi); trần mềm `15` câu/phiên/lá số (nhắc ở câu 10, nút mở thêm 5 ở câu 15); khóa tuần tự khi đang stream sinh chương hồ sơ.
+   - Lưu tối đa `10` mạch hội thoại trong `sessionStorage` theo cặp `(lá số + phần luận giải)`, có LRU/dọn an toàn.
+
+### 8.4. Kiểm chứng Tổng thể & Bảo mật
+- Chạy `npx tsc --noEmit` đạt `0` lỗi; `npm run build` (`vite build`) thành công.
+- Chạy `npx tsx scripts/verify-key-pool.ts` và kiểm chứng xác định `dossier-context` đạt `100%`.
+- Quét toàn bộ thư mục `dist/` bảo đảm `0` chuỗi khóa API nguyên văn (`AIza...`).

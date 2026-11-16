@@ -784,7 +784,7 @@ export class KeyAllocator {
     ) {
       for (const peer of state.keys) {
         if (peer.id === key.id) continue;
-        if (peer.status !== 'ready') continue;
+        if (peer.status === 'disabled') continue;
         if (peer.detectedProjectNumber === classified.projectNumber) {
           const peerPrev = peer.status;
           peer.status = 'cooldown';
@@ -801,7 +801,10 @@ export class KeyAllocator {
             maskedKey: peer.maskedKey,
             fromStatus: peerPrev,
             toStatus: 'cooldown',
-            reason: `PROJECT_PROPAGATED_${classified.category} (project #${classified.projectNumber} từ ${key.maskedKey})`,
+            reason:
+              peerPrev === 'cooldown'
+                ? `PROJECT_SYNC_COOLDOWN_${classified.category} (project #${classified.projectNumber} từ ${key.maskedKey})`
+                : `PROJECT_PROPAGATED_${classified.category} (project #${classified.projectNumber} từ ${key.maskedKey})`,
             cooldownSeconds,
           });
         }

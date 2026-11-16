@@ -15,6 +15,13 @@ import {
 } from './src/lib/ziwei/vi-i18n.ts';
 import { ZiweiChart } from './src/lib/ziwei/types.ts';
 import type { YunxianPeriodContext } from './src/lib/ziwei/yunxian-context.ts';
+import {
+  buildChatFactTableForContextVi,
+  buildDossierSectionFactSheetVi,
+  isValidDossierSectionId,
+  VALID_DOSSIER_SECTION_IDS,
+  type DossierSectionId,
+} from './src/lib/ziwei/dossier-context.ts';
 import { keyPoolManager } from './server/key-pool/index.ts';
 import { PoolExhaustedError } from './server/key-pool/executor.ts';
 
@@ -194,8 +201,248 @@ Hãy trình bày bài luận giải tiếng Việt theo đúng 4 mục quy đị
   return { systemInstruction, prompt };
 }
 
-async function startServer() {
-  const app = express();
+export const CHAT_MAX_QUESTION_LEN = 400;
+export const CHAT_MAX_EXCERPT_LEN = 6_000;
+export const CHAT_MAX_HISTORY_MESSAGES = 6;
+export const CHAT_MAX_HISTORY_MSG_LEN = 1_200;
+
+export interface ExplanationChatHistoryItem {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface InterpretDossierSectionBody {
+  chart?: ZiweiChart;
+  sectionId?: string;
+}
+
+export interface InterpretChatBody {
+  chart?: ZiweiChart;
+  chartB?: ZiweiChart | null;
+  contextMode?: 'natal' | 'period' | 'heming';
+  sectionTitle?: string;
+  periodContext?: YunxianPeriodContext | null;
+  excerpt?: string;
+  history?: unknown[];
+  question?: string;
+}
+
+export function validateDossierSectionInput(body: InterpretDossierSectionBody | undefined):
+  | { ok: true; chart: ZiweiChart; sectionId: DossierSectionId }
+  | { ok: false; message: string } {
+  if (!body || !body.chart || !Array.isArray(body.chart.palaces) || body.chart.palaces.length !== 12) {
+    return { ok: false, message: 'Thiếu dữ liệu lá số Tử Vi 12 cung hợp lệ.' };
+  }
+  if (!isValidDossierSectionId(body.sectionId)) {
+    return {
+      ok: false,
+      message: `sectionId không hợp lệ. Chỉ chấp nhận: ${VALID_DOSSIER_SECTION_IDS.join(', ')}.`,
+    };
+  }
+  return { ok: true, chart: body.chart, sectionId: body.sectionId };
+}
+
+export function sanitizeChatHistoryAndExcerpt(raw: {
+  excerpt?: unknown;
+  history?: unknown[];
+}): {
+  excerpt: string;
+  history: ExplanationChatHistoryItem[];
+} {
+  const rawExcerpt = typeof raw.excerpt === 'string' ? raw.excerpt.trim() : '';
+  const excerpt =
+    rawExcerpt.length > CHAT_MAX_EXCERPT_LEN
+      ? rawExcerpt.slice(0, CHAT_MAX_EXCERPT_LEN)
+      : rawExcerpt;
+
+  const rawHistory = Array.isArray(raw.history) ? raw.history : [];
+  const normalized: ExplanationChatHistoryItem[] = [];
+  for (const item of rawHistory) {
+    if (!item || typeof item !== 'object') continue;
+    const obj = item as { role?: unknown; content?: unknown };
+    const role = obj.role === 'assistant' ? 'assistant' : obj.role === 'user' ? 'user' : null;
+    if (!role || typeof obj.content !== 'string') continue;
+    const trimmed = obj.content.trim();
+    if (!trimmed) continue;
+    normalized.push({
+      role,
+      content:
+        trimmed.length > CHAT_MAX_HISTORY_MSG_LEN
+          ? trimmed.slice(0, CHAT_MAX_HISTORY_MSG_LEN)
+          : trimmed,
+    });
+  }
+
+  return {
+    excerpt,
+    history: normalized.slice(-CHAT_MAX_HISTORY_MESSAGES),
+  };
+}
+
+export function validateExplanationChatInput(body: InterpretChatBody | undefined):
+  | {
+      ok: true;
+      chart: ZiweiChart;
+      chartB: ZiweiChart | null;
+      contextMode: 'natal' | 'period' | 'heming';
+      sectionTitle: string;
+      periodContext: YunxianPeriodContext | null;
+      excerpt: string;
+      history: ExplanationChatHistoryItem[];
+      question: string;
+    }
+  | { ok: false; message: string } {
+  if (!body || !body.chart || !Array.isArray(body.chart.palaces) || body.chart.palaces.length !== 12) {
+    return { ok: false, message: 'Thiếu dữ liệu lá số Tử Vi 12 cung hợp lệ.' };
+  }
+  if (typeof body.question !== 'string') {
+    return { ok: false, message: 'Thiếu nội dung câu hỏi.' };
+  }
+  const trimmedQuestion = body.question.trim();
+  if (!trimmedQuestion) {
+    return { ok: false, message: 'Câu hỏi không được để trống.' };
+  }
+  if (trimmedQuestion.length > CHAT_MAX_QUESTION_LEN) {
+    return {
+      ok: false,
+      message: `Câu hỏi vượt quá giới hạn tối đa ${CHAT_MAX_QUESTION_LEN} ký tự (${trimmedQuestion.length}/${CHAT_MAX_QUESTION_LEN}).`,
+    };
+  }
+
+  const contextMode: 'natal' | 'period' | 'heming' =
+    body.contextMode === 'period' || body.contextMode === 'heming' ? body.contextMode : 'natal';
+  const { excerpt, history } = sanitizeChatHistoryAndExcerpt({
+    excerpt: body.excerpt,
+    history: body.history,
+  });
+
+  return {
+    ok: true,
+    chart: body.chart,
+    chartB: body.chartB && Array.isArray(body.chartB.palaces) ? body.chartB : null,
+    contextMode,
+    sectionTitle:
+      typeof body.sectionTitle === 'string' && body.sectionTitle.trim()
+        ? body.sectionTitle.trim().slice(0, 200)
+        : 'Luận giải lá số Tử Vi',
+    periodContext: body.periodContext ?? null,
+    excerpt,
+    history,
+    question: trimmedQuestion,
+  };
+}
+
+export function buildStrictDossierSectionPrompt(
+  chart: ZiweiChart,
+  sectionId: DossierSectionId,
+): { systemInstruction: string; prompt: string; titleVi: string } {
+  const sectionCtx = buildDossierSectionFactSheetVi(chart, sectionId);
+  const chartSummary = formatChartSummaryVi(chart);
+
+  const isPalaceGroup =
+    sectionId === 'palaces_core' ||
+    sectionId === 'palaces_family' ||
+    sectionId === 'palaces_social_health';
+  const isHorizon = sectionId === 'horizon_5y' || sectionId === 'horizon_10y';
+
+  const sectionRules = isPalaceGroup
+    ? `4. ĐỊNH DẠNG & SÀN ĐỘ DÀI BẮT BUỘC CHO NHÓM 4 CUNG:
+   - Phải viết đầy đủ 4 đề mục Markdown \`### Cung <Tên Cung> (<Can Chi>)\` tách biệt cho cả 4 cung: ${(sectionCtx.palaceNamesVi ?? []).join(', ')}. KHÔNG được gộp sơ sài hay bỏ sót bất kỳ cung nào.
+   - Mỗi cung BẮT BUỘC đạt độ sâu phân tích **250–350 từ MỖI cung** (tổng toàn chương **1,000–1,400 từ**).
+   - Trong mỗi cung: phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), Cát tinh/Sát tinh đi kèm, Tam Phương Tứ Chính (đối cung + 2 cung tam hợp), Tứ Hóa theo đúng tiền tố tầng và Tự Hóa/Phi Tinh (nếu có), cùng lời khuyên thực tiễn.`
+    : isHorizon
+      ? `4. QUY TẮC TỐI THƯỢNG CHO PHÂN TÍCH ĐA NĂM & ĐỘ DÀI (BẮT BUỘC):
+   - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
+   - Với mỗi năm trong Ma Trận, BẠN CHỈ ĐƯỢC PHÉP trích dẫn Năm, Tuổi, Can Chi, Đại Hạn chủ quản, Quan hệ Đại Hạn–Lưu Niên, Cung Bản Mệnh kích hoạt, 4 sao Lưu Tứ Hóa (Lộc, Quyền, Khoa, Kỵ), các Sao Lưu và Cờ xung hợp đã in TRỰC TIẾP trong bảng Ma Trận.
+   - TUYỆT ĐỐI CẤM tự tính nhẩm hoặc bịa thêm bất kỳ sao lưu niên, cung hạn hay năm nào nằm ngoài bảng Ma Trận.
+   - Nếu một năm được ghi **"chưa vào Đại Hạn"**, PHẢI nêu rõ đương số chưa vào Đại Hạn ở năm đó và tuyệt đối không tự bịa cung Đại Hạn hay Tứ Hóa Đại Hạn.
+   - Trình bày rõ: Tổng quan chuyển dịch & mốc chuyển Đại Hạn → Phân tích nhịp từng năm dựa trên Ma Trận → Điểm rơi cơ hội/rủi ro nổi bật → Chiến lược hành động.`
+      : `4. ĐỊNH DẠNG & ĐỘ DÀI BẮT BUỘC CHO CHƯƠNG TỔNG QUAN:
+   - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
+   - Trình bày theo 4 đề mục Markdown rõ ràng:
+     ### 1. Bức Tranh Bản Mệnh & Thân Cư (Ngũ Hành Cục · Âm Dương · Chính Tinh)
+     ### 2. Cách Cục Tiên Thiên & Trục Tam Phương Tứ Chính (Mệnh – Tài – Quan – Di)
+     ### 3. Dòng Chảy Tứ Hóa Bản Mệnh & Ngữ Cảnh Đại Hạn Hiện Tại
+     ### 4. Trục Thế Mạnh Cốt Lõi & Nguyên Tắc Tu Dưỡng Dài Hạn`;
+
+  const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
+QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
+1. CHỈ ĐƯỢC phép luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được cung cấp.
+2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện.
+3. Khi nhắc đến Tứ Hóa, PHẢI giữ rõ tầng theo đúng tiền tố: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
+${sectionRules}
+5. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán), văn phong sâu sắc, khách quan, mạch lạc.
+6. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
+
+  const prompt = `Hãy viết chuyên sâu phần **${sectionCtx.titleVi}** cho lá số sau, tuân thủ tuyệt đối bảng dữ kiện xác định và sàn độ dài đã quy định:
+
+=== 1. DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG (${sectionId}) ===
+${sectionCtx.factSheetMarkdown}
+
+=== 2. TÓM TẮT TOÀN LÁ SỐ BẢN MỆNH ===
+${chartSummary}
+
+Hãy triển khai bài luận giải đầy đủ, đúng đề mục, chuẩn xác tinh đẩu và kết thúc bằng dòng lưu ý tham khảo.`;
+
+  return { systemInstruction, prompt, titleVi: sectionCtx.titleVi };
+}
+
+export function buildStrictExplanationChatPrompt(params: {
+  chart: ZiweiChart;
+  chartB?: ZiweiChart | null;
+  contextMode: 'natal' | 'period' | 'heming';
+  sectionTitle: string;
+  periodContext?: YunxianPeriodContext | null;
+  excerpt: string;
+  history: ExplanationChatHistoryItem[];
+  question: string;
+}): { systemInstruction: string; prompt: string } {
+  const factTable = buildChatFactTableForContextVi(params.chart, {
+    contextMode: params.contextMode,
+    periodContext: params.periodContext,
+    chartB: params.chartB,
+    includeHorizonStart: 2026,
+    includeHorizonEnd: 2035,
+  });
+
+  const systemInstruction = `Bạn là chuyên gia Tử Vi Đẩu Số hệ thống Thiên Kỷ (Nghê Hải Hạ), đang giải đáp trực tiếp thắc mắc của đương số dựa trên phần luận giải đang mở.
+QUY TẮC CHỐNG ẢO GIÁC & GIỚI HẠN TRẢ LỜI (BẮT BUỘC 100%):
+1. CHỈ ĐƯỢC phép trả lời dựa trên [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], [ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM] và [LỊCH SỬ HỎI ĐÁP GẦN NHẤT] được gửi kèm.
+2. TUYỆT ĐỐI CẤM bịa thêm sao, cấm tự tính nhẩm sao Lưu Niên của năm ngoài phạm vi Ma Trận 2026–2035, cấm thay đổi cung vị hoặc tự gán Tứ Hóa không có trong dữ kiện.
+3. Khi trích dẫn Tứ Hóa, LUÔN nêu rõ tầng ([Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], hay [Tứ Hóa Lưu Niên YYYY]).
+4. Nếu câu hỏi đề cập tới thông tin KHÔNG CÓ CƠ SỞ trong dữ kiện lá số hoặc đoạn luận giải (ví dụ dữ kiện đời tư ngoài lá số, hoặc năm ngoài bảng Ma Trận đã truyền), phải trả lời TRUNG THỰC rằng dữ kiện hiện có không đủ căn cứ cho chi tiết đó, chỉ phân tích trong phạm vi tinh đẩu đã xác định.
+5. Đi thẳng vào trọng tâm câu hỏi, độ dài mục tiêu **150–350 từ** bằng tiếng Việt chuẩn mực (không chữ Hán), theo 3 ý ngắn gọn:
+   - **Căn cứ tinh đẩu & Tứ Hóa**: (nêu đích danh cung, sao, Tứ Hóa liên quan)
+   - **Giải đáp trực diện**: (trả lời thẳng câu hỏi)
+   - **Gợi ý ứng xử thực tế**: (1–2 hành động cụ thể)`;
+
+  const historyBlock =
+    params.history.length > 0
+      ? params.history
+          .map((m) => `- ${m.role === 'user' ? 'Người hỏi' : 'Chuyên gia'}: ${m.content}`)
+          .join('\n')
+      : 'Chưa có lượt hỏi trước đó trong mạch này.';
+
+  const prompt = `Ngữ cảnh đang mở: **${params.sectionTitle}** (Chế độ: ${params.contextMode}).
+
+=== 1. BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH ===
+${factTable}
+
+=== 2. ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM ===
+${params.excerpt || '(Người dùng đang hỏi trực tiếp trên dữ kiện lá số.)'}
+
+=== 3. LỊCH SỬ HỎI ĐÁP GẦN NHẤT ===
+${historyBlock}
+
+=== 4. CÂU HỎI MỚI CỦA NGƯỜI DÙNG ===
+"${params.question}"
+
+Hãy trả lời trực diện, chuẩn xác theo đúng dữ kiện xác định và trong khoảng 150–350 từ.`;
+
+  return { systemInstruction, prompt };
+}
+
+export function registerApiRoutes(app: express.Express) {
   app.use(express.json({ limit: '2mb' }));
 
   // GET /api/ai-diagnostics — Chẩn đoán an toàn toàn pool (KHÔNG bao giờ lộ giá trị key)
@@ -465,6 +712,194 @@ async function startServer() {
     }
   });
 
+  // POST /api/interpret-dossier-section — Sinh từng chương Hồ Sơ Toàn Diện qua KeyPool & SSE
+  app.post('/api/interpret-dossier-section', async (req, res) => {
+    const validated = validateDossierSectionInput(req.body as InterpretDossierSectionBody);
+    if (!validated.ok) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: validated.message,
+      });
+      return;
+    }
+
+    const { systemInstruction, prompt } = buildStrictDossierSectionPrompt(
+      validated.chart,
+      validated.sectionId,
+    );
+
+    const abortController = new AbortController();
+    let sseStarted = false;
+    let stopHeartbeat: () => void = () => {};
+
+    res.on('close', () => {
+      stopHeartbeat();
+      if (!res.writableEnded) {
+        abortController.abort();
+      }
+    });
+
+    const ensureSseStarted = () => {
+      if (!sseStarted) {
+        sseStarted = true;
+        applySseHeaders(res);
+        stopHeartbeat = startSseHeartbeat(res);
+      }
+    };
+
+    try {
+      await keyPoolManager.executeStream({
+        prompt,
+        systemInstruction,
+        signal: abortController.signal,
+        onMeta: (meta) => {
+          ensureSseStarted();
+          sendSseJson(res, { meta });
+        },
+        onChunk: (text) => {
+          ensureSseStarted();
+          sendSseText(res, text);
+        },
+        onInterrupted: (ev) => {
+          ensureSseStarted();
+          sendSseJson(res, {
+            interrupted: true,
+            message: ev.reason,
+            errorCategory: ev.errorCategory,
+            partialLength: ev.partialLength,
+          });
+        },
+      });
+      if (sseStarted && !res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } catch (err) {
+      if (err instanceof PoolExhaustedError && !sseStarted) {
+        res.status(503).json({
+          error: err.code,
+          message: err.message,
+          minRemainingCooldownSec: err.minRemainingCooldownSec,
+        });
+        return;
+      }
+
+      const safeDetail = keyPoolManager.sanitize(err);
+      const clientMessage =
+        err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
+      console.error(`[interpret-dossier-section] KeyPool execution failed: ${safeDetail}`);
+      ensureSseStarted();
+      sendSseJson(res, {
+        error: 'AI_CALL_FAILED',
+        message: clientMessage,
+        detail: clientMessage,
+      });
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } finally {
+      stopHeartbeat();
+    }
+  });
+
+  // POST /api/interpret-chat — Chat Hỏi Đáp Chuyên Sâu (Stateless server, ghim dữ kiện lá số)
+  app.post('/api/interpret-chat', async (req, res) => {
+    const validated = validateExplanationChatInput(req.body as InterpretChatBody);
+    if (!validated.ok) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: validated.message,
+      });
+      return;
+    }
+
+    const { systemInstruction, prompt } = buildStrictExplanationChatPrompt({
+      chart: validated.chart,
+      chartB: validated.chartB,
+      contextMode: validated.contextMode,
+      sectionTitle: validated.sectionTitle,
+      periodContext: validated.periodContext,
+      excerpt: validated.excerpt,
+      history: validated.history,
+      question: validated.question,
+    });
+
+    const abortController = new AbortController();
+    let sseStarted = false;
+    let stopHeartbeat: () => void = () => {};
+
+    res.on('close', () => {
+      stopHeartbeat();
+      if (!res.writableEnded) {
+        abortController.abort();
+      }
+    });
+
+    const ensureSseStarted = () => {
+      if (!sseStarted) {
+        sseStarted = true;
+        applySseHeaders(res);
+        stopHeartbeat = startSseHeartbeat(res);
+      }
+    };
+
+    try {
+      await keyPoolManager.executeStream({
+        prompt,
+        systemInstruction,
+        signal: abortController.signal,
+        onMeta: (meta) => {
+          ensureSseStarted();
+          sendSseJson(res, { meta });
+        },
+        onChunk: (text) => {
+          ensureSseStarted();
+          sendSseText(res, text);
+        },
+        onInterrupted: (ev) => {
+          ensureSseStarted();
+          sendSseJson(res, {
+            interrupted: true,
+            message: ev.reason,
+            errorCategory: ev.errorCategory,
+            partialLength: ev.partialLength,
+          });
+        },
+      });
+      if (sseStarted && !res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } catch (err) {
+      if (err instanceof PoolExhaustedError && !sseStarted) {
+        res.status(503).json({
+          error: err.code,
+          message: err.message,
+          minRemainingCooldownSec: err.minRemainingCooldownSec,
+        });
+        return;
+      }
+
+      const safeDetail = keyPoolManager.sanitize(err);
+      const clientMessage =
+        err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
+      console.error(`[interpret-chat] KeyPool execution failed: ${safeDetail}`);
+      ensureSseStarted();
+      sendSseJson(res, {
+        error: 'AI_CALL_FAILED',
+        message: clientMessage,
+        detail: clientMessage,
+      });
+      if (!res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
+    } finally {
+      stopHeartbeat();
+    }
+  });
+
   // POST /api/interpret — SSE streaming Zi Wei Dou Shu interpretation in Vietnamese
   app.post('/api/interpret', async (req, res) => {
     applySseHeaders(res);
@@ -664,6 +1099,11 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
       }
     }
   });
+}
+
+async function startServer() {
+  const app = express();
+  registerApiRoutes(app);
 
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
@@ -691,4 +1131,10 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
   });
 }
 
-startServer();
+const entryBase = process.argv[1] ? path.basename(process.argv[1]) : '';
+if (
+  (entryBase === 'server.ts' || entryBase === 'server.js') &&
+  process.env.ZIWEI_DISABLE_AUTO_LISTEN !== '1'
+) {
+  startServer();
+}

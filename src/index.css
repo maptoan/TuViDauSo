@@ -73,3 +73,23 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+.ziwei-print-dossier-sheet {
+  display: none;
+}
+
+@media print {
+  body:has(.ziwei-print-dossier-sheet) #root {
+    display: none !important;
+  }
+  body:has(.ziwei-print-dossier-sheet) {
+    background: #FFFFFF !important;
+    color: #181A20 !important;
+  }
+  .ziwei-print-dossier-sheet {
+    display: block !important;
+    background: #FFFFFF !important;
+    color: #181A20 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+  }
+}

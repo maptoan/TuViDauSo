@@ -9,6 +9,12 @@ import InsightPanel from './components/InsightPanel';
 import HemingView from './components/HemingView';
 import KnowledgeView from './components/KnowledgeView';
 import KeyPoolModal from './components/KeyPoolModal';
+import DetailedDossierModal from './components/DetailedDossierModal';
+import ContextualChatDrawer from './components/ContextualChatDrawer';
+import type {
+  AiPeriodEntry,
+  ContextualChatContextPayload,
+} from './lib/dossier-chat-ui';
 import { ZiweiChart, Palace, BirthFormState } from './lib/ziwei/types';
 import {
   formToBirthInfo,
@@ -28,6 +34,7 @@ import {
   UserCheck,
   RotateCcw,
   KeyRound,
+  BookOpen,
 } from 'lucide-react';
 
 type ActiveTab = 'chart' | 'heming' | 'knowledge' | 'famous';
@@ -56,7 +63,12 @@ function AppContent() {
   const [showFormDrawer, setShowFormDrawer] = useState(false);
   const [aiRequestTick, setAiRequestTick] = useState(0);
   const [aiPeriodLoading, setAiPeriodLoading] = useState(false);
+  const [aiPeriodCache, setAiPeriodCache] = useState<Record<string, AiPeriodEntry>>({});
   const [showKeyPool, setShowKeyPool] = useState(false);
+  const [showDossierModal, setShowDossierModal] = useState(false);
+  const [isDossierGenerating, setIsDossierGenerating] = useState(false);
+  const [chatDrawerContext, setChatDrawerContext] =
+    useState<ContextualChatContextPayload | null>(null);
   const [poolSummary, setPoolSummary] = useState<{ ready: number; total: number } | null>(null);
 
   useEffect(() => {
@@ -302,7 +314,15 @@ function AppContent() {
                 )}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDossierModal(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-[var(--t-gold)]/55 bg-[var(--t-gold)]/12 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/20 transition-all cursor-pointer whitespace-nowrap shrink-0"
+                >
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <span>Hồ Sơ Chi Tiết (8 Chương)</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setShowFormDrawer((v) => !v)}
@@ -393,13 +413,19 @@ function AppContent() {
                   externalAiRequestTick={aiRequestTick}
                   onAiLoadingChange={setAiPeriodLoading}
                   onOpenKeyPool={() => setShowKeyPool(true)}
+                  aiPeriodCache={aiPeriodCache}
+                  onAiPeriodCacheChange={setAiPeriodCache}
+                  onOpenDossierModal={() => setShowDossierModal(true)}
+                  onOpenContextualChat={(ctx) => setChatDrawerContext(ctx)}
                 />
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'heming' && <HemingView />}
+        {activeTab === 'heming' && (
+          <HemingView onOpenContextualChat={(ctx) => setChatDrawerContext(ctx)} />
+        )}
 
         {activeTab === 'knowledge' && <KnowledgeView />}
 
@@ -480,6 +506,24 @@ function AppContent() {
               : { ready: snap.summary.ready, total: snap.summary.total },
           )
         }
+      />
+
+      <DetailedDossierModal
+        open={showDossierModal}
+        onClose={() => setShowDossierModal(false)}
+        chart={chart}
+        aiPeriodCache={aiPeriodCache}
+        onAiPeriodCacheChange={setAiPeriodCache}
+        onOpenContextualChat={(ctx) => setChatDrawerContext(ctx)}
+        onOpenKeyPool={() => setShowKeyPool(true)}
+        onDossierGeneratingChange={setIsDossierGenerating}
+      />
+
+      <ContextualChatDrawer
+        open={chatDrawerContext !== null}
+        context={chatDrawerContext}
+        onClose={() => setChatDrawerContext(null)}
+        isDossierGenerating={isDossierGenerating}
       />
     </div>
   );
