@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { PROVINCES } from '../lib/ziwei/cities';
 import { formToTrueSolarTime, formToBirthInfo } from '../lib/ziwei/share';
 import { generateChart } from '../lib/ziwei/algorithm';
@@ -45,6 +45,22 @@ export const DEFAULT_BIRTH_FORM: BirthFormState = {
   gender: 'male',
 };
 
+export function serializeBirthFormState(s: BirthFormState): string {
+  return [
+    s.name,
+    s.year,
+    s.month,
+    s.day,
+    s.clockHour,
+    s.clockMinute,
+    s.unknownTime ? '1' : '0',
+    s.gender,
+    s.province,
+    s.city,
+    String(s.longitude),
+  ].join('|');
+}
+
 export default function BirthForm({
   onChartGenerated,
   initialState,
@@ -58,9 +74,15 @@ export default function BirthForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const lastSyncedInitialKeyRef = useRef<string>(
+    serializeBirthFormState(initialState ?? DEFAULT_BIRTH_FORM),
+  );
 
   useEffect(() => {
-    if (initialState) {
+    if (!initialState) return;
+    const nextKey = serializeBirthFormState(initialState);
+    if (nextKey !== lastSyncedInitialKeyRef.current) {
+      lastSyncedInitialKeyRef.current = nextKey;
       setForm(initialState);
     }
   }, [initialState]);
@@ -136,6 +158,8 @@ export default function BirthForm({
       };
       const birthInfo = formToBirthInfo(normalizedForm);
       const chart = generateChart(birthInfo);
+      lastSyncedInitialKeyRef.current = serializeBirthFormState(normalizedForm);
+      setForm(normalizedForm);
       onChartGenerated(chart, normalizedForm);
     } catch (err) {
       setError(
@@ -166,6 +190,7 @@ export default function BirthForm({
       city: 'Hà Nội',
       longitude: 105.85,
     };
+    lastSyncedInitialKeyRef.current = serializeBirthFormState(presetForm);
     setForm(presetForm);
     try {
       const birthInfo = formToBirthInfo(presetForm);
@@ -228,6 +253,8 @@ export default function BirthForm({
                 <button
                   type="button"
                   onClick={() => {
+                    lastSyncedInitialKeyRef.current = serializeBirthFormState(item.form);
+                    setForm(item.form);
                     onSelectHistory?.(item.form);
                     setShowHistory(false);
                   }}

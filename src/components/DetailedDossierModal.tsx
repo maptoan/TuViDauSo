@@ -12,6 +12,7 @@ import {
   AiPeriodEntry,
   ContextualChatContextPayload,
   DOSSIER_CHAPTER_SPECS,
+  DOSSIER_EDITORIAL_PRINT_CSS,
   DOSSIER_INTER_CHAPTER_PACING_MS,
   DOSSIER_LRU_INDEX_KEY,
   DossierChapterId,
@@ -21,26 +22,31 @@ import {
   StoredDossierRecord,
   buildChartIdentityKey,
   buildDossierChapterCacheKey,
+  buildDossierHeaderMetadata,
   buildDossierMarkdownExport,
+  buildDossierPageOneHtml,
   buildDossierPlainTextExport,
   buildDossierStandaloneHtmlExport,
   buildDossierStorageKey,
+  buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
   formatDossierSourceBadge,
   getBrowserSessionStorage,
+  readDossierCacheEntry,
   readLruSessionEntry,
   resolveChapterDeterministicFactSheet,
   resolveDossierChapterFromCaches,
   setSharedDossierGenerating,
+  simpleMarkdownToHtml,
+  stripInternalExportMetaLines,
   upsertLruSessionEntry,
 } from '../lib/dossier-chat-ui';
-import { hasValidCachedPeriodEntry } from '../lib/key-pool-ui';
 import {
-  VI_BRANCHES,
-  VI_STEMS,
-  translateWuxingJu,
-  translateYinYang,
-} from '../lib/ziwei/vi-i18n';
+  enforceCanonicalPalaceGroupHeadings,
+  sanitizeAiVietnameseOutput,
+  verifyAndEnsureCompletePeriodSiHua,
+} from '../lib/ziwei/text-sanitizer';
+import { hasValidCachedPeriodEntry } from '../lib/key-pool-ui';
 import MarkdownContent from './MarkdownContent';
 import {
   X,
@@ -146,14 +152,10 @@ export default function DetailedDossierModal({
     [chartIdentityKey],
   );
 
-  // Nạp các chương non-period đã lưu trong sessionStorage khi đổi lá số hoặc mở modal
+  // Nạp & tự làm sạch (QĐ-G2/T2) các chương non-period đã lưu trong sessionStorage khi đổi lá số hoặc mở modal
   useEffect(() => {
     const storage = getBrowserSessionStorage();
-    const stored = readLruSessionEntry<StoredDossierRecord>(
-      storage,
-      DOSSIER_LRU_INDEX_KEY,
-      dossierStorageKey,
-    );
+    const stored = readDossierCacheEntry(storage, dossierStorageKey, chart);
     if (stored && stored.sections) {
       const next: Partial<Record<DossierChapterId, DossierChapterState>> = {};
       for (const [k, val] of Object.entries(stored.sections)) {
@@ -169,7 +171,7 @@ export default function DetailedDossierModal({
       setLocalChapters({});
     }
     setSelectedChapterId('chapter_overview');
-  }, [dossierStorageKey]);
+  }, [dossierStorageKey, chart]);
 
   // Lưu các chương non-period hoàn tất vào sessionStorage LRU (tối đa 5 hồ sơ)
   const persistCompletedSectionToSession = useCallback(
@@ -262,6 +264,20 @@ export default function DetailedDossierModal({
   const selectedDeterministic = useMemo(
     () => resolveChapterDeterministicFactSheet(chart, selectedSpec),
     [chart, selectedSpec],
+  );
+
+  const headerMeta = useMemo(() => buildDossierHeaderMetadata(chart), [chart]);
+  const pageOneHtml = useMemo(
+    () => buildDossierPageOneHtml(chart, completedCount),
+    [chart, completedCount],
+  );
+  const matrix5yHtml = useMemo(
+    () => buildMultiYearMatrixTableHtml(chart, 5),
+    [chart],
+  );
+  const matrix10yHtml = useMemo(
+    () => buildMultiYearMatrixTableHtml(chart, 10),
+    [chart],
   );
 
   // Thực thi sinh 1 chương qua SSE (dùng lại /api/interpret-period hoặc /api/interpret-dossier-section)
@@ -432,7 +448,7 @@ export default function DetailedDossierModal({
             }
             const deltaText = parsed?.delta?.text ?? '';
             if (deltaText) {
-              accumulated += deltaText;
+              accumulated = sanitizeAiVietnameseOutput(accumulated + deltaText);
               if (isPeriod && periodKey) {
                 onAiPeriodCacheChange((prev) => ({
                   ...prev,
@@ -477,6 +493,23 @@ export default function DetailedDossierModal({
         }
         if (!doneSignal && sseBuffer.trim()) {
           processLine(sseBuffer.trim());
+        }
+
+        // Pipeline chốt lớp 2 (idempotent) ngay sau vòng lặp SSE, trước cả nhánh đứt luồng lẫn nhánh hoàn tất:
+        // 1) sanitizeAiVietnameseOutput -> 2) verifyAndEnsureCompletePeriodSiHua (chương 5/6) -> 3) enforceCanonicalPalaceGroupHeadings (chương 2/3/4)
+        accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (isPeriod && periodCtx && !wasInterrupted && !streamError && accumulated.trim()) {
+          accumulated = verifyAndEnsureCompletePeriodSiHua(
+            accumulated,
+            periodCtx,
+          ).patchedText;
+        }
+        if (
+          spec.id === 'palaces_core' ||
+          spec.id === 'palaces_family' ||
+          spec.id === 'palaces_social_health'
+        ) {
+          accumulated = enforceCanonicalPalaceGroupHeadings(accumulated, chart);
         }
 
         if (wasInterrupted || streamError) {
@@ -747,27 +780,19 @@ export default function DetailedDossierModal({
 
   const isSelectedBusy = activeGeneratingId === selectedSpec.id;
   const isAnyBusy = autoRunning || activeGeneratingId !== null;
-  const subjectName = chart.birthInfo.name || 'Ẩn danh';
-  const subjectSolar = `${String(chart.birthInfo.day).padStart(2, '0')}/${String(
-    chart.birthInfo.month,
-  ).padStart(2, '0')}/${chart.birthInfo.year}`;
+  const selectedMatrixHtml =
+    selectedSpec.sectionId === 'horizon_5y'
+      ? matrix5yHtml
+      : selectedSpec.sectionId === 'horizon_10y'
+        ? matrix10yHtml
+        : '';
 
   const printSheetPortal =
     typeof document !== 'undefined'
       ? createPortal(
-          <div className="ziwei-print-dossier-sheet p-8 space-y-6 text-[#181A20] bg-white">
-            <header className="border-b-2 border-[#8C5E14] pb-4 space-y-1.5">
-              <h1 className="text-2xl font-bold text-[#5C3804]">
-                Hồ Sơ Luận Giải Tử Vi Thiên Kỷ — {subjectName}
-              </h1>
-              <div className="text-xs text-[#3F4554]">
-                Đương số: {subjectName} ({translateYinYang(chart.yinYangGender)}) ·{' '}
-                {translateWuxingJu(chart.wuxingJuName)} · Dương lịch: {subjectSolar} ·{' '}
-                Âm lịch: {chart.lunarInfo.lunarDay}/{chart.lunarInfo.lunarMonth}/
-                {chart.lunarInfo.lunarYear} ({VI_STEMS[chart.lunarInfo.yearStem]}{' '}
-                {VI_BRANCHES[chart.lunarInfo.yearBranch]}) · Tiến độ: {completedCount}/8 chương
-              </div>
-            </header>
+          <div className="ziwei-print-dossier-sheet ziwei-editorial-root p-6 space-y-6 text-[#181A20] bg-white">
+            <style>{DOSSIER_EDITORIAL_PRINT_CSS}</style>
+            <div dangerouslySetInnerHTML={{ __html: pageOneHtml }} />
 
             {DOSSIER_CHAPTER_SPECS.map((spec) => {
               const st = resolvedStatesMap[spec.id];
@@ -775,34 +800,35 @@ export default function DetailedDossierModal({
               const fallbackMd =
                 st.incompleteText?.trim() ||
                 resolveChapterDeterministicFactSheet(chart, spec).factSheetMarkdown;
+              const chapterMatrixHtml =
+                spec.sectionId === 'horizon_5y'
+                  ? matrix5yHtml
+                  : spec.sectionId === 'horizon_10y'
+                    ? matrix10yHtml
+                    : '';
+              const exportChapterText =
+                stripInternalExportMetaLines(isDone ? st.text ?? '' : fallbackMd) ?? '';
+
               return (
-                <section key={spec.id} className="pt-4 border-t border-[#E5D9C3] space-y-2">
-                  <h2 className="text-lg font-bold text-[#5C3804]">{spec.titleVi}</h2>
-                  {isDone ? (
-                    <>
-                      <div className="text-[11px] font-mono text-[#6E7687]">
-                        {[
-                          st.sourceBadge ? `Nguồn: ${st.sourceBadge}` : null,
-                          st.meta?.modelUsed ? `Model: ${st.meta.modelUsed}` : null,
-                          st.meta?.maskedKey ? `Khóa: ${st.meta.maskedKey}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </div>
-                      <div className="text-sm whitespace-pre-wrap leading-relaxed text-[#181A20]">
-                        {st.text}
-                      </div>
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      <div className="text-xs font-semibold text-[#9A3412] bg-[#FEF3C7] border border-[#F59E0B] p-2 rounded">
-                        CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ.
-                      </div>
-                      <div className="text-xs whitespace-pre-wrap leading-relaxed text-[#3F4554]">
-                        {fallbackMd}
-                      </div>
+                <section
+                  key={spec.id}
+                  className={`chapter ${isDone ? '' : 'chapter-incomplete'}`}
+                >
+                  <h2>{spec.titleVi}</h2>
+                  {!isDone && (
+                    <div className="incomplete-banner">
+                      CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ.
                     </div>
                   )}
+                  {chapterMatrixHtml && (
+                    <div dangerouslySetInnerHTML={{ __html: chapterMatrixHtml }} />
+                  )}
+                  <div
+                    className="chapter-body"
+                    dangerouslySetInnerHTML={{
+                      __html: simpleMarkdownToHtml(exportChapterText),
+                    }}
+                  />
                 </section>
               );
             })}
@@ -828,18 +854,29 @@ export default function DetailedDossierModal({
                   <BookOpen className="w-4 h-4 shrink-0" />
                   <span>Hồ Sơ Luận Giải Chi Tiết (8 Chương)</span>
                 </div>
-                <div className="text-xs text-[var(--t-text2)] flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                  <span>
-                    Đương số: <strong className="text-[var(--t-text)]">{subjectName}</strong>
-                  </span>
-                  <span>·</span>
-                  <span>{translateYinYang(chart.yinYangGender)}</span>
-                  <span>·</span>
-                  <span>{translateWuxingJu(chart.wuxingJuName)}</span>
-                  <span>·</span>
-                  <span className="font-mono-tabular">
-                    Hoàn tất: <strong className="text-[var(--t-gold)]">{completedCount}/8</strong> chương
-                  </span>
+                <div className="text-xs text-[var(--t-text2)] space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span>
+                      Đương số: <strong className="text-[var(--t-text)]">{headerMeta.name}</strong>
+                    </span>
+                    <span>·</span>
+                    <span>{headerMeta.yinYang}</span>
+                    <span>·</span>
+                    <span>{headerMeta.ju}</span>
+                    <span>·</span>
+                    <span>Dương lịch: {headerMeta.solar}</span>
+                    <span>·</span>
+                    <span>Âm lịch: {headerMeta.lunar}</span>
+                    <span>·</span>
+                    <span className="font-mono-tabular">
+                      Hoàn tất: <strong className="text-[var(--t-gold)]">{completedCount}/8</strong> chương
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--t-faint)]">
+                    <span>{headerMeta.birthTimeFullSummaryVi}</span>
+                    <span>·</span>
+                    <span>Nơi sinh: {headerMeta.locationVi}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1132,6 +1169,21 @@ export default function DetailedDossierModal({
                   </div>
                 )}
               </div>
+
+              {/* Trang 1 Tích Hợp (B1+B6+B2) cho Chương 1 & Ma Trận Năm 5 cột (B3) cho Chương 7/8 */}
+              {selectedSpec.id === 'chapter_overview' && (
+                <div className="ziwei-editorial-root rounded-xl p-4 sm:p-5 bg-[#FFFDF8] border border-amber-900/30 shadow-sm overflow-x-auto">
+                  <style>{DOSSIER_EDITORIAL_PRINT_CSS}</style>
+                  <div dangerouslySetInnerHTML={{ __html: pageOneHtml }} />
+                </div>
+              )}
+
+              {selectedMatrixHtml && (
+                <div className="ziwei-editorial-root rounded-xl p-4 bg-[#FFFDF8] border border-amber-900/30 shadow-sm overflow-x-auto">
+                  <style>{DOSSIER_EDITORIAL_PRINT_CSS}</style>
+                  <div dangerouslySetInnerHTML={{ __html: selectedMatrixHtml }} />
+                </div>
+              )}
 
               {/* Chapter Main Body by State */}
               {selectedState.status === 'loading' && (

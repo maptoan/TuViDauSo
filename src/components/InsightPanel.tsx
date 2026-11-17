@@ -14,6 +14,10 @@ import {
   YunxianPeriodContext,
 } from '../lib/ziwei/yunxian-context';
 import {
+  sanitizeAiVietnameseOutput,
+  verifyAndEnsureCompletePeriodSiHua,
+} from '../lib/ziwei/text-sanitizer';
+import {
   hasValidCachedPeriodEntry,
   shouldShowCompletedContinuationBadge,
   shouldShowInterruptedContinuationBadge,
@@ -233,7 +237,7 @@ export default function InsightPanel({
             }
             const text = parsed?.delta?.text ?? '';
             if (text) {
-              accumulated += text;
+              accumulated = sanitizeAiVietnameseOutput(accumulated + text);
               setAiPeriodCache((prev) => ({
                 ...prev,
                 [pKey]: {
@@ -264,6 +268,15 @@ export default function InsightPanel({
         }
         if (!doneSignal && sseBuffer.trim()) {
           processLine(sseBuffer.trim());
+        }
+
+        // Chốt lớp 2 (idempotent): sanitizeAiVietnameseOutput -> verifyAndEnsureCompletePeriodSiHua trước khi ghi cache/state
+        accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (!wasInterrupted && !streamError && accumulated.trim()) {
+          accumulated = verifyAndEnsureCompletePeriodSiHua(
+            accumulated,
+            periodContext,
+          ).patchedText;
         }
 
         if (wasInterrupted) {
@@ -298,6 +311,14 @@ export default function InsightPanel({
               notConfigured: false,
               error:
                 'Phản hồi từ Gemini API trống. Hệ thống chỉ hiển thị Khung dữ kiện xác định.',
+            },
+          }));
+        } else {
+          setAiPeriodCache((prev) => ({
+            ...prev,
+            [pKey]: {
+              text: accumulated,
+              meta: receivedMeta,
             },
           }));
         }
@@ -378,7 +399,7 @@ export default function InsightPanel({
           }
           const text = parsed?.delta?.text ?? '';
           if (text) {
-            accumulated += text;
+            accumulated = sanitizeAiVietnameseOutput(accumulated + text);
             setCache((prev) => ({ ...prev, [cacheKey]: accumulated }));
           }
         } catch {
@@ -405,6 +426,8 @@ export default function InsightPanel({
         handleLine(sseBuffer.trim());
       }
 
+      accumulated = sanitizeAiVietnameseOutput(accumulated);
+
       if (wasInterrupted) {
         setIncompleteTopicKeys((prev) => ({ ...prev, [cacheKey]: true }));
         setCache((prev) => ({
@@ -414,6 +437,8 @@ export default function InsightPanel({
       } else if (!accumulated.trim()) {
         const localFallback = getFallbackText(topic, customQuestion);
         setCache((prev) => ({ ...prev, [cacheKey]: localFallback }));
+      } else {
+        setCache((prev) => ({ ...prev, [cacheKey]: accumulated }));
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -518,7 +543,7 @@ export default function InsightPanel({
           }
           const text = parsed?.delta?.text ?? '';
           if (text) {
-            acc += text;
+            acc = sanitizeAiVietnameseOutput(acc + text);
             setQaList((prev) =>
               prev.map((item, i) => (i === idx ? { q, a: acc } : item))
             );
@@ -547,6 +572,8 @@ export default function InsightPanel({
         handleAskLine(sseBuffer.trim());
       }
 
+      acc = sanitizeAiVietnameseOutput(acc);
+
       if (wasInterrupted && acc.trim()) {
         setQaList((prev) =>
           prev.map((item, i) =>
@@ -559,6 +586,10 @@ export default function InsightPanel({
         const fallback = generateLocalInterpretationVi(chart, q, periodContext);
         setQaList((prev) =>
           prev.map((item, i) => (i === idx ? { q, a: fallback } : item))
+        );
+      } else {
+        setQaList((prev) =>
+          prev.map((item, i) => (i === idx ? { q, a: acc } : item))
         );
       }
     } catch {

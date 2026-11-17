@@ -1,15 +1,31 @@
-import type { ZiweiChart } from './ziwei/types';
+import type { SiHua, ZiweiChart } from './ziwei/types';
 import {
   buildDossierSectionFactSheetVi,
+  buildMultiYearHorizonContext,
   type DossierSectionId,
 } from './ziwei/dossier-context';
 import {
   buildYunxianPeriodContext,
+  getDaXianYears,
+  resolveEffectiveDaXianIndex,
   type YunxianPeriodContext,
 } from './ziwei/yunxian-context';
+import { getSiHuaByStem } from './ziwei/sihua';
+import {
+  calculateTrueSolarTime,
+  formatTrueSolarClock,
+} from './ziwei/true-solar-time';
+import {
+  enforceCanonicalPalaceGroupHeadings,
+  sanitizeAiVietnameseOutput,
+} from './ziwei/text-sanitizer';
 import {
   VI_BRANCHES,
   VI_STEMS,
+  translateBrightness,
+  translatePalaceName,
+  translateProvinceName,
+  translateSiHua,
   translateStarName,
   translateWuxingJu,
   translateYinYang,
@@ -142,6 +158,85 @@ export function readLruSessionEntry<T>(
   } catch {
     return null;
   }
+}
+
+const PALACE_GROUP_CHAPTER_IDS = new Set<DossierChapterId>([
+  'palaces_core',
+  'palaces_family',
+  'palaces_social_health',
+]);
+
+export function sanitizeDossierChapterText(
+  text: string | undefined,
+  chapterId: DossierChapterId,
+  chart?: ZiweiChart,
+): string | undefined {
+  if (typeof text !== 'string') return text;
+  let cleaned = sanitizeAiVietnameseOutput(text);
+  if (chart && PALACE_GROUP_CHAPTER_IDS.has(chapterId)) {
+    cleaned = enforceCanonicalPalaceGroupHeadings(cleaned, chart);
+  }
+  return cleaned;
+}
+
+/**
+ * Loại bỏ dòng meta vận hành nội bộ ("Nguồn: ... · Model: ... · Khóa: ...") khỏi văn bản
+ * khi kết xuất (.HTML / .MD / PlainText / In trực tiếp). Bắt buộc dòng phải mở đầu bằng "Nguồn:"
+ * và chứa đủ cả "Model:" lẫn "Khóa:" trên cùng 1 dòng để tránh đụng nhầm văn bản luận giải.
+ */
+export function stripInternalExportMetaLines(text: string | undefined): string | undefined {
+  if (typeof text !== 'string') return text;
+  const lines = text.split(/\r?\n/);
+  const filtered = lines.filter((line) => {
+    const normalized = line
+      .trim()
+      .replace(/^(?:>\s*)?(?:\*{1,3}|_{1,3})\s*/, '')
+      .trim();
+    const isInternalMetaLine =
+      /^Nguồn\s*:/.test(normalized) &&
+      /Model\s*:/.test(normalized) &&
+      /Khóa\s*:/.test(normalized);
+    return !isInternalMetaLine;
+  });
+  if (filtered.length === lines.length) {
+    return text;
+  }
+  return filtered
+    .join('\n')
+    .replace(/^\n+|\n+$/g, '')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+/**
+ * QĐ-G2/T2: Tự động làm sạch cache cũ khi đọc hồ sơ từ sessionStorage (0 tốn quota, giữ nguyên khóa cache).
+ */
+export function readDossierCacheEntry(
+  storage: StorageLike | null,
+  dossierStorageKey: string,
+  chart?: ZiweiChart,
+): StoredDossierRecord | null {
+  const stored = readLruSessionEntry<StoredDossierRecord>(
+    storage,
+    DOSSIER_LRU_INDEX_KEY,
+    dossierStorageKey,
+  );
+  if (!stored || !stored.sections) return stored;
+
+  const cleanedSections: StoredDossierRecord['sections'] = {};
+  for (const [rawKey, val] of Object.entries(stored.sections)) {
+    if (!val) continue;
+    const chapterId = rawKey as Exclude<DossierChapterId, 'year_2026' | 'year_2027'>;
+    cleanedSections[chapterId] = {
+      ...val,
+      text: sanitizeDossierChapterText(val.text, chapterId, chart),
+      incompleteText: sanitizeDossierChapterText(val.incompleteText, chapterId, chart),
+    };
+  }
+
+  return {
+    ...stored,
+    sections: cleanedSections,
+  };
 }
 
 export function upsertLruSessionEntry<T>(
@@ -629,7 +724,7 @@ export function resolveDossierChapterFromCaches(
         chapterId: spec.id,
         sectionCacheKey,
         status: 'completed',
-        text: periodEntry.text,
+        text: sanitizeDossierChapterText(periodEntry.text, spec.id, chart),
         meta: periodEntry.meta,
         sourceBadge:
           localExisting?.sourceBadge ?? formatDossierSourceBadge('cache'),
@@ -640,7 +735,7 @@ export function resolveDossierChapterFromCaches(
         chapterId: spec.id,
         sectionCacheKey,
         status: 'incomplete',
-        incompleteText: periodEntry.incompleteText,
+        incompleteText: sanitizeDossierChapterText(periodEntry.incompleteText, spec.id, chart),
         interruptedReason: periodEntry.interruptedReason || periodEntry.error,
         error: periodEntry.error,
         meta: periodEntry.meta,
@@ -661,7 +756,11 @@ export function resolveDossierChapterFromCaches(
 
   const stored = localChapters[spec.id];
   if (stored) {
-    return stored;
+    return {
+      ...stored,
+      text: sanitizeDossierChapterText(stored.text, spec.id, chart),
+      incompleteText: sanitizeDossierChapterText(stored.incompleteText, spec.id, chart),
+    };
   }
 
   return {
@@ -756,9 +855,34 @@ export function simpleMarkdownToHtml(md: string): string {
   return out.join('\n');
 }
 
-function buildDossierHeaderMetadata(chart: ZiweiChart) {
-  const name = chart.birthInfo.name || 'Ẩn danh';
-  const solar = `${String(chart.birthInfo.day).padStart(2, '0')}/${String(chart.birthInfo.month).padStart(2, '0')}/${chart.birthInfo.year}`;
+export interface DossierHeaderMetadata {
+  name: string;
+  solar: string;
+  lunar: string;
+  yinYang: string;
+  ju: string;
+  mingBranch: string;
+  mingMajors: string;
+  mingZhuVi: string;
+  shenZhuVi: string;
+  hourBranchNameVi: string;
+  hasExactBirthTime: boolean;
+  clockTimeVi: string;
+  trueSolarTimeHHMM: string | null;
+  trueSolarCorrectionMin: number | null;
+  trueSolarTimeVi: string;
+  birthTimeFullSummaryVi: string;
+  locationVi: string;
+  longitude: number;
+}
+
+/**
+ * QĐ-G5 — Nguồn duy nhất (Single Source of Truth) cho Header S5 (HTML / .MD / Copy / In trực tiếp / Modal UI).
+ */
+export function buildDossierHeaderMetadata(chart: ZiweiChart): DossierHeaderMetadata {
+  const b = chart.birthInfo;
+  const name = b.name || 'Ẩn danh';
+  const solar = `${String(b.day).padStart(2, '0')}/${String(b.month).padStart(2, '0')}/${b.year}`;
   const lunar = `${chart.lunarInfo.lunarDay}/${chart.lunarInfo.lunarMonth}/${chart.lunarInfo.lunarYear} (${VI_STEMS[chart.lunarInfo.yearStem]} ${VI_BRANCHES[chart.lunarInfo.yearBranch]})`;
   const ming = chart.palaces.find((p) => p.branch === chart.mingGongBranch);
   const mingMajors =
@@ -766,6 +890,63 @@ function buildDossierHeaderMetadata(chart: ZiweiChart) {
       .filter((s) => s.type === 'major')
       .map((s) => translateStarName(s.name))
       .join(', ') || 'Vô chính diệu';
+  const mingZhuVi = chart.mingZhu ? translateStarName(chart.mingZhu) : 'Không rõ';
+  const shenZhuVi = chart.shenZhu ? translateStarName(chart.shenZhu) : 'Không rõ';
+
+  const hourBranchNameVi = VI_BRANCHES[b.hour] ?? 'Tý';
+  const longitude =
+    typeof b.longitude === 'number' && Number.isFinite(b.longitude) ? b.longitude : 105.0;
+  const provinceVi = b.province ? translateProvinceName(b.province) : '';
+  const placeParts = [b.city, provinceVi].filter((x): x is string => Boolean(x && x.trim()));
+  const locationVi =
+    placeParts.length > 0
+      ? `${placeParts.join(', ')} (${longitude.toFixed(2)}°Đ)`
+      : `Việt Nam (Kinh tuyến chuẩn ${longitude.toFixed(2)}°Đ)`;
+
+  if (b.origInput) {
+    const clockTimeVi = `${String(b.origInput.clockHour).padStart(2, '0')}:${String(
+      b.origInput.clockMinute,
+    ).padStart(2, '0')}`;
+    const isVietnam = b.province ? b.province.startsWith('Việt Nam') : true;
+    const tst = calculateTrueSolarTime({
+      year: b.origInput.year,
+      month: b.origInput.month,
+      day: b.origInput.day,
+      clockHour: b.origInput.clockHour,
+      clockMinute: b.origInput.clockMinute,
+      longitude,
+      utcOffsetMinutes: isVietnam ? 420 : 480,
+    });
+    const trueSolarTimeHHMM = formatTrueSolarClock(tst);
+    const trueSolarCorrectionMin = Math.round(tst.totalCorrectionMinutes);
+    const diffSign =
+      trueSolarCorrectionMin >= 0 ? `+${trueSolarCorrectionMin}` : `${trueSolarCorrectionMin}`;
+    const solarBranchVi = VI_BRANCHES[tst.branch] ?? hourBranchNameVi;
+    const trueSolarTimeVi = `${trueSolarTimeHHMM} (Giờ ${solarBranchVi}, hiệu chỉnh ${diffSign} phút)`;
+    const birthTimeFullSummaryVi = `Giờ đồng hồ: ${clockTimeVi} → Giờ Mặt Trời thật: ${trueSolarTimeHHMM} (Giờ ${solarBranchVi}, hiệu chỉnh ${diffSign} phút)`;
+
+    return {
+      name,
+      solar,
+      lunar,
+      yinYang: translateYinYang(chart.yinYangGender),
+      ju: translateWuxingJu(chart.wuxingJuName),
+      mingBranch: VI_BRANCHES[chart.mingGongBranch],
+      mingMajors,
+      mingZhuVi,
+      shenZhuVi,
+      hourBranchNameVi,
+      hasExactBirthTime: true,
+      clockTimeVi,
+      trueSolarTimeHHMM,
+      trueSolarCorrectionMin,
+      trueSolarTimeVi,
+      birthTimeFullSummaryVi,
+      locationVi,
+      longitude,
+    };
+  }
+
   return {
     name,
     solar,
@@ -774,15 +955,740 @@ function buildDossierHeaderMetadata(chart: ZiweiChart) {
     ju: translateWuxingJu(chart.wuxingJuName),
     mingBranch: VI_BRANCHES[chart.mingGongBranch],
     mingMajors,
+    mingZhuVi,
+    shenZhuVi,
+    hourBranchNameVi,
+    hasExactBirthTime: false,
+    clockTimeVi: 'Chưa rõ giờ đồng hồ',
+    trueSolarTimeHHMM: null,
+    trueSolarCorrectionMin: null,
+    trueSolarTimeVi: `Giờ ${hourBranchNameVi} (mặc định khi chưa rõ giờ sinh)`,
+    birthTimeFullSummaryVi: `Chưa rõ giờ đồng hồ gốc (lập lá số mặc định theo Giờ ${hourBranchNameVi}).`,
+    locationVi,
+    longitude,
   };
 }
 
+/**
+ * B6: Khối Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định 100%, 0 gọi AI).
+ * Chỉ chứa tọa độ sao/cung xác định từ engine, không bình giải chủ quan.
+ */
+export function buildDeterministicExecutiveSummaryVi(chart: ZiweiChart): string[] {
+  const yinYang = translateYinYang(chart.yinYangGender);
+  const ju = translateWuxingJu(chart.wuxingJuName);
+  const mingZhuVi = chart.mingZhu ? translateStarName(chart.mingZhu) : 'Không rõ';
+  const shenZhuVi = chart.shenZhu ? translateStarName(chart.shenZhu) : 'Không rõ';
+
+  const formatMajorSummary = (palaceBranch: number): { palaceNameVi: string; branchVi: string; ganZhiVi: string; majorsVi: string } => {
+    const pal = chart.palaces.find((p) => p.branch === palaceBranch) ?? chart.palaces[0];
+    const majors = pal.stars.filter((s) => s.type === 'major');
+    const majorsVi =
+      majors.length > 0
+        ? majors.map((s) => `${translateStarName(s.name)}${s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : ''}`).join(', ')
+        : pal.borrowedStars?.length
+          ? `Vô chính diệu (mượn ${pal.borrowedStars.map((s) => translateStarName(s)).join(', ')})`
+          : 'Vô chính diệu';
+    return {
+      palaceNameVi: translatePalaceName(pal.name),
+      branchVi: VI_BRANCHES[pal.branch],
+      ganZhiVi: `${VI_STEMS[pal.stem]} ${VI_BRANCHES[pal.branch]}`,
+      majorsVi,
+    };
+  };
+
+  const mingInfo = formatMajorSummary(chart.mingGongBranch);
+  const shenInfo = formatMajorSummary(chart.shenGongBranch);
+
+  const birthStemIdx = chart.lunarInfo.yearStem;
+  const birthStemVi = VI_STEMS[birthStemIdx] ?? '';
+  const birthGanZhiVi = `${birthStemVi} ${VI_BRANCHES[chart.lunarInfo.yearBranch] ?? ''}`;
+  const natalTransforms = getSiHuaByStem(birthStemIdx);
+  const findStarPalace = (starCn: string): string => {
+    const pal = chart.palaces.find((p) => p.stars.some((s) => s.name === starCn));
+    return pal ? `${translatePalaceName(pal.name)} - ${VI_BRANCHES[pal.branch]}` : 'Không xác định';
+  };
+
+  const line1 = `Căn cơ Bản Mệnh & Cục: ${yinYang} · Cục ${ju} · Mệnh Chủ: ${mingZhuVi} · Thân Chủ: ${shenZhuVi}.`;
+  const line2 = `Trục Mệnh – Thân & Chính tinh: Mệnh tại ${mingInfo.branchVi} (${mingInfo.ganZhiVi}) [${mingInfo.majorsVi}]; Thân cư ${shenInfo.palaceNameVi} tại ${shenInfo.branchVi} (${shenInfo.ganZhiVi}) [${shenInfo.majorsVi}].`;
+  const line3 = `Tứ Hóa Bản Mệnh (Can ${birthStemVi} · năm ${birthGanZhiVi}): Hóa Lộc: ${translateStarName(natalTransforms['禄'])} (${findStarPalace(natalTransforms['禄'])}) · Hóa Quyền: ${translateStarName(natalTransforms['权'])} (${findStarPalace(natalTransforms['权'])}) · Hóa Khoa: ${translateStarName(natalTransforms['科'])} (${findStarPalace(natalTransforms['科'])}) · Hóa Kỵ: ${translateStarName(natalTransforms['忌'])} (${findStarPalace(natalTransforms['忌'])}).`;
+
+  const summarizeYearLine = (year: number, labelPrefix: string): string => {
+    const nominalAge = year - chart.lunarInfo.lunarYear + 1;
+    const dxIdx = resolveEffectiveDaXianIndex(chart, 'liunian', year);
+    let dxLabel = 'chưa vào Đại Hạn';
+    if (dxIdx >= 0 && chart.daXians[dxIdx]) {
+      const dx = chart.daXians[dxIdx];
+      const yrs = getDaXianYears(chart, dxIdx);
+      const yrsStr = yrs.length > 0 ? `${yrs[0]}–${yrs[yrs.length - 1]}` : '';
+      dxLabel = `${translatePalaceName(dx.palaceName)} (${dx.startAge}–${dx.endAge} tuổi${yrsStr ? `, ${yrsStr}` : ''})`;
+    }
+    const pCtx = buildYunxianPeriodContext(chart, { mode: 'liunian', year });
+    if (!pCtx) {
+      return `${labelPrefix} ${year} (${nominalAge} tuổi âm): Đại hạn ${dxLabel}.`;
+    }
+    const lnLoc = pCtx.periodSiHua.find((s) => s.mutagenKey === '禄');
+    const lnKy = pCtx.periodSiHua.find((s) => s.mutagenKey === '忌');
+    const locText = lnLoc
+      ? `${lnLoc.starNameVi} tại Cung ${lnLoc.periodPalaceRoleVi} (trùng ${lnLoc.natalPalaceNameVi})`
+      : 'Không rõ';
+    const kyText = lnKy
+      ? `${lnKy.starNameVi} tại Cung ${lnKy.periodPalaceRoleVi} (trùng ${lnKy.natalPalaceNameVi})`
+      : 'Không rõ';
+    return `${labelPrefix} ${year} (${pCtx.ganZhiVi} · ${nominalAge} tuổi âm): Đại hạn ${dxLabel} · Lưu Mệnh tại ${VI_BRANCHES[pCtx.branchIndex]} (trùng ${pCtx.activatedPalace.natalPalaceNameVi}) · Lưu Lộc: ${locText} / Lưu Kỵ: ${kyText}.`;
+  };
+
+  const line4 = summarizeYearLine(2026, 'Tiêu điểm Lưu Niên');
+  const line5 = summarizeYearLine(2027, 'Chuyển dịch Lưu Niên');
+
+  return [line1, line2, line3, line4, line5];
+}
+
+/**
+ * B2: Bảng tọa độ CSS Grid 4×4 bất di bất dịch cho 12 Địa Chi (0=Tý .. 11=Hợi).
+ * Bắt đầu từ Tỵ (row 1, col 1) đi thuận chiều kim đồng hồ quanh ô Thiên Bàn (2..3, 2..3).
+ */
+export const BRANCH_GRID_POS: Record<number, { row: number; col: number }> = {
+  5: { row: 1, col: 1 }, // Tỵ (góc trên trái)
+  6: { row: 1, col: 2 }, // Ngọ
+  7: { row: 1, col: 3 }, // Mùi
+  8: { row: 1, col: 4 }, // Thân (góc trên phải)
+  9: { row: 2, col: 4 }, // Dậu
+  10: { row: 3, col: 4 }, // Tuất
+  11: { row: 4, col: 4 }, // Hợi (góc dưới phải)
+  0: { row: 4, col: 3 }, // Tý
+  1: { row: 4, col: 2 }, // Sửu
+  2: { row: 4, col: 1 }, // Dần (góc dưới trái)
+  3: { row: 3, col: 1 }, // Mão
+  4: { row: 2, col: 1 }, // Thìn
+};
+
+function renderGridSiHuaBadgeHtml(sh: SiHua): string {
+  const label = translateSiHua(sh);
+  const cls = sh === '忌' ? 'sihua-tag sihua-ji' : 'sihua-tag sihua-auspicious';
+  return `<span class="${cls}">[${escapeHtml(label)}]</span>`;
+}
+
+/**
+ * B2: Render Sơ đồ lưới 12 cung 4×4 truyền thống xác định 100% từ chart.palaces.
+ */
+export function buildDeterministicChartGridHtml(chart: ZiweiChart): string {
+  const info = buildDossierHeaderMetadata(chart);
+  const sortedPalaces = [...chart.palaces].sort((a, b) => a.branch - b.branch);
+
+  const cellsHtml = sortedPalaces
+    .map((p) => {
+      const pos = BRANCH_GRID_POS[p.branch] ?? { row: 1, col: 1 };
+      const palaceNameVi = translatePalaceName(p.name);
+      const ganZhiVi = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+      const dxLabel = p.daXianAge ? `${p.daXianAge[0]}–${p.daXianAge[1]}` : '';
+
+      const badges: string[] = [];
+      if (p.isMingGong) badges.push('<span class="cell-badge cell-badge-ming">[MỆNH]</span>');
+      if (p.isShenGong) badges.push('<span class="cell-badge cell-badge-shen">[THÂN]</span>');
+
+      const majors = p.stars.filter((s) => s.type === 'major');
+      const majorsHtml =
+        majors.length > 0
+          ? majors
+              .map((s) => {
+                const br = s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : '';
+                const sh = s.siHua ? ` ${renderGridSiHuaBadgeHtml(s.siHua)}` : '';
+                return `<div class="cell-major-star"><strong>${escapeHtml(translateStarName(s.name))}</strong>${escapeHtml(br)}${sh}</div>`;
+              })
+              .join('')
+          : `<div class="cell-empty-star">Vô chính diệu${
+              p.borrowedStars?.length
+                ? ` (mượn ${escapeHtml(p.borrowedStars.map((s) => translateStarName(s)).join(', '))})`
+                : ''
+            }</div>`;
+
+      const auxStars = p.stars
+        .filter((s) => s.type !== 'major')
+        .slice(0, 7)
+        .map((s) => {
+          const sh = s.siHua ? ` ${renderGridSiHuaBadgeHtml(s.siHua)}` : '';
+          return `<span class="cell-aux-item">${escapeHtml(translateStarName(s.name))}${sh}</span>`;
+        })
+        .join(', ');
+
+      return `<div class="ziwei-grid-cell" data-branch="${p.branch}" data-branch-vi="${escapeHtml(
+        VI_BRANCHES[p.branch],
+      )}" style="grid-row: ${pos.row}; grid-column: ${pos.col};">
+        <div class="cell-top">
+          <span class="cell-palace-name">${escapeHtml(palaceNameVi)}</span>
+          <span class="cell-badges">${badges.join(' ')}</span>
+        </div>
+        <div class="cell-stars">
+          ${majorsHtml}
+          ${auxStars ? `<div class="cell-aux">${auxStars}</div>` : ''}
+        </div>
+        <div class="cell-foot">
+          <span class="cell-ganzhi">${escapeHtml(ganZhiVi)}</span>
+          ${dxLabel ? `<span class="cell-daxian">ĐH ${escapeHtml(dxLabel)}</span>` : ''}
+        </div>
+      </div>`;
+    })
+    .join('\n');
+
+  const centerHtml = `<div class="ziwei-grid-center" style="grid-row: 2 / span 2; grid-column: 2 / span 2;">
+    <div class="center-title">TINH BÀN TỬ VI ĐẨU SỐ</div>
+    <div class="center-name">${escapeHtml(info.name)}</div>
+    <div class="center-meta">${escapeHtml(info.yinYang)} · ${escapeHtml(info.ju)}</div>
+    <div class="center-meta">Dương lịch: ${escapeHtml(info.solar)}</div>
+    <div class="center-meta">Âm lịch: ${escapeHtml(info.lunar)}</div>
+    <div class="center-meta">${escapeHtml(info.birthTimeFullSummaryVi)}</div>
+    <div class="center-meta">Nơi sinh: ${escapeHtml(info.locationVi)}</div>
+    <div class="center-meta">Mệnh Chủ: <strong>${escapeHtml(info.mingZhuVi)}</strong> · Thân Chủ: <strong>${escapeHtml(info.shenZhuVi)}</strong></div>
+  </div>`;
+
+  return `<div class="ziwei-chart-grid" aria-label="Tinh bàn 12 cung Tử Vi">
+    ${cellsHtml}
+    ${centerHtml}
+  </div>`;
+}
+
+/**
+ * B1 + B6 + B2: Trang 1 Tích Hợp ("Mệnh Thư Tổng Lược & Tinh Bàn"),
+ * dùng chung cho .HTML độc lập, bản in trực tiếp printSheetPortal và Modal UI.
+ */
+export function buildDossierPageOneHtml(
+  chart: ZiweiChart,
+  completedCount: number,
+  exportedAt = new Date(),
+): string {
+  const info = buildDossierHeaderMetadata(chart);
+  const summaryLines = buildDeterministicExecutiveSummaryVi(chart);
+  const gridHtml = buildDeterministicChartGridHtml(chart);
+
+  const summaryHtml = summaryLines
+    .map((line) => {
+      const colonIdx = line.indexOf(':');
+      if (colonIdx > 0) {
+        const lead = line.slice(0, colonIdx + 1);
+        const tail = line.slice(colonIdx + 1);
+        return `<li><strong>${escapeHtml(lead)}</strong>${escapeHtml(tail)}</li>`;
+      }
+      return `<li>${escapeHtml(line)}</li>`;
+    })
+    .join('\n');
+
+  return `<section class="dossier-page-one" aria-label="Trang 1 — Mệnh Thư Tổng Lược & Tinh Bàn">
+    <header class="dossier-head">
+      <div class="dossier-kicker">MỆNH THƯ TỔNG LƯỢC · TỬ VI THIÊN KỶ</div>
+      <h1>Hồ Sơ Luận Giải Tử Vi Thiên Kỷ — ${escapeHtml(info.name)}</h1>
+      <div class="meta-grid">
+        <div><strong>Đương số:</strong> ${escapeHtml(info.name)} (${escapeHtml(info.yinYang)}) · <strong>Cục số:</strong> ${escapeHtml(info.ju)} · <strong>An Mệnh tại ${escapeHtml(info.mingBranch)}:</strong> ${escapeHtml(info.mingMajors)}</div>
+        <div><strong>Dương lịch:</strong> ${escapeHtml(info.solar)} · <strong>Âm lịch:</strong> ${escapeHtml(info.lunar)}</div>
+        <div><strong>Giờ sinh &amp; Chân Thái Dương Thời:</strong> ${escapeHtml(info.birthTimeFullSummaryVi)}</div>
+        <div><strong>Nơi sinh &amp; Kinh độ:</strong> ${escapeHtml(info.locationVi)} · <strong>Mệnh Chủ:</strong> ${escapeHtml(info.mingZhuVi)} · <strong>Thân Chủ:</strong> ${escapeHtml(info.shenZhuVi)}</div>
+        <div><strong>Tiến độ hoàn thiện:</strong> ${completedCount}/8 chương · <strong>Thời điểm xuất:</strong> ${escapeHtml(exportedAt.toLocaleString('vi-VN'))}</div>
+      </div>
+    </header>
+
+    <div class="executive-summary-box">
+      <h2>Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định)</h2>
+      <ol class="executive-summary-list">
+        ${summaryHtml}
+      </ol>
+    </div>
+
+    <div class="chart-grid-wrap">
+      <div class="chart-grid-caption">Tinh Bàn 12 Cung Truyền Thống (Tỵ → Thìn theo chiều kim đồng hồ)</div>
+      ${gridHtml}
+    </div>
+  </section>`;
+}
+
+/**
+ * B3: Bảng Ma Trận Năm 5 Cột Cân Đối (12% | 18% | 16% | 34% | 20%) cho Chương 7 (5 năm) & Chương 8 (10 năm).
+ * CHỈ render trong .HTML, bản in trực tiếp và Modal UI (tuyệt đối KHÔNG đưa vào .MD).
+ */
+export function buildMultiYearMatrixTableHtml(
+  chart: ZiweiChart,
+  span: 5 | 10,
+): string {
+  const endYear = span === 5 ? 2030 : 2035;
+  const horizon = buildMultiYearHorizonContext(chart, 2026, endYear);
+
+  const rowsHtml = horizon.rows
+    .map((r) => {
+      const dxText = r.governingDaXian.isPreDaXian
+        ? 'Chưa vào Đại Hạn'
+        : `${r.governingDaXian.palaceNameVi} (${r.governingDaXian.ageRangeVi})`;
+      const axisText = [
+        `<div><strong>Lưu Mệnh:</strong> ${escapeHtml(r.activatedPalace.branchVi)} (trùng ${escapeHtml(
+          r.activatedPalace.natalPalaceNameVi,
+        )})</div>`,
+        `<div class="matrix-sub">Lưu Tài: ${escapeHtml(r.activatedPalace.caiBoSummaryVi.split(':')[0] ?? '')}</div>`,
+        `<div class="matrix-sub">Lưu Quan: ${escapeHtml(r.activatedPalace.guanLuSummaryVi.split(':')[0] ?? '')}</div>`,
+        `<div class="matrix-sub">Lưu Phối: ${escapeHtml(r.activatedPalace.fuQiSummaryVi.split(':')[0] ?? '')}</div>`,
+      ].join('');
+
+      const sihuaHtml = r.liuNianSiHua.allFour
+        .map((s) => {
+          const shortLbl = translateSiHua(s.mutagenKey);
+          const tagCls = s.mutagenKey === '忌' ? 'sihua-tag sihua-ji' : 'sihua-tag sihua-auspicious';
+          return `<div class="matrix-sihua-line"><span class="${tagCls}">[${escapeHtml(
+            shortLbl,
+          )}]</span> <strong>${escapeHtml(s.starNameVi)}</strong> tại <strong>Cung ${escapeHtml(
+            s.periodPalaceRoleVi,
+          )}</strong> <em>(trùng ${escapeHtml(s.natalPalaceNameVi)})</em></div>`;
+        })
+        .join('');
+
+      const dynTop = r.dynamicStars
+        .filter((d) =>
+          ['Lộc Tồn', 'Thiên Mã', 'Kình Dương', 'Đà La'].some((tag) => d.starLabelVi.endsWith(tag)),
+        )
+        .map((d) => `${d.starLabelVi} (${d.natalPalaceNameVi})`)
+        .join(', ');
+      const flagsHtml =
+        r.highlightFlags.length > 0
+          ? `<div class="matrix-flags">${r.highlightFlags.map((f) => `• ${escapeHtml(f)}`).join('<br />')}</div>`
+          : '';
+
+      return `<tr>
+        <td><strong>${r.year}</strong><br /><span>${escapeHtml(r.lunarGanZhiVi)}</span><br /><span class="matrix-sub">${r.nominalAge} tuổi</span></td>
+        <td><strong>${escapeHtml(dxText)}</strong><div class="matrix-sub">${escapeHtml(r.daXianLiuNianRelationVi)}</div></td>
+        <td>${axisText}</td>
+        <td>${sihuaHtml}</td>
+        <td><div>${escapeHtml(dynTop)}</div>${flagsHtml}</td>
+      </tr>`;
+    })
+    .join('\n');
+
+  return `<div class="matrix-section-wrap">
+    <div class="matrix-caption">Bảng Ma Trận Năm Tầm Nhìn ${horizon.startYear}–${horizon.endYear} (${span} Năm · Xác Định Từ Engine)</div>
+    <table class="matrix-table">
+      <colgroup>
+        <col style="width: 12%;" />
+        <col style="width: 18%;" />
+        <col style="width: 16%;" />
+        <col style="width: 34%;" />
+        <col style="width: 20%;" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Năm &amp; Tuổi</th>
+          <th>Đại Hạn &amp; Quan Hệ</th>
+          <th>Trục Lưu Niên</th>
+          <th>4 Sao Lưu Tứ Hóa (Đủ Lộc · Quyền · Khoa · Kỵ)</th>
+          <th>Sao Lưu &amp; Cờ Xung Hợp</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </div>`;
+}
+
+/**
+ * B4 & B5: Hệ CSS chế bản Giấy Cổ + an toàn in đen trắng (@media print),
+ * phạm vi hóa dưới `.ziwei-editorial-root` để không rò CSS ra ngoài giao diện chính của app.
+ */
+export const DOSSIER_EDITORIAL_PRINT_CSS = `
+  .ziwei-editorial-root {
+    --paper-bg: #FBF8F1;
+    --paper-surface: #F4EBD9;
+    --ink-main: #231B15;
+    --ink-sub: #3F4554;
+    --gold-ink: #854D0E;
+    --vermilion-ink: #991B1B;
+    --border-soft: rgba(120, 53, 15, 0.30);
+    --border-print: #44403C;
+    color: var(--ink-main);
+    font-family: 'Noto Serif', 'Merriweather', Georgia, 'Times New Roman', serif;
+    line-height: 1.7;
+    counter-reset: dossier-chapter;
+  }
+  .ziwei-editorial-root .dossier-page-one {
+    page-break-after: always;
+    break-after: page;
+    padding-bottom: 12px;
+  }
+  .ziwei-editorial-root .dossier-head {
+    border-bottom: 2px solid #78350F;
+    padding-bottom: 14px;
+    margin-bottom: 16px;
+  }
+  .ziwei-editorial-root .dossier-kicker {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    font-weight: 700;
+    color: #854D0E;
+    margin-bottom: 4px;
+  }
+  .ziwei-editorial-root .dossier-head h1 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: #5C3804;
+    letter-spacing: 0.01em;
+  }
+  .ziwei-editorial-root .meta-grid {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12.5px;
+    color: var(--ink-sub);
+    display: grid;
+    gap: 3px;
+  }
+  .ziwei-editorial-root .executive-summary-box {
+    background: var(--paper-surface);
+    border: 1px solid #78350F;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+  }
+  .ziwei-editorial-root .executive-summary-box h2 {
+    margin: 0 0 6px;
+    font-size: 14px;
+    color: #7C2D12;
+  }
+  .ziwei-editorial-root .executive-summary-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .ziwei-editorial-root .executive-summary-list li {
+    margin: 3px 0;
+  }
+  .ziwei-editorial-root .chart-grid-caption,
+  .ziwei-editorial-root .matrix-caption {
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #78350F;
+    margin-bottom: 6px;
+  }
+  .ziwei-editorial-root .ziwei-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-rows: repeat(4, minmax(92px, auto));
+    border: 1.5px solid #78350F;
+    background: #FFFDF8;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ziwei-editorial-root .ziwei-grid-cell {
+    border: 1px solid #78350F;
+    padding: 5px 6px;
+    font-size: 10.5px;
+    line-height: 1.32;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 4px;
+    min-width: 0;
+  }
+  .ziwei-editorial-root .cell-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 4px;
+    border-bottom: 1px dotted rgba(120, 53, 15, 0.35);
+    padding-bottom: 2px;
+  }
+  .ziwei-editorial-root .cell-palace-name {
+    font-weight: 700;
+    color: #5C3804;
+    font-size: 11px;
+  }
+  .ziwei-editorial-root .cell-badge {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    border: 1px solid #44403C;
+    padding: 0 3px;
+  }
+  .ziwei-editorial-root .cell-major-star {
+    font-size: 10.5px;
+    color: #1C1917;
+  }
+  .ziwei-editorial-root .cell-empty-star {
+    font-size: 10px;
+    font-style: italic;
+    color: #57534E;
+  }
+  .ziwei-editorial-root .cell-aux {
+    font-size: 9.5px;
+    color: #44403C;
+    margin-top: 2px;
+  }
+  .ziwei-editorial-root .cell-foot {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #57534E;
+    border-top: 1px dotted rgba(120, 53, 15, 0.25);
+    padding-top: 2px;
+  }
+  .ziwei-editorial-root .ziwei-grid-center {
+    border: 1px solid #78350F;
+    padding: 10px 12px;
+    background: #FBF7EF;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    gap: 3px;
+    font-size: 11px;
+  }
+  .ziwei-editorial-root .center-title {
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #7C2D12;
+  }
+  .ziwei-editorial-root .center-name {
+    font-weight: 700;
+    font-size: 15px;
+    color: #231B15;
+  }
+  .ziwei-editorial-root .center-meta {
+    font-size: 10.5px;
+    color: #3F4554;
+  }
+  .ziwei-editorial-root .sihua-tag {
+    display: inline-block;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 0 3px;
+    line-height: 1.25;
+  }
+  .ziwei-editorial-root .sihua-auspicious {
+    border: 1px solid #44403C;
+    color: #854D0E;
+  }
+  .ziwei-editorial-root .sihua-ji {
+    border: 1px dashed #44403C;
+    color: #991B1B;
+  }
+  .ziwei-editorial-root .matrix-section-wrap {
+    margin: 12px 0 18px;
+  }
+  .ziwei-editorial-root .matrix-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 11px;
+    line-height: 1.38;
+    background: #FFFDF8;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ziwei-editorial-root .matrix-table th,
+  .ziwei-editorial-root .matrix-table td {
+    border: 1px solid #44403C;
+    padding: 5px 6px;
+    vertical-align: top;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+  }
+  .ziwei-editorial-root .matrix-table th {
+    background: var(--paper-surface);
+    color: #5C3804;
+    font-weight: 700;
+    text-align: left;
+  }
+  .ziwei-editorial-root .matrix-table thead {
+    display: table-header-group;
+  }
+  .ziwei-editorial-root .matrix-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ziwei-editorial-root .matrix-sub {
+    font-size: 10px;
+    color: #57534E;
+  }
+  .ziwei-editorial-root .matrix-sihua-line {
+    margin: 2px 0;
+  }
+  .ziwei-editorial-root .matrix-flags {
+    margin-top: 3px;
+    font-size: 10px;
+    color: #991B1B;
+    font-weight: 600;
+  }
+  .ziwei-editorial-root .toc {
+    background: var(--paper-surface);
+    border: 1px solid var(--border-soft);
+    padding: 16px 20px;
+    border-radius: 6px;
+    margin-bottom: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+  }
+  .ziwei-editorial-root .toc h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    color: #5C3804;
+  }
+  .ziwei-editorial-root .toc ul { margin: 0; padding-left: 18px; }
+  .ziwei-editorial-root .toc li { margin: 4px 0; }
+  .ziwei-editorial-root .toc a { color: var(--ink-main); text-decoration: none; font-weight: 600; }
+  .ziwei-editorial-root .toc a:hover { text-decoration: underline; color: var(--gold-ink); }
+  .ziwei-editorial-root .toc-status { font-size: 12px; margin-left: 6px; }
+  .ziwei-editorial-root .toc-status.done { color: #166534; }
+  .ziwei-editorial-root .toc-status.pending { color: #9A3412; font-weight: 600; }
+  .ziwei-editorial-root section.chapter {
+    padding-top: 18px;
+    margin-top: 20px;
+    border-top: 1px solid var(--border-soft);
+    counter-increment: dossier-chapter;
+  }
+  .ziwei-editorial-root section.chapter h2 {
+    margin: 0 0 8px;
+    font-size: 19px;
+    color: #5C3804;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .ziwei-editorial-root section.chapter h3,
+  .ziwei-editorial-root section.chapter h4 {
+    color: #854D0E;
+    margin: 16px 0 6px;
+    font-size: 15px;
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .ziwei-editorial-root .chapter-meta {
+    font-family: "Courier New", monospace;
+    font-size: 12px;
+    color: #57534E;
+    margin-bottom: 12px;
+  }
+  .ziwei-editorial-root .incomplete-banner {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #9A3412;
+    background: #FEF3C7;
+    border: 1px solid #F59E0B;
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+  }
+  .ziwei-editorial-root .chapter-body p { margin: 8px 0; }
+  .ziwei-editorial-root .chapter-body > p:first-of-type::first-letter {
+    font-size: 2.5em;
+    font-weight: 700;
+    float: left;
+    line-height: 1;
+    padding-right: 8px;
+    color: #7C2D12;
+  }
+  .ziwei-editorial-root .chapter-body ul,
+  .ziwei-editorial-root .chapter-body ol { margin: 8px 0 12px; padding-left: 22px; }
+  .ziwei-editorial-root .chapter-body li { margin: 4px 0; }
+  .ziwei-editorial-root .chapter-body blockquote {
+    border-left: 3px solid #78350F;
+    background: var(--paper-surface);
+    padding: 8px 12px;
+    margin: 10px 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .ziwei-editorial-root footer.dossier-foot {
+    margin-top: 32px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-soft);
+    font-size: 12px;
+    color: #57534E;
+    text-align: center;
+  }
+  @page {
+    size: A4 portrait;
+    margin: 15mm 14mm;
+    @bottom-right {
+      content: "Trang " counter(page) " / " counter(pages);
+      font-size: 9pt;
+      color: #44403C;
+    }
+  }
+  @media print {
+    body {
+      background: #FFFFFF !important;
+      color: #000000 !important;
+      padding: 0 !important;
+    }
+    .sheet,
+    .ziwei-editorial-root,
+    .ziwei-editorial-root .executive-summary-box,
+    .ziwei-editorial-root .ziwei-chart-grid,
+    .ziwei-editorial-root .ziwei-grid-center,
+    .ziwei-editorial-root .matrix-table,
+    .ziwei-editorial-root .matrix-table th,
+    .ziwei-editorial-root .toc,
+    .ziwei-editorial-root .chapter-body blockquote {
+      background: #FFFFFF !important;
+      color: #000000 !important;
+    }
+    .sheet {
+      max-width: 100% !important;
+      border: none !important;
+      padding: 0 !important;
+    }
+    .ziwei-editorial-root .dossier-page-one {
+      page-break-after: always !important;
+      break-after: page !important;
+    }
+    .ziwei-editorial-root section.chapter {
+      page-break-before: always !important;
+      break-before: page !important;
+      border-top: none !important;
+      padding-top: 0 !important;
+      margin-top: 0 !important;
+      break-inside: auto;
+    }
+    .ziwei-editorial-root h2,
+    .ziwei-editorial-root h3,
+    .ziwei-editorial-root h4 {
+      color: #000000 !important;
+      break-after: avoid !important;
+      page-break-after: avoid !important;
+    }
+    .ziwei-editorial-root .ziwei-chart-grid,
+    .ziwei-editorial-root .ziwei-grid-cell,
+    .ziwei-editorial-root .ziwei-grid-center,
+    .ziwei-editorial-root .matrix-table,
+    .ziwei-editorial-root .matrix-table th,
+    .ziwei-editorial-root .matrix-table td,
+    .ziwei-editorial-root .executive-summary-box,
+    .ziwei-editorial-root .sihua-auspicious {
+      border-color: #44403C !important;
+      color: #000000 !important;
+    }
+    .ziwei-editorial-root .sihua-ji {
+      border: 1px dashed #44403C !important;
+      color: #000000 !important;
+      font-weight: 700 !important;
+    }
+    .ziwei-editorial-root .matrix-table {
+      font-size: 9pt !important;
+      line-height: 1.32 !important;
+    }
+    .ziwei-editorial-root .matrix-flags,
+    .ziwei-editorial-root .cell-palace-name,
+    .ziwei-editorial-root .center-title {
+      color: #000000 !important;
+    }
+  }
+`;
+
+/**
+ * F1 + S5 + B6: Xuất bản .MD (chỉ giữ Header S5 đầy đủ + 5 dòng Cốt Tủy B6 + văn bản chương thuần,
+ * tuyệt đối KHÔNG chèn lưới 4×4 hay bảng ma trận B3 vào .MD).
+ */
 export function buildDossierMarkdownExport(
   chart: ZiweiChart,
   states: Record<DossierChapterId, DossierChapterState>,
   exportedAt = new Date(),
 ): string {
   const info = buildDossierHeaderMetadata(chart);
+  const summaryLines = buildDeterministicExecutiveSummaryVi(chart);
   const completedCount = DOSSIER_CHAPTER_SPECS.filter(
     (s) => states[s.id]?.status === 'completed' && Boolean(states[s.id]?.text?.trim()),
   ).length;
@@ -795,9 +1701,19 @@ export function buildDossierMarkdownExport(
   lines.push(
     `- **Dương lịch**: ${info.solar} · **Âm lịch**: ${info.lunar} · **An Mệnh tại ${info.mingBranch}**: ${info.mingMajors}`,
   );
+  lines.push(`- **Giờ sinh & Chân Thái Dương Thời**: ${info.birthTimeFullSummaryVi}`);
+  lines.push(
+    `- **Nơi sinh / Kinh độ**: ${info.locationVi} · **Mệnh Chủ**: ${info.mingZhuVi} · **Thân Chủ**: ${info.shenZhuVi}`,
+  );
   lines.push(
     `- **Tiến độ hoàn thiện**: ${completedCount}/8 chương · **Xuất lúc**: ${exportedAt.toLocaleString('vi-VN')}`,
   );
+
+  lines.push('\n## Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định)');
+  for (const sLine of summaryLines) {
+    lines.push(`- ${sLine}`);
+  }
+
   lines.push('\n## Mục Lục');
   for (const spec of DOSSIER_CHAPTER_SPECS) {
     const st = states[spec.id];
@@ -810,24 +1726,23 @@ export function buildDossierMarkdownExport(
 
   for (const spec of DOSSIER_CHAPTER_SPECS) {
     const st = states[spec.id];
+    const cleanText = stripInternalExportMetaLines(
+      sanitizeDossierChapterText(st?.text, spec.id, chart),
+    )?.trim();
+    const cleanIncomplete = stripInternalExportMetaLines(
+      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart),
+    )?.trim();
+
     lines.push(`\n---\n\n## ${spec.titleVi}`);
-    if (st?.status === 'completed' && st.text?.trim()) {
-      const metaParts = [
-        st.sourceBadge ? `Nguồn: ${st.sourceBadge}` : null,
-        st.meta?.modelUsed ? `Model: ${st.meta.modelUsed}` : null,
-        st.meta?.maskedKey ? `Khóa: ${st.meta.maskedKey}` : null,
-      ].filter(Boolean);
-      if (metaParts.length > 0) {
-        lines.push(`*${metaParts.join(' · ')}*\n`);
-      }
-      lines.push(st.text.trim());
+    if (st?.status === 'completed' && cleanText) {
+      lines.push(cleanText);
     } else {
       lines.push(
         `> **[CHƯA HOÀN TẤT — Chưa có luận giải AI hoàn chỉnh cho chương này]**`,
       );
-      if (st?.incompleteText?.trim()) {
+      if (cleanIncomplete) {
         lines.push('\n*Phần văn bản đã nhận trước khi gián đoạn:*\n');
-        lines.push(st.incompleteText.trim());
+        lines.push(cleanIncomplete);
       } else {
         const { factSheetMarkdown } = resolveChapterDeterministicFactSheet(chart, spec);
         if (factSheetMarkdown) {
@@ -855,7 +1770,7 @@ export function buildDossierPlainTextExport(
 }
 
 /**
- * F1: Xuất file .html độc lập chuẩn in (bảng màu Giấy Cổ cố định, mở offline được, @media print).
+ * F1 + QĐ-G5: Xuất file .html độc lập chuẩn in (Trang 1 B1+B6+B2, bảng B3 ở Ch.7/8, theme Giấy Cổ + @media print).
  */
 export function buildDossierStandaloneHtmlExport(
   chart: ZiweiChart,
@@ -867,6 +1782,8 @@ export function buildDossierStandaloneHtmlExport(
     (s) => states[s.id]?.status === 'completed' && Boolean(states[s.id]?.text?.trim()),
   ).length;
 
+  const pageOneHtml = buildDossierPageOneHtml(chart, completedCount, exportedAt);
+
   const tocHtml = DOSSIER_CHAPTER_SPECS.map((spec) => {
     const st = states[spec.id];
     const isDone = st?.status === 'completed' && Boolean(st.text?.trim());
@@ -875,30 +1792,37 @@ export function buildDossierStandaloneHtmlExport(
 
   const chaptersHtml = DOSSIER_CHAPTER_SPECS.map((spec) => {
     const st = states[spec.id];
-    const isDone = st?.status === 'completed' && Boolean(st.text?.trim());
-    const metaLine = [
-      st?.sourceBadge ? `Nguồn: ${st.sourceBadge}` : null,
-      st?.meta?.modelUsed ? `Model: ${st.meta.modelUsed}` : null,
-      st?.meta?.maskedKey ? `Khóa: ${st.meta.maskedKey}` : null,
-    ]
-      .filter(Boolean)
-      .join(' · ');
+    const cleanText = stripInternalExportMetaLines(
+      sanitizeDossierChapterText(st?.text, spec.id, chart),
+    )?.trim();
+    const cleanIncomplete = stripInternalExportMetaLines(
+      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart),
+    )?.trim();
+    const isDone = st?.status === 'completed' && Boolean(cleanText);
 
-    if (isDone && st.text) {
+    const matrixPrefixHtml =
+      spec.sectionId === 'horizon_5y'
+        ? buildMultiYearMatrixTableHtml(chart, 5)
+        : spec.sectionId === 'horizon_10y'
+          ? buildMultiYearMatrixTableHtml(chart, 10)
+          : '';
+
+    if (isDone && cleanText) {
       return `<section id="sec-${spec.id}" class="chapter">
         <h2>${escapeHtml(spec.titleVi)}</h2>
-        ${metaLine ? `<div class="chapter-meta">${escapeHtml(metaLine)}</div>` : ''}
-        <div class="chapter-body">${simpleMarkdownToHtml(st.text)}</div>
+        ${matrixPrefixHtml}
+        <div class="chapter-body">${simpleMarkdownToHtml(cleanText)}</div>
       </section>`;
     }
 
-    const fallbackMd = st?.incompleteText?.trim()
-      ? st.incompleteText.trim()
+    const fallbackMd = cleanIncomplete
+      ? cleanIncomplete
       : resolveChapterDeterministicFactSheet(chart, spec).factSheetMarkdown;
 
     return `<section id="sec-${spec.id}" class="chapter chapter-incomplete">
       <h2>${escapeHtml(spec.titleVi)}</h2>
-      <div class="incomplete-banner">CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ${st?.incompleteText?.trim() ? ' (hiển thị phần đã nhận trước khi gián đoạn)' : ' (hiển thị bảng dữ kiện xác định)'}.</div>
+      <div class="incomplete-banner">CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ${cleanIncomplete ? ' (hiển thị phần đã nhận trước khi gián đoạn)' : ' (hiển thị bảng dữ kiện xác định)'}.</div>
+      ${matrixPrefixHtml}
       <div class="chapter-body">${simpleMarkdownToHtml(fallbackMd)}</div>
     </section>`;
   }).join('\n');
@@ -913,129 +1837,28 @@ export function buildDossierStandaloneHtmlExport(
     :root {
       color-scheme: light;
       --paper-bg: #FBF8F1;
-      --paper-surface: #F3EDE0;
-      --ink-main: #181A20;
-      --ink-sub: #3F4554;
-      --gold-ink: #8C5E14;
-      --border-soft: rgba(140, 94, 20, 0.25);
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       padding: 24px 16px 48px;
-      background: var(--paper-bg);
-      color: var(--ink-main);
-      font-family: Georgia, "Times New Roman", serif;
-      line-height: 1.7;
+      background: #FBF8F1;
+      color: #231B15;
     }
     .sheet {
       max-width: 860px;
       margin: 0 auto;
       background: #FFFDF8;
-      border: 1px solid var(--border-soft);
-      padding: 36px 40px;
+      border: 1px solid rgba(120, 53, 15, 0.25);
+      padding: 32px 36px;
       border-radius: 8px;
     }
-    header.dossier-head {
-      border-bottom: 2px solid var(--gold-ink);
-      padding-bottom: 18px;
-      margin-bottom: 24px;
-    }
-    header.dossier-head h1 {
-      margin: 0 0 10px;
-      font-size: 24px;
-      color: #5C3804;
-      letter-spacing: 0.02em;
-    }
-    .meta-grid {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      color: var(--ink-sub);
-      display: grid;
-      gap: 4px;
-    }
-    .toc {
-      background: var(--paper-surface);
-      border: 1px solid var(--border-soft);
-      padding: 16px 20px;
-      border-radius: 6px;
-      margin-bottom: 28px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-    }
-    .toc h2 {
-      margin: 0 0 10px;
-      font-size: 15px;
-      color: #5C3804;
-    }
-    .toc ul { margin: 0; padding-left: 18px; }
-    .toc li { margin: 4px 0; }
-    .toc a { color: var(--ink-main); text-decoration: none; font-weight: 600; }
-    .toc a:hover { text-decoration: underline; color: var(--gold-ink); }
-    .toc-status { font-size: 12px; margin-left: 6px; }
-    .toc-status.done { color: #166534; }
-    .toc-status.pending { color: #9A3412; font-weight: 600; }
-    section.chapter {
-      padding-top: 20px;
-      margin-top: 24px;
-      border-top: 1px solid var(--border-soft);
-    }
-    section.chapter h2 {
-      margin: 0 0 8px;
-      font-size: 19px;
-      color: #5C3804;
-    }
-    section.chapter h3, section.chapter h4 {
-      color: #8C5E14;
-      margin: 16px 0 6px;
-      font-size: 15px;
-    }
-    .chapter-meta {
-      font-family: "Courier New", monospace;
-      font-size: 12px;
-      color: #6E7687;
-      margin-bottom: 12px;
-    }
-    .incomplete-banner {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      font-size: 13px;
-      font-weight: 600;
-      color: #9A3412;
-      background: #FEF3C7;
-      border: 1px solid #F59E0B;
-      padding: 10px 14px;
-      border-radius: 6px;
-      margin-bottom: 12px;
-    }
-    .chapter-body p { margin: 8px 0; }
-    .chapter-body ul, .chapter-body ol { margin: 8px 0 12px; padding-left: 22px; }
-    .chapter-body li { margin: 4px 0; }
-    footer.dossier-foot {
-      margin-top: 36px;
-      padding-top: 14px;
-      border-top: 1px solid var(--border-soft);
-      font-size: 12px;
-      color: #6E7687;
-      text-align: center;
-    }
-    @media print {
-      body { background: #FFFFFF; padding: 0; }
-      .sheet { max-width: 100%; border: none; padding: 0; background: #FFFFFF; }
-      section.chapter { break-inside: auto; }
-      section.chapter h2 { break-after: avoid; }
-    }
+    ${DOSSIER_EDITORIAL_PRINT_CSS}
   </style>
 </head>
 <body>
-  <article class="sheet">
-    <header class="dossier-head">
-      <h1>Hồ Sơ Luận Giải Tử Vi Thiên Kỷ — ${escapeHtml(info.name)}</h1>
-      <div class="meta-grid">
-        <div><strong>Đương số:</strong> ${escapeHtml(info.name)} (${escapeHtml(info.yinYang)}) · <strong>Cục số:</strong> ${escapeHtml(info.ju)} · <strong>An Mệnh tại ${escapeHtml(info.mingBranch)}:</strong> ${escapeHtml(info.mingMajors)}</div>
-        <div><strong>Dương lịch:</strong> ${escapeHtml(info.solar)} · <strong>Âm lịch:</strong> ${escapeHtml(info.lunar)}</div>
-        <div><strong>Tiến độ hoàn thiện:</strong> ${completedCount}/8 chương · <strong>Thời điểm xuất:</strong> ${escapeHtml(exportedAt.toLocaleString('vi-VN'))}</div>
-      </div>
-    </header>
+  <article class="sheet ziwei-editorial-root">
+    ${pageOneHtml}
     <nav class="toc">
       <h2>Mục Lục Hồ Sơ</h2>
       <ul>${tocHtml}</ul>

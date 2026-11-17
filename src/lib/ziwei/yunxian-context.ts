@@ -158,8 +158,22 @@ export interface PeriodSiHuaImpact {
   periodPalaceRoleVi: string;
   oppositePalaceNameVi: string;
   oppositePalaceGanZhiVi: string;
+  oppositePeriodPalaceRoleVi: string;
   natalMutagenVi?: string;
   resonanceNoteVi: string;
+  periodStemVi?: string;
+}
+
+/**
+ * Hàm render CHUẨN MỰC DUY NHẤT cho một dòng Tứ Hóa kỳ hạn trong bảng dữ kiện & khối hậu kiểm S1.
+ * Dùng chung giữa `buildYunxianPeriodContext` và `verifyAndEnsureCompletePeriodSiHua`.
+ */
+export function formatPeriodSiHuaFactLine(
+  sh: PeriodSiHuaImpact,
+  prefix: 'Đại Hạn' | 'Lưu' = 'Lưu',
+): string {
+  const layerTag = prefix === 'Lưu' ? '[Tứ Hóa Lưu Niên]' : '[Tứ Hóa Đại Hạn]';
+  return `• **${layerTag} ${prefix} ${sh.mutagenVi} → Sao ${sh.starNameVi} [${sh.brightnessVi}]**: tọa thủ tại **Cung ${sh.periodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.natalPalaceNameVi} - ${sh.natalPalaceGanZhiVi})* — đối cung xung chiếu: **Cung ${sh.oppositePeriodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.oppositePalaceNameVi} - ${sh.oppositePalaceGanZhiVi})*${sh.natalMutagenVi ? ` · [${sh.natalMutagenVi}]` : ''}.`;
 }
 
 export interface PeriodDynamicStarItem {
@@ -376,6 +390,7 @@ export function buildYunxianPeriodContext(
       ?? getLiuNianSiHua(2024 + stemIndex).transforms)
     : getLiuNianSiHua(input.year ?? new Date().getFullYear()).transforms;
 
+  const periodStemVi = VI_STEMS[stemIndex] ?? '';
   const periodSiHua: PeriodSiHuaImpact[] = (['禄', '权', '科', '忌'] as SiHua[]).map((sh) => {
     const starCn = siHuaTransforms[sh] ?? '';
     const starVi = translateStarName(starCn);
@@ -387,17 +402,18 @@ export function buildYunxianPeriodContext(
     const natalPalaceNameVi = translatePalaceName(targetPalace.name);
     const oppositePalaceNameVi = translatePalaceName(oppPalace.name);
     const periodPalaceRoleVi = getPeriodPalaceRoleVi(targetPalace.branch);
+    const oppositePeriodPalaceRoleVi = getPeriodPalaceRoleVi(oppBranch);
     const natalMutagenVi = targetStar?.siHua ? `Bản mệnh Hóa ${translateSiHua(targetStar.siHua)}` : undefined;
 
     let resonanceNoteVi = '';
     if (targetStar?.siHua === sh) {
-      resonanceNoteVi = `Song ${translateSiHua(sh)} trùng phùng (${prefix} ${mutagenVi} trùng Bản mệnh Hóa ${translateSiHua(targetStar.siHua)}) tại ${natalPalaceNameVi}, xung chiếu ${oppositePalaceNameVi}`;
+      resonanceNoteVi = `Song ${translateSiHua(sh)} trùng phùng (${prefix} ${mutagenVi} trùng Bản mệnh Hóa ${translateSiHua(targetStar.siHua)}) tại Cung ${periodPalaceRoleVi} (trùng ${natalPalaceNameVi}), xung chiếu Cung ${oppositePeriodPalaceRoleVi} (trùng ${oppositePalaceNameVi})`;
     } else if (targetStar?.siHua) {
-      resonanceNoteVi = `Giao hội Tứ Hóa: ${prefix} ${mutagenVi} gặp Bản mệnh Hóa ${translateSiHua(targetStar.siHua)} trên sao ${starVi} tại ${natalPalaceNameVi}`;
+      resonanceNoteVi = `Giao hội Tứ Hóa: ${prefix} ${mutagenVi} gặp Bản mệnh Hóa ${translateSiHua(targetStar.siHua)} trên sao ${starVi} tại Cung ${periodPalaceRoleVi} (trùng ${natalPalaceNameVi}), xung chiếu Cung ${oppositePeriodPalaceRoleVi}`;
     } else if (sh === '忌') {
-      resonanceNoteVi = `${prefix} Hóa Kỵ nhập bản mệnh ${natalPalaceNameVi} (${periodPalaceRoleVi}), xung chiếu trực tiếp cung ${oppositePalaceNameVi} (${VI_BRANCHES[oppBranch]})`;
+      resonanceNoteVi = `${prefix} Hóa Kỵ nhập Cung ${periodPalaceRoleVi} (trùng bản mệnh ${natalPalaceNameVi}), xung chiếu trực tiếp Cung ${oppositePeriodPalaceRoleVi} (trùng ${oppositePalaceNameVi} - ${VI_BRANCHES[oppBranch]})`;
     } else {
-      resonanceNoteVi = `${prefix} ${mutagenVi} kích hoạt sao ${starVi} tại bản mệnh ${natalPalaceNameVi} (${periodPalaceRoleVi}), chiếu sang ${oppositePalaceNameVi}`;
+      resonanceNoteVi = `${prefix} ${mutagenVi} kích hoạt sao ${starVi} tại Cung ${periodPalaceRoleVi} (trùng bản mệnh ${natalPalaceNameVi}), xung chiếu sang Cung ${oppositePeriodPalaceRoleVi} (trùng ${oppositePalaceNameVi})`;
     }
 
     return {
@@ -412,8 +428,10 @@ export function buildYunxianPeriodContext(
       periodPalaceRoleVi,
       oppositePalaceNameVi,
       oppositePalaceGanZhiVi: `${VI_STEMS[oppPalace.stem]} ${VI_BRANCHES[oppPalace.branch]}`,
+      oppositePeriodPalaceRoleVi,
       natalMutagenVi,
       resonanceNoteVi,
+      periodStemVi,
     };
   });
 
@@ -500,10 +518,10 @@ export function buildYunxianPeriodContext(
   };
 
   const sanFangSiZheng = {
-    benGong: buildPalaceSummary(branchIndex, `Bản cung kỳ hạn (${prefix} Mệnh Cung)`),
-    xungChieu: buildPalaceSummary((branchIndex + 6) % 12, `Đối cung xung chiếu (${prefix} Thiên Di)`),
-    tamHopTai: buildPalaceSummary((branchIndex + 8) % 12, `Tam hợp Tài Bạch (${prefix} Tài Bạch)`),
-    tamHopQuan: buildPalaceSummary((branchIndex + 4) % 12, `Tam hợp Quan Lộc (${prefix} Quan Lộc)`),
+    benGong: buildPalaceSummary(branchIndex, `Cung ${prefix} Mệnh Cung (Bản cung kỳ hạn)`),
+    xungChieu: buildPalaceSummary((branchIndex + 6) % 12, `Cung ${prefix} Thiên Di (Đối cung xung chiếu)`),
+    tamHopTai: buildPalaceSummary((branchIndex + 8) % 12, `Cung ${prefix} Tài Bạch (Tam hợp Tài Bạch kỳ hạn)`),
+    tamHopQuan: buildPalaceSummary((branchIndex + 4) % 12, `Cung ${prefix} Quan Lộc (Tam hợp Quan Lộc kỳ hạn)`),
   };
 
   // 5. Trích đoạn kiến thức liên quan từ patterns.ts, heming-knowledge.ts, school-data.ts/constants.ts
@@ -559,31 +577,32 @@ export function buildYunxianPeriodContext(
 
   factLines.push(`\n**[Tứ Hóa Kỳ Hạn (Can ${VI_STEMS[stemIndex]}) Tác Động Lên Sao Bản Mệnh]**`);
   for (const sh of periodSiHua) {
-    factLines.push(
-      `• **${prefix} ${sh.mutagenVi} → Sao ${sh.starNameVi} [${sh.brightnessVi}]**: đóng tại bản mệnh **${sh.natalPalaceNameVi} (${sh.natalPalaceGanZhiVi})** *(vai trò: ${sh.periodPalaceRoleVi})*, đối cung xung chiếu **${sh.oppositePalaceNameVi} (${sh.oppositePalaceGanZhiVi})**${sh.natalMutagenVi ? ` · [${sh.natalMutagenVi}]` : ''}.`,
-    );
+    factLines.push(formatPeriodSiHuaFactLine(sh, prefix));
   }
 
   factLines.push(`\n**[Các Sao Lưu / Vận Hạn Theo Engine (Can ${VI_STEMS[stemIndex]} · Chi ${VI_BRANCHES[branchIndex]})]**`);
+  const formatDynamicStar = (d: PeriodDynamicStarItem): string =>
+    `**${d.starLabelVi}** tại **Cung ${d.periodPalaceRoleVi}** *(trùng ${d.natalPalaceNameVi} - ${d.branchVi})*`;
+
   const locMaStr = dynamicStars
     .filter((d) => d.category === 'loc_ma')
-    .map((d) => `**${d.starLabelVi}** tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map(formatDynamicStar)
     .join(' · ');
   const catTinhStr = dynamicStars
     .filter((d) => d.category === 'cat_tinh')
-    .map((d) => `**${d.starLabelVi}** tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map(formatDynamicStar)
     .join(' · ');
   const daoHoaStr = dynamicStars
     .filter((d) => d.category === 'dao_hoa')
-    .map((d) => `**${d.starLabelVi}** tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map(formatDynamicStar)
     .join(' · ');
   const satTinhStr = dynamicStars
     .filter((d) => d.category === 'sat_tinh')
-    .map((d) => `**${d.starLabelVi}** tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map(formatDynamicStar)
     .join(' · ');
   const tueTuongStr = dynamicStars
     .filter((d) => d.category === 'tue_tuong')
-    .map((d) => `**${d.starLabelVi}** tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map(formatDynamicStar)
     .join(' · ');
 
   factLines.push(`• **Bộ Lộc Mã**: ${locMaStr}`);
@@ -602,7 +621,19 @@ export function buildYunxianPeriodContext(
     const shText = node.periodSiHuaHere.length > 0 ? ` | Tứ Hóa kỳ hạn: **${node.periodSiHuaHere.join(', ')}**` : '';
     const dynText = node.dynamicStarsHere.length > 0 ? ` | Sao vận hạn: ${node.dynamicStarsHere.join(', ')}` : '';
     factLines.push(
-      `• **${node.roleVi}** → Trùng bản mệnh **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}**${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
+      `• **${node.roleVi}** → Đóng nhờ trên cung Bản Mệnh gốc **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}**${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
+    );
+  }
+
+  factLines.push(`\n**[Bảng Ánh Xạ Đầy Đủ 12 Cung Kỳ Hạn ↔ 12 Cung Bản Mệnh Gốc (Tra Cứu Bắt Buộc)]**`);
+  for (let offset = 0; offset < 12; offset += 1) {
+    const targetBranch = ((branchIndex - offset) % 12 + 12) % 12;
+    const roleVi = getPeriodPalaceRoleVi(targetBranch);
+    const pal = chart.palaces.find((p) => p.branch === targetBranch) ?? activePalace;
+    const majorsInfo = formatPalaceMajorsVi(pal);
+    const ganZhi = `${VI_STEMS[pal.stem]} ${VI_BRANCHES[pal.branch]}`;
+    factLines.push(
+      `• **Cung ${roleVi}** tại **${ganZhi}** → trùng cung Bản Mệnh gốc **${translatePalaceName(pal.name)}** (Chính tinh: ${majorsInfo.summary})`,
     );
   }
 

@@ -5,6 +5,9 @@ import type { AddressInfo } from 'net';
 process.env.ZIWEI_DISABLE_AUTO_LISTEN = '1';
 
 import { generateChart } from '../src/lib/ziwei/algorithm.ts';
+import { PALACE_NAMES_ORDER } from '../src/lib/ziwei/constants.ts';
+import { translatePalaceName } from '../src/lib/ziwei/vi-i18n.ts';
+import { buildYunxianPeriodContext } from '../src/lib/ziwei/yunxian-context.ts';
 import {
   DOSSIER_PALACE_GROUPS,
   VALID_DOSSIER_SECTION_IDS,
@@ -263,7 +266,106 @@ async function runTests() {
     }
   }
 
-  console.log('\n=== TẤT CẢ 5 BÀI KIỂM THỬ PHA 2 (DOSSIER CONTEXT & HTTP GUARD) ĐỀU ĐẠT ===');
+  // ── BÀI 6 (PHA 1 — TEST-3): Bảng 12 cung Lưu Niên, oppositePeriodPalaceRoleVi & Ma trận Ch.7/8 (S2 / QĐ-G3) ─
+  {
+    console.log('\n[6/6] [TEST-3] Kiểm thử Nguyễn Văn An (16/08/1995): 12 cung Lưu năm 2027 & MultiYearSiHuaEntry Ch.7/8...');
+    const anChart = generateChart({
+      name: 'Nguyễn Văn An',
+      year: 1995,
+      month: 8,
+      day: 16,
+      hour: 5, // Giờ Tỵ (10:30 tại Hà Nội) -> Mệnh Cung tại Mão
+      gender: 'male',
+      longitude: 105.85,
+    });
+
+    const ctx2027 = buildYunxianPeriodContext(anChart, { mode: 'liunian', year: 2027 });
+    assert.ok(ctx2027, 'Phải tạo được YunxianPeriodContext năm 2027');
+    assert.ok(
+      ctx2027.factTableMarkdown.includes('[Bảng Ánh Xạ Đầy Đủ 12 Cung Kỳ Hạn ↔ 12 Cung Bản Mệnh Gốc (Tra Cứu Bắt Buộc)]'),
+      'factTableMarkdown phải có bảng ánh xạ đầy đủ 12 cung kỳ hạn',
+    );
+
+    // Đủ 12 nhãn Cung Lưu ...
+    for (const cnName of PALACE_NAMES_ORDER) {
+      const expectedRole = `Cung Lưu ${translatePalaceName(cnName)}`;
+      assert.ok(
+        ctx2027.factTableMarkdown.includes(expectedRole),
+        `Thiếu vai trò ${expectedRole} trong bảng ánh xạ 12 cung năm 2027`,
+      );
+    }
+
+    // Cung Mão năm 2027 (Đinh Mùi) là Cung Lưu Tài Bạch trùng Bản Mệnh Mệnh Cung
+    assert.ok(
+      /Cung Lưu Tài Bạch\*\*\s+tại\s+\*\*[^*]*Mão\*\*\s+→\s+trùng cung Bản Mệnh gốc\s+\*\*Mệnh Cung\*\*/u.test(
+        ctx2027.factTableMarkdown,
+      ),
+      'Cung Mão năm 2027 phải ánh xạ đúng Cung Lưu Tài Bạch -> Mệnh Cung',
+    );
+
+    // 4 Tứ Hóa đều có periodPalaceRoleVi + oppositePeriodPalaceRoleVi + xuất hiện trong factTableMarkdown
+    assert.strictEqual(ctx2027.periodSiHua.length, 4);
+    for (const sh of ctx2027.periodSiHua) {
+      assert.ok(sh.periodPalaceRoleVi.startsWith('Lưu '), `Thiếu periodPalaceRoleVi trên ${sh.mutagenVi}`);
+      assert.ok(
+        sh.oppositePeriodPalaceRoleVi.startsWith('Lưu '),
+        `Thiếu oppositePeriodPalaceRoleVi trên ${sh.mutagenVi}`,
+      );
+      assert.strictEqual(sh.periodStemVi, 'Đinh');
+      assert.ok(ctx2027.factTableMarkdown.includes(`Cung ${sh.periodPalaceRoleVi}`));
+      assert.ok(ctx2027.factTableMarkdown.includes(`Cung ${sh.oppositePeriodPalaceRoleVi}`));
+    }
+
+    // Sao Lưu động trong factTableMarkdown đều có nhãn Cung Lưu ...
+    assert.ok(ctx2027.dynamicStars.length >= 10);
+    for (const ds of ctx2027.dynamicStars) {
+      assert.ok(ds.periodPalaceRoleVi.startsWith('Lưu '));
+      assert.ok(
+        ctx2027.factTableMarkdown.includes(`**${ds.starLabelVi}** tại **Cung ${ds.periodPalaceRoleVi}**`),
+        `Sao lưu ${ds.starLabelVi} thiếu vai trò cung Lưu trong factTableMarkdown`,
+      );
+    }
+
+    // Kiểm tra Chương 7 (2026–2030) & Chương 8 (2026–2035) giữ đủ toàn bộ trường PeriodSiHuaImpact
+    for (const [label, horizon] of [
+      ['Ch.7 (5 năm)', buildMultiYearHorizonContext(anChart, 2026, 2030)],
+      ['Ch.8 (10 năm)', buildMultiYearHorizonContext(anChart, 2026, 2035)],
+    ] as const) {
+      for (const row of horizon.rows) {
+        for (const sh of row.liuNianSiHua.allFour) {
+          assert.ok(sh.periodPalaceRoleVi.startsWith('Lưu '), `${label} ${row.year} thiếu periodPalaceRoleVi`);
+          assert.ok(
+            sh.oppositePeriodPalaceRoleVi.startsWith('Lưu '),
+            `${label} ${row.year} thiếu oppositePeriodPalaceRoleVi`,
+          );
+          assert.ok(Boolean(sh.periodStemVi), `${label} ${row.year} thiếu periodStemVi`);
+          assert.ok(Boolean(sh.natalPalaceGanZhiVi), `${label} ${row.year} thiếu natalPalaceGanZhiVi`);
+          assert.ok(Boolean(sh.oppositePalaceGanZhiVi), `${label} ${row.year} thiếu oppositePalaceGanZhiVi`);
+          assert.ok(Boolean(sh.resonanceNoteVi), `${label} ${row.year} thiếu resonanceNoteVi`);
+
+          assert.ok(
+            horizon.compactMatrixMarkdown.includes(`Cung ${sh.periodPalaceRoleVi}`),
+            `${label} compactMatrix thiếu tọa thủ Cung ${sh.periodPalaceRoleVi}`,
+          );
+          assert.ok(
+            horizon.compactMatrixMarkdown.includes(`Cung ${sh.oppositePeriodPalaceRoleVi}`),
+            `${label} compactMatrix thiếu đối cung Cung ${sh.oppositePeriodPalaceRoleVi}`,
+          );
+          assert.ok(
+            horizon.factSheetMarkdown.includes(`Cung ${sh.periodPalaceRoleVi}`),
+            `${label} factSheet thiếu tọa thủ Cung ${sh.periodPalaceRoleVi}`,
+          );
+          assert.ok(
+            horizon.factSheetMarkdown.includes(`Cung ${sh.oppositePeriodPalaceRoleVi}`),
+            `${label} factSheet thiếu đối cung Cung ${sh.oppositePeriodPalaceRoleVi}`,
+          );
+        }
+      }
+    }
+    console.log('  -> Đạt [TEST-3]: Đủ 12 cung Lưu Niên năm 2027, Lưu Tài Bạch@Mão=Mệnh Cung, đối cung & Ch.7/8 giữ đủ trường PeriodSiHuaImpact.');
+  }
+
+  console.log('\n=== TẤT CẢ 6 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & PHA 1 ĐỀU ĐẠT ===');
 }
 
 runTests().catch((err) => {

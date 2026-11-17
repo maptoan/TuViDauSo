@@ -7,8 +7,10 @@ import {
   classifyGeminiError,
   computeCooldownDurationMs,
   isSupportedGemini35Plus,
+  KeyAllocator,
   sanitizeSecretText,
 } from '../server/key-pool/allocator.ts';
+import { MAX_RECENT_LOGS, type KeyPoolState } from '../server/key-pool/types.ts';
 import { maskApiKey, parseBatchKeys } from '../server/key-pool/parser.ts';
 import { SerializedWriteQueue } from '../server/key-pool/crypto-store.ts';
 import { AiClientFactory, PoolExhaustedError } from '../server/key-pool/executor.ts';
@@ -1059,7 +1061,98 @@ async function runTests() {
       console.log('  -> Đạt: Peer đang cooldown cùng GCP Project được đồng bộ cooldownUntil mà không trừ oan healthScore.');
     }
 
-    console.log('\n=== TẤT CẢ 16 BÀI KIỂM THỬ KHO KHÓA & BATCH PROBE ĐỀU ĐẠT ===');
+    // ── BÀI 17: B2 Hồi quy — CALL_SUCCESS ghi recentLogs trên key ready & acquireLease gọi onStateMutated ─
+    {
+      console.log('\n[17/17] Kiểm thử B2: recordSuccess (wasProbe=false) ghi CALL_SUCCESS & acquireLease persist lastUsedAt...');
+      const rawK = fakeKey('B2ReadyCallLogKey00000000000001');
+      const keyId = 'k_b2_test';
+      let mutatedCalls: boolean[] = [];
+      const mockState: KeyPoolState = {
+        version: 1,
+        roundRobinCursor: 0,
+        modelConfig: {
+          defaultModel: 'gemini-3.5-flash-lite',
+          fallbackModel: 'gemini-3.8-flash',
+          supportedModels: ['gemini-3.5-flash-lite', 'gemini-3.8-flash'],
+        },
+        disabledEnvFingerprints: [],
+        keys: [
+          {
+            id: keyId,
+            label: 'Key B2 Test',
+            source: 'user_import',
+            maskedKey: maskApiKey(rawK),
+            fingerprint: 'fp_b2',
+            encryptedKey: { iv: '', authTag: '', ciphertext: '' },
+            detectedProjectNumber: null,
+            status: 'ready',
+            pendingProbe: false,
+            healthScore: 95,
+            consecutiveErrors: 0,
+            cooldownUntil: null,
+            cooldownReason: 'NONE',
+            lastScoreRecoveryAt: 1_700_000_000_000,
+            stats: {
+              totalCalls: 10,
+              successCalls: 8,
+              errorCalls: 2,
+              lastErrorType: 'NONE',
+              lastErrorMessage: null,
+              lastErrorAt: null,
+              lastUsedAt: null,
+              lastSuccessAt: null,
+              avgLatencyMs: 250,
+              lastTestLatencyMs: null,
+              lastTestedAt: null,
+            },
+            createdAt: 1_700_000_000_000,
+            updatedAt: 1_700_000_000_000,
+          },
+        ],
+        recentLogs: [],
+      };
+      const rawMap = new Map<string, string>([[keyId, rawK]]);
+      const allocB2 = new KeyAllocator(
+        () => mockState,
+        () => rawMap,
+        (immediate) => {
+          mutatedCalls.push(immediate);
+        },
+      );
+
+      // 1) acquireLease phải cập nhật lastUsedAt và gọi onStateMutated(false) ngay lập tức
+      const tLease = 1_700_600_000_000;
+      const lease = allocB2.acquireLease(new Set(), new Set(), tLease);
+      assert.ok(lease, 'Phải cấp được lease cho key ready');
+      assert.strictEqual(mockState.keys[0].stats.lastUsedAt, tLease, 'acquireLease phải cập nhật lastUsedAt');
+      assert.ok(mutatedCalls.includes(false), 'acquireLease phải gọi onStateMutated(false) để persist lastUsedAt');
+      lease.release();
+
+      // 2) recordSuccess trên key ready ổn định (wasProbe === false) phải ghi CALL_SUCCESS vào recentLogs và tăng stats
+      const tSuccess = tLease + 240;
+      allocB2.recordSuccess(keyId, 240, tSuccess, 'gemini-3.5-flash-lite');
+      assert.strictEqual(mockState.keys[0].stats.totalCalls, 11);
+      assert.strictEqual(mockState.keys[0].stats.successCalls, 9);
+      assert.strictEqual(mockState.keys[0].stats.lastSuccessAt, tSuccess);
+      assert.strictEqual(mockState.keys[0].status, 'ready');
+      assert.strictEqual(mockState.keys[0].cooldownUntil, null);
+      assert.strictEqual(mockState.recentLogs.length, 1, 'recordSuccess nhánh else phải ghi 1 dòng vào recentLogs');
+      const lastLog = mockState.recentLogs[0];
+      assert.strictEqual(lastLog.fromStatus, 'ready');
+      assert.strictEqual(lastLog.toStatus, 'ready');
+      assert.ok(lastLog.reason.startsWith('CALL_SUCCESS'), `Reason phải bắt đầu bằng CALL_SUCCESS, nhận: ${lastLog.reason}`);
+      assert.ok(lastLog.reason.includes('gemini-3.5-flash-lite'));
+      assert.ok(lastLog.reason.includes('ttfb=240ms'));
+
+      // 3) Không vượt quá MAX_RECENT_LOGS (100) khi gọi nhiều lần liên tiếp
+      for (let i = 0; i < MAX_RECENT_LOGS + 15; i++) {
+        allocB2.recordSuccess(keyId, 180 + i, tSuccess + 1000 + i, 'gemini-3.5-flash-lite');
+      }
+      assert.strictEqual(mockState.recentLogs.length, MAX_RECENT_LOGS, 'recentLogs phải giữ nguyên trần MAX_RECENT_LOGS=100');
+      console.log('  -> Đạt: acquireLease persist lastUsedAt ngay; recordSuccess (wasProbe=false) ghi CALL_SUCCESS và giữ trần 100 log.');
+    }
+
+    console.log('\n=== TẤT CẢ 17 BÀI KIỂM THỬ KHO KHÓA, BATCH PROBE & HỒI QUY B2 ĐỀU ĐẠT ===');
   } finally {
     if (origEnvKey !== undefined) process.env.GEMINI_API_KEY = origEnvKey;
     if (origEnvKeys !== undefined) process.env.GEMINI_API_KEYS = origEnvKeys;

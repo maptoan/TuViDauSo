@@ -23,6 +23,7 @@ import {
   unlockExtraChatTurns,
   upsertLruSessionEntry,
 } from '../lib/dossier-chat-ui';
+import { sanitizeAiVietnameseOutput } from '../lib/ziwei/text-sanitizer';
 import MarkdownContent from './MarkdownContent';
 import {
   X,
@@ -138,7 +139,13 @@ export default function ContextualChatDrawer({
       storageKey,
     );
     if (saved && Array.isArray(saved.messages)) {
-      setMessages(saved.messages);
+      setMessages(
+        saved.messages.map((m) =>
+          m.role === 'assistant' && m.content
+            ? { ...m, content: sanitizeAiVietnameseOutput(m.content) }
+            : m,
+        ),
+      );
     } else {
       setMessages([]);
     }
@@ -368,7 +375,7 @@ export default function ContextualChatDrawer({
           }
           const deltaText = parsed?.delta?.text ?? '';
           if (deltaText) {
-            accumulated += deltaText;
+            accumulated = sanitizeAiVietnameseOutput(accumulated + deltaText);
             updateAssistant({ content: accumulated, meta: receivedMeta });
           }
         } catch {
@@ -394,6 +401,8 @@ export default function ContextualChatDrawer({
       if (!doneSignal && sseBuffer.trim()) {
         processLine(sseBuffer.trim());
       }
+
+      accumulated = sanitizeAiVietnameseOutput(accumulated);
 
       const finalAssistant: StoredChatMessage = {
         id: assistantId,
@@ -421,15 +430,16 @@ export default function ContextualChatDrawer({
       persistThread(finalMessages);
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
+        const cleanPartial = sanitizeAiVietnameseOutput(accumulated);
         const errMsg =
           'Kết nối bị gián đoạn trước khi nhận xong câu trả lời. Vui lòng thử lại.';
         const finalMessages = updatedBase.map((m) =>
           m.id === assistantId
             ? {
                 ...m,
-                content: accumulated,
+                content: cleanPartial,
                 error: errMsg,
-                interrupted: Boolean(accumulated.trim()),
+                interrupted: Boolean(cleanPartial.trim()),
               }
             : m,
         );
@@ -447,7 +457,7 @@ export default function ContextualChatDrawer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex justify-end bg-black/65 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex justify-end bg-black/65 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       aria-label={`Hỏi đáp chuyên sâu — ${context.sectionTitle}`}

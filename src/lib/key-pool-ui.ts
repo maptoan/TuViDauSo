@@ -63,6 +63,30 @@ export function resolveNextModelSelection(
   };
 }
 
+export interface KeyPoolSnapshotRefreshInput {
+  open: boolean;
+  wasOpen: boolean;
+  hadOtherOverlayOpen: boolean;
+  hasOtherOverlayOpen: boolean;
+  regainedWindowFocus?: boolean;
+  isBatchProbing?: boolean;
+}
+
+/**
+ * Quyết định tải lại GET /api/key-pool một lần (không polling liên tục):
+ * - Khi modal vừa mở (false -> true)
+ * - Khi modal vẫn mở sẵn (open === true) và lớp phủ khác (DetailedDossierModal / ContextualChatDrawer) vừa đóng
+ * - Khi cửa sổ/tab lấy lại focus trong lúc modal đang mở trên cùng (và không đang chạy batch probe)
+ */
+export function shouldRefreshKeyPoolSnapshot(input: KeyPoolSnapshotRefreshInput): boolean {
+  if (!input.open) return false;
+  if (input.isBatchProbing) return false;
+  if (!input.wasOpen) return true;
+  if (input.hadOtherOverlayOpen && !input.hasOtherOverlayOpen) return true;
+  if (input.regainedWindowFocus && !input.hasOtherOverlayOpen) return true;
+  return false;
+}
+
 // ─── TÍNH NĂNG 1 (F3): Client-Orchestrated Batch Cooldown Probe ─────────────
 
 export const BATCH_COOLDOWN_PROBE_DELAY_MS = 1_200;

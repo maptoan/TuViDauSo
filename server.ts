@@ -22,6 +22,10 @@ import {
   VALID_DOSSIER_SECTION_IDS,
   type DossierSectionId,
 } from './src/lib/ziwei/dossier-context.ts';
+import {
+  sanitizeLayer3AOnly,
+  verifyAndEnsureCompletePeriodSiHua,
+} from './src/lib/ziwei/text-sanitizer.ts';
 import { keyPoolManager } from './server/key-pool/index.ts';
 import { PoolExhaustedError } from './server/key-pool/executor.ts';
 
@@ -105,7 +109,9 @@ function sendSseJson(res: express.Response, payload: unknown) {
 }
 
 function sendSseText(res: express.Response, text: string) {
-  sendSseJson(res, { delta: { text } });
+  const safeText = sanitizeLayer3AOnly(text);
+  if (!safeText) return;
+  sendSseJson(res, { delta: { text: safeText } });
 }
 
 function startSseHeartbeat(res: express.Response): () => void {
@@ -159,19 +165,23 @@ export function buildStrictPeriodAiPrompt(
     : 'LƯU NIÊN (Biến chuyển & sự kiện trong 1 năm)';
 
   const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
-QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
+QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN THỦ 100%):
 1. CHỈ ĐƯỢC phép luận giải dựa trên các dữ kiện có trong [BẢNG DỮ KIỆN KỲ HẠN XÁC ĐỊNH], [TRÍCH ĐOẠN TRI THỨC LIÊN QUAN] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được gửi kèm.
 2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm tự đổi cung vị của sao, cấm tự gán Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) hoặc Sao Lưu không có trong Bảng dữ kiện.
-3. Mọi nhận định phải nêu đích danh tên sao, tên cung bản mệnh, can chi và sao lưu khớp với Bảng dữ kiện.
+3. KỶ LUẬT PHÂN TẦNG TỨ HÓA & NHÃN CUNG KỲ HẠN:
+   - Giữ NGUYÊN tiền tố 4 tầng Tứ Hóa đúng như Bảng dữ kiện: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
+   - Khi bàn về bất kỳ cung nào có Lưu Tứ Hóa (hoặc Đại Hạn Tứ Hóa) tọa thủ HAY đối cung xung chiếu, BẮT BUỘC phải gọi đúng nhãn vai trò kỳ hạn từ Bảng dữ kiện ("Cung Lưu <Tên Cung>" đối với Lưu Niên, hoặc "Cung Đại Hạn <Tên Cung>" đối với Đại Hạn) cho CẢ cung tọa thủ lẫn đối cung xung chiếu, kèm tên cung Bản Mệnh gốc trùng vào đó; tuyệt đối không tự suy vai trò và TUYỆT ĐỐI CẤM lược bỏ chữ "Lưu" (như viết "tam hợp Tài Bạch (trùng Mệnh Cung)" gây nhầm với Tài Bạch gốc).
+   - BẮT BUỘC phải nhắc và phân tích ĐỦ CẢ 4 SAO TỨ HÓA CỦA KỲ HẠN (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ — nêu rõ tên sao + loại hóa + cung kỳ hạn tọa thủ + đối cung xung chiếu), tuyệt đối không được bỏ sót bất kỳ hóa nào.
 4. Phân biệt rõ tính chất kỳ hạn:
    - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
    - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
-5. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán), trình bày bằng Markdown theo đúng 4 đề mục:
+5. Mọi nhận định phải nêu đích danh tên sao, tên cung bản mệnh, nhãn "Cung Lưu <Tên Cung>" (nếu là Lưu Niên), can chi và sao lưu khớp với Bảng dữ kiện.
+6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), trình bày bằng Markdown theo đúng 4 đề mục:
    ### 1. Chủ Đề Kỳ Hạn (${isDahan ? 'Xu Thế 10 Năm' : 'Sự Kiện Trong Năm'})
    ### 2. Điểm Cát & Động Lực Thuận Lợi
    ### 3. Điểm Hung & Trục Xung Chiếu Cần Lưu Ý
    ### 4. Lời Khuyên Hành Động
-6. Cuối bài BẮT BUỘC ghi rõ dòng chữ: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
+7. Cuối bài BẮT BUỘC ghi rõ dòng chữ: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
 
   const excerpts = [
     ...(periodContext.knowledgeExcerpts.patterns.length > 0
@@ -348,15 +358,16 @@ export function buildStrictDossierSectionPrompt(
   const sectionRules = isPalaceGroup
     ? `4. ĐỊNH DẠNG & SÀN ĐỘ DÀI BẮT BUỘC CHO NHÓM 4 CUNG:
    - Phải viết đầy đủ 4 đề mục Markdown \`### Cung <Tên Cung> (<Can Chi>)\` tách biệt cho cả 4 cung: ${(sectionCtx.palaceNamesVi ?? []).join(', ')}. KHÔNG được gộp sơ sài hay bỏ sót bất kỳ cung nào.
+   - Lưu ý: tiêu đề mục cung (gồm cả nhãn [AN MỆNH]/[AN THÂN]/[Đại hạn X–Y tuổi]) sẽ được app chuẩn hóa hậu kiểm tự động theo dữ kiện lá số; AI giữ đúng mẫu \`### Cung <Tên Cung> (<Can Chi>)\` và tập trung viết thân bài thật sâu sắc cho từng cung.
    - Mỗi cung BẮT BUỘC đạt độ sâu phân tích **250–350 từ MỖI cung** (tổng toàn chương **1,000–1,400 từ**).
    - Trong mỗi cung: phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), Cát tinh/Sát tinh đi kèm, Tam Phương Tứ Chính (đối cung + 2 cung tam hợp), Tứ Hóa theo đúng tiền tố tầng và Tự Hóa/Phi Tinh (nếu có), cùng lời khuyên thực tiễn.`
     : isHorizon
       ? `4. QUY TẮC TỐI THƯỢNG CHO PHÂN TÍCH ĐA NĂM & ĐỘ DÀI (BẮT BUỘC):
    - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
-   - Với mỗi năm trong Ma Trận, BẠN CHỈ ĐƯỢC PHÉP trích dẫn Năm, Tuổi, Can Chi, Đại Hạn chủ quản, Quan hệ Đại Hạn–Lưu Niên, Cung Bản Mệnh kích hoạt, 4 sao Lưu Tứ Hóa (Lộc, Quyền, Khoa, Kỵ), các Sao Lưu và Cờ xung hợp đã in TRỰC TIẾP trong bảng Ma Trận.
+   - Với mỗi năm trong Ma Trận, BẠN CHỈ ĐƯỢC PHÉP trích dẫn Năm, Tuổi, Can Chi, Đại Hạn chủ quản, Quan hệ Đại Hạn–Lưu Niên, Cung Bản Mệnh kích hoạt, đủ cả 4 sao Lưu Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) kèm nhãn "Cung Lưu <Tên Cung>" (cả tọa thủ lẫn đối cung xung chiếu), các Sao Lưu và Cờ xung hợp đã in TRỰC TIẾP trong bảng Ma Trận.
    - TUYỆT ĐỐI CẤM tự tính nhẩm hoặc bịa thêm bất kỳ sao lưu niên, cung hạn hay năm nào nằm ngoài bảng Ma Trận.
    - Nếu một năm được ghi **"chưa vào Đại Hạn"**, PHẢI nêu rõ đương số chưa vào Đại Hạn ở năm đó và tuyệt đối không tự bịa cung Đại Hạn hay Tứ Hóa Đại Hạn.
-   - Trình bày rõ: Tổng quan chuyển dịch & mốc chuyển Đại Hạn → Phân tích nhịp từng năm dựa trên Ma Trận → Điểm rơi cơ hội/rủi ro nổi bật → Chiến lược hành động.`
+   - Trình bày rõ: Tổng quan chuyển dịch & mốc chuyển Đại Hạn → Phân tích nhịp từng năm dựa trên Ma Trận (xét đủ 4 Lưu Tứ Hóa) → Điểm rơi cơ hội/rủi ro nổi bật → Chiến lược hành động.`
       : `4. ĐỊNH DẠNG & ĐỘ DÀI BẮT BUỘC CHO CHƯƠNG TỔNG QUAN:
    - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
    - Trình bày theo 4 đề mục Markdown rõ ràng:
@@ -371,7 +382,7 @@ QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
 2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện.
 3. Khi nhắc đến Tứ Hóa, PHẢI giữ rõ tầng theo đúng tiền tố: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
 ${sectionRules}
-5. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán), văn phong sâu sắc, khách quan, mạch lạc.
+5. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
 6. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
 
   const prompt = `Hãy viết chuyên sâu phần **${sectionCtx.titleVi}** cho lá số sau, tuân thủ tuyệt đối bảng dữ kiện xác định và sàn độ dài đã quy định:
@@ -409,9 +420,11 @@ export function buildStrictExplanationChatPrompt(params: {
 QUY TẮC CHỐNG ẢO GIÁC & GIỚI HẠN TRẢ LỜI (BẮT BUỘC 100%):
 1. CHỈ ĐƯỢC phép trả lời dựa trên [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], [ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM] và [LỊCH SỬ HỎI ĐÁP GẦN NHẤT] được gửi kèm.
 2. TUYỆT ĐỐI CẤM bịa thêm sao, cấm tự tính nhẩm sao Lưu Niên của năm ngoài phạm vi Ma Trận 2026–2035, cấm thay đổi cung vị hoặc tự gán Tứ Hóa không có trong dữ kiện.
-3. Khi trích dẫn Tứ Hóa, LUÔN nêu rõ tầng ([Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], hay [Tứ Hóa Lưu Niên YYYY]).
-4. Nếu câu hỏi đề cập tới thông tin KHÔNG CÓ CƠ SỞ trong dữ kiện lá số hoặc đoạn luận giải (ví dụ dữ kiện đời tư ngoài lá số, hoặc năm ngoài bảng Ma Trận đã truyền), phải trả lời TRUNG THỰC rằng dữ kiện hiện có không đủ căn cứ cho chi tiết đó, chỉ phân tích trong phạm vi tinh đẩu đã xác định.
-5. Đi thẳng vào trọng tâm câu hỏi, độ dài mục tiêu **150–350 từ** bằng tiếng Việt chuẩn mực (không chữ Hán), theo 3 ý ngắn gọn:
+3. Đối chiếu tên sao theo ĐÚNG NGUYÊN VĂN trong [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], cảnh giác các sao gần giống tên nhau (ví dụ: Giải Thần, Niên Giải và Thiên Giải là 3 sao hoàn toàn khác nhau — chỉ được nói về sao có tên khớp chính xác trong dữ kiện).
+4. Nếu người dùng nêu một sao hoặc tổ hợp sao KHÔNG xuất hiện trong [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], PHẢI nói rõ sao đó KHÔNG CÓ trong lá số/dữ kiện hiện có và DỪNG Ở ĐÓ; TUYỆT ĐỐI KHÔNG tự gán sao đó sang cung khác hay khẳng định vị trí thay thế.
+5. Khi trích dẫn Tứ Hóa, LUÔN nêu rõ tầng ([Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], hay [Tứ Hóa Lưu Niên YYYY]).
+6. Nếu câu hỏi đề cập tới thông tin KHÔNG CÓ CƠ SỞ trong dữ kiện lá số hoặc đoạn luận giải (ví dụ dữ kiện đời tư ngoài lá số, hoặc năm ngoài bảng Ma Trận đã truyền), phải trả lời TRUNG THỰC rằng dữ kiện hiện có không đủ căn cứ cho chi tiết đó, chỉ phân tích trong phạm vi tinh đẩu đã xác định.
+7. Đi thẳng vào trọng tâm câu hỏi, độ dài mục tiêu **150–350 từ** bằng tiếng Việt chuẩn mực (không chữ Hán), theo 3 ý ngắn gọn (nếu sao được hỏi không có trong dữ kiện theo mục 4 thì chỉ cần xác nhận rõ không có và dừng ngay phần đó, không suy diễn kéo dài):
    - **Căn cứ tinh đẩu & Tứ Hóa**: (nêu đích danh cung, sao, Tứ Hóa liên quan)
    - **Giải đáp trực diện**: (trả lời thẳng câu hỏi)
    - **Gợi ý ứng xử thực tế**: (1–2 hành động cụ thể)`;
@@ -454,6 +467,7 @@ export function registerApiRoutes(app: express.Express) {
 
   app.get('/api/key-pool', (req, res) => {
     const sec = getRequestSecurityContext(req);
+    res.setHeader('Cache-Control', 'no-store');
     res.json(
       keyPoolManager.getPublicSnapshot({
         isReadOnly: sec.isReadOnly,
@@ -656,6 +670,9 @@ export function registerApiRoutes(app: express.Express) {
       }
     };
 
+    let accumulatedText = '';
+    let wasInterrupted = false;
+
     try {
       await keyPoolManager.executeStream({
         prompt,
@@ -667,9 +684,14 @@ export function registerApiRoutes(app: express.Express) {
         },
         onChunk: (text) => {
           ensureSseStarted();
+          const safeChunk = sanitizeLayer3AOnly(text);
+          if (safeChunk) {
+            accumulatedText += safeChunk;
+          }
           sendSseText(res, text);
         },
         onInterrupted: (ev) => {
+          wasInterrupted = true;
           ensureSseStarted();
           sendSseJson(res, {
             interrupted: true,
@@ -679,6 +701,32 @@ export function registerApiRoutes(app: express.Express) {
           });
         },
       });
+      if (
+        !wasInterrupted &&
+        accumulatedText.trim() &&
+        Array.isArray(periodContext.periodSiHua) &&
+        periodContext.periodSiHua.length > 0 &&
+        sseStarted &&
+        !res.writableEnded
+      ) {
+        const siHuaCheck = verifyAndEnsureCompletePeriodSiHua(
+          accumulatedText,
+          periodContext,
+        );
+        if (!siHuaCheck.isComplete) {
+          const marker = '> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**';
+          const markerIdx = siHuaCheck.patchedText.indexOf(marker);
+          if (markerIdx >= 0) {
+            const addendumBlock = siHuaCheck.patchedText.slice(markerIdx);
+            const leadingSep = accumulatedText.endsWith('\n\n')
+              ? ''
+              : accumulatedText.endsWith('\n')
+                ? '\n'
+                : '\n\n';
+            sendSseText(res, `${leadingSep}${addendumBlock}`);
+          }
+        }
+      }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
         res.end();

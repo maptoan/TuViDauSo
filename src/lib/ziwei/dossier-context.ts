@@ -1,5 +1,5 @@
 import type { Palace, SiHua, ZiweiChart } from './types';
-import { STAR_DESCRIPTIONS } from './constants';
+import { PALACE_NAMES_ORDER, STAR_DESCRIPTIONS } from './constants';
 import {
   detectSelfSihua,
   getDaXianSiHua,
@@ -14,6 +14,7 @@ import {
   isChildhoodYear,
   resolveEffectiveDaXianIndex,
   type PeriodDynamicStarItem,
+  type PeriodSiHuaImpact,
   type YunxianPeriodContext,
 } from './yunxian-context';
 import { detectPatterns } from './patterns';
@@ -503,15 +504,7 @@ export function buildPalaceGroupFactSheetVi(
     };
     palaces.push(detail);
 
-    const badges = [
-      p.isMingGong ? '[AN MỆNH]' : '',
-      p.isShenGong ? '[AN THÂN]' : '',
-      detail.daXianAgeRangeVi ? `[Đại hạn ${detail.daXianAgeRangeVi}]` : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-
-    lines.push(`\n### Cung ${natalPalaceNameVi} (${ganZhiVi}) ${badges}`.trim());
+    lines.push(`\n${formatCanonicalPalaceHeading(p)}`);
     lines.push(`• **Chức năng**: ${roleDescVi}`);
     lines.push(`• **Chính tinh**: **${majorsInfo.summaryVi}**`);
     lines.push(
@@ -544,17 +537,23 @@ export function buildPalaceGroupFactSheetVi(
   };
 }
 
-export interface MultiYearSiHuaEntry {
-  mutagenKey: SiHua;
-  mutagenVi: string;
+export function formatCanonicalPalaceHeading(p: Palace): string {
+  const natalPalaceNameVi = translatePalaceName(p.name);
+  const ganZhiVi = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+  const daXianAgeRangeVi = p.daXianAge ? `${p.daXianAge[0]}–${p.daXianAge[1]} tuổi` : null;
+  const badges = [
+    p.isMingGong ? '[AN MỆNH]' : '',
+    p.isShenGong ? '[AN THÂN]' : '',
+    daXianAgeRangeVi ? `[Đại hạn ${daXianAgeRangeVi}]` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return `### Cung ${natalPalaceNameVi} (${ganZhiVi}) ${badges}`.trim();
+}
+
+export interface MultiYearSiHuaEntry extends PeriodSiHuaImpact {
   layerPrefix: string;
-  starNameVi: string;
-  brightnessVi: string;
-  natalPalaceNameVi: string;
-  natalPalaceGanZhiVi: string;
-  oppositePalaceNameVi: string;
-  oppositePalaceGanZhiVi: string;
-  natalMutagenVi?: string;
 }
 
 export interface MultiYearHorizonRow {
@@ -730,37 +729,48 @@ export function buildMultiYearHorizonContext(
     const lnMingMajors = formatPalaceMajorsList(lnMingPalace);
 
     const lnPrefix = `[Tứ Hóa Lưu Niên ${year} - Can ${lunarStemVi}]`;
+    const getFallbackRoleVi = (targetBranch: number): string => {
+      const offset = ((branchIdx - targetBranch) % 12 + 12) % 12;
+      return `Lưu ${translatePalaceName(PALACE_NAMES_ORDER[offset] ?? '命宫')}`;
+    };
+
     const mapSiHuaEntry = (key: SiHua): MultiYearSiHuaEntry => {
       const item = periodCtx.periodSiHua.find((x) => x.mutagenKey === key);
       if (!item) {
         const fallbackTransforms = getLiuNianSiHua(year).transforms;
         const starCn = fallbackTransforms[key] ?? '';
+        const starVi = translateStarName(starCn);
         const targetPal = chart.palaces.find((p) => p.stars.some((s) => s.name === starCn)) ?? lnMingPalace;
-        const oppPal =
-          chart.palaces.find((p) => p.branch === (targetPal.branch + 6) % 12) ?? lnMingPalace;
+        const targetStar = targetPal.stars.find((s) => s.name === starCn);
+        const oppBranch = (targetPal.branch + 6) % 12;
+        const oppPal = chart.palaces.find((p) => p.branch === oppBranch) ?? lnMingPalace;
+        const periodPalaceRoleVi = getFallbackRoleVi(targetPal.branch);
+        const oppositePeriodPalaceRoleVi = getFallbackRoleVi(oppBranch);
+        const natalPalaceNameVi = translatePalaceName(targetPal.name);
+        const oppositePalaceNameVi = translatePalaceName(oppPal.name);
+        const mutagenVi = `Hóa ${translateSiHua(key)}`;
         return {
           mutagenKey: key,
-          mutagenVi: `Hóa ${translateSiHua(key)}`,
+          mutagenVi,
           layerPrefix: lnPrefix,
-          starNameVi: translateStarName(starCn),
-          brightnessVi: 'Bình',
-          natalPalaceNameVi: translatePalaceName(targetPal.name),
+          starNameCn: starCn,
+          starNameVi: starVi,
+          brightnessVi: targetStar?.brightnessRaw ? translateBrightness(targetStar.brightnessRaw) : 'Bình',
+          natalPalaceNameVi,
+          natalPalaceBranch: targetPal.branch,
           natalPalaceGanZhiVi: `${VI_STEMS[targetPal.stem]} ${VI_BRANCHES[targetPal.branch]}`,
-          oppositePalaceNameVi: translatePalaceName(oppPal.name),
+          periodPalaceRoleVi,
+          oppositePalaceNameVi,
           oppositePalaceGanZhiVi: `${VI_STEMS[oppPal.stem]} ${VI_BRANCHES[oppPal.branch]}`,
+          oppositePeriodPalaceRoleVi,
+          natalMutagenVi: targetStar?.siHua ? `Bản mệnh Hóa ${translateSiHua(targetStar.siHua)}` : undefined,
+          resonanceNoteVi: `Lưu ${mutagenVi} kích hoạt sao ${starVi} tại Cung ${periodPalaceRoleVi} (trùng ${natalPalaceNameVi}), xung chiếu Cung ${oppositePeriodPalaceRoleVi} (trùng ${oppositePalaceNameVi})`,
+          periodStemVi: lunarStemVi,
         };
       }
       return {
-        mutagenKey: item.mutagenKey,
-        mutagenVi: item.mutagenVi,
+        ...item,
         layerPrefix: lnPrefix,
-        starNameVi: item.starNameVi,
-        brightnessVi: item.brightnessVi,
-        natalPalaceNameVi: item.natalPalaceNameVi,
-        natalPalaceGanZhiVi: item.natalPalaceGanZhiVi,
-        oppositePalaceNameVi: item.oppositePalaceNameVi,
-        oppositePalaceGanZhiVi: item.oppositePalaceGanZhiVi,
-        natalMutagenVi: item.natalMutagenVi,
       };
     };
 
@@ -776,7 +786,7 @@ export function buildMultiYearHorizonContext(
           d.starLabelVi.endsWith(tag),
         ),
       )
-      .map((d) => `${d.starLabelVi} tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+      .map((d) => `${d.starLabelVi} tại Cung ${d.periodPalaceRoleVi} (${d.natalPalaceNameVi} - ${d.branchVi})`)
       .join(' · ');
 
     // (8) Cờ xung hợp nổi bật — CHỈ phát sinh khi dữ kiện xác định thỏa mãn
@@ -871,17 +881,17 @@ export function buildMultiYearHorizonContext(
   }
 
   const compactLines: string[] = [];
-  compactLines.push(`**[MA TRẬN DỮ KIỆN RÚT GỌN ${startYear}–${endYear} (ĐỦ 4 HÓA + ĐẠI HẠN CHỦ QUẢN)]**`);
+  compactLines.push(`**[MA TRẬN DỮ KIỆN RÚT GỌN ${startYear}–${endYear} (ĐỦ 4 HÓA + NHÃN LƯU NIÊN + ĐẠI HẠN CHỦ QUẢN)]**`);
   for (const r of rows) {
     const shLine = r.liuNianSiHua.allFour
       .map(
         (s) =>
-          `${s.mutagenVi}: ${s.starNameVi} tại ${s.natalPalaceNameVi} (xung ${s.oppositePalaceNameVi})`,
+          `${s.mutagenVi}: ${s.starNameVi} tại Cung ${s.periodPalaceRoleVi} [trùng ${s.natalPalaceNameVi}] (xung Cung ${s.oppositePeriodPalaceRoleVi} [trùng ${s.oppositePalaceNameVi}])`,
       )
       .join(' | ');
     const flagStr = r.highlightFlags.length > 0 ? ` | Cờ: ${r.highlightFlags.join('; ')}` : '';
     compactLines.push(
-      `• **${r.year} (${r.lunarGanZhiVi} · ${r.nominalAge}t)** | ĐH: ${r.governingDaXian.labelVi} | Cung kích hoạt: ${r.activatedPalace.natalPalaceNameVi} (${r.activatedPalace.majorStarsSummaryVi}) | ${r.liuNianSiHua.loc.layerPrefix} ${shLine} | Sao lưu: ${r.dynamicStarsSummaryVi}${flagStr}`,
+      `• **${r.year} (${r.lunarGanZhiVi} · ${r.nominalAge}t)** | ĐH: ${r.governingDaXian.labelVi} | Cung Lưu Mệnh Cung kích hoạt Bản Mệnh: ${r.activatedPalace.natalPalaceNameVi} (${r.activatedPalace.majorStarsSummaryVi}) | ${r.liuNianSiHua.loc.layerPrefix} ${shLine} | Sao lưu: ${r.dynamicStarsSummaryVi}${flagStr}`,
     );
   }
 
@@ -906,13 +916,13 @@ export function buildMultiYearHorizonContext(
     );
     detailLines.push(`• **(4) Quan hệ Đại Hạn – Lưu Niên**: ${r.daXianLiuNianRelationVi}`);
     detailLines.push(
-      `• **(5) Cung Bản Mệnh kích hoạt (Lưu Niên Mệnh tại ${r.activatedPalace.branchVi})**: Trùng bản mệnh **${r.activatedPalace.natalPalaceNameVi} (${r.activatedPalace.ganZhiVi})** — Chính tinh: **${r.activatedPalace.majorStarsSummaryVi}** | Cát: ${r.activatedPalace.luckyStarsVi.join(', ') || 'Không'} | Sát: ${r.activatedPalace.shaStarsVi.join(', ') || 'Không'} | Đối cung (LN Thiên Di): ${r.activatedPalace.oppositeSummaryVi} | LN Quan Lộc: ${r.activatedPalace.guanLuSummaryVi} | LN Tài Bạch: ${r.activatedPalace.caiBoSummaryVi} | LN Phu Thê: ${r.activatedPalace.fuQiSummaryVi}`,
+      `• **(5) Trục Lưu Niên & Cung Bản Mệnh kích hoạt (Cung Lưu Mệnh Cung tại ${r.activatedPalace.branchVi})**: Trùng bản mệnh **${r.activatedPalace.natalPalaceNameVi} (${r.activatedPalace.ganZhiVi})** — Chính tinh: **${r.activatedPalace.majorStarsSummaryVi}** | Cát: ${r.activatedPalace.luckyStarsVi.join(', ') || 'Không'} | Sát: ${r.activatedPalace.shaStarsVi.join(', ') || 'Không'} | Đối cung (Cung Lưu Thiên Di): ${r.activatedPalace.oppositeSummaryVi} | Cung Lưu Quan Lộc: ${r.activatedPalace.guanLuSummaryVi} | Cung Lưu Tài Bạch: ${r.activatedPalace.caiBoSummaryVi} | Cung Lưu Phu Thê: ${r.activatedPalace.fuQiSummaryVi}`,
     );
     detailLines.push(
       `• **(6) Bộ Lưu Tứ Hóa (${r.liuNianSiHua.loc.layerPrefix})**: ${r.liuNianSiHua.allFour
         .map(
           (s) =>
-            `**${s.starNameVi} [${s.brightnessVi}] ${s.mutagenVi}** tại bản mệnh **${s.natalPalaceNameVi} (${s.natalPalaceGanZhiVi})** (xung ${s.oppositePalaceNameVi})${s.natalMutagenVi ? ` [${s.natalMutagenVi}]` : ''}`,
+            `**${s.starNameVi} [${s.brightnessVi}] ${s.mutagenVi}** tại **Cung ${s.periodPalaceRoleVi}** [trùng bản mệnh **${s.natalPalaceNameVi} (${s.natalPalaceGanZhiVi})**] (xung **Cung ${s.oppositePeriodPalaceRoleVi}** [trùng **${s.oppositePalaceNameVi} (${s.oppositePalaceGanZhiVi})**])${s.natalMutagenVi ? ` [${s.natalMutagenVi}]` : ''}`,
         )
         .join(' ; ')}`,
     );
@@ -936,7 +946,7 @@ export function buildMultiYearHorizonContext(
 
 function periodCtxLabelDynStars(dynamicStars: PeriodDynamicStarItem[]): string {
   return dynamicStars
-    .map((d) => `${d.starLabelVi} tại ${d.natalPalaceNameVi} (${d.branchVi})`)
+    .map((d) => `${d.starLabelVi} tại Cung ${d.periodPalaceRoleVi} (${d.natalPalaceNameVi} - ${d.branchVi})`)
     .join(' · ');
 }
 

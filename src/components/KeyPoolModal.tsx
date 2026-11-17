@@ -7,6 +7,7 @@ import {
   canTriggerBatchCooldownProbe,
   resolveNextModelSelection,
   runClientBatchCooldownProbe,
+  shouldRefreshKeyPoolSnapshot,
 } from '../lib/key-pool-ui';
 import {
   X,
@@ -115,6 +116,7 @@ interface KeyPoolModalProps {
   open: boolean;
   onClose: () => void;
   onPoolUpdated?: (snapshot: KeyPoolPublicSnapshot) => void;
+  hasOtherOverlayOpen?: boolean;
 }
 
 function formatDurationSec(totalSec: number): string {
@@ -147,7 +149,12 @@ const ERROR_LABELS: Record<string, string> = {
   UNKNOWN: 'Lỗi khác',
 };
 
-export default function KeyPoolModal({ open, onClose, onPoolUpdated }: KeyPoolModalProps) {
+export default function KeyPoolModal({
+  open,
+  onClose,
+  onPoolUpdated,
+  hasOtherOverlayOpen = false,
+}: KeyPoolModalProps) {
   const [snapshot, setSnapshot] = useState<KeyPoolPublicSnapshot | null>(null);
   const [serverClockOffsetMs, setServerClockOffsetMs] = useState(0);
   const [nowTick, setNowTick] = useState(() => Date.now());
@@ -221,10 +228,16 @@ export default function KeyPoolModal({ open, onClose, onPoolUpdated }: KeyPoolMo
     [],
   );
 
+  const wasOpenRef = useRef(false);
+  const hadOtherOverlayRef = useRef(false);
+  const isBatchProbingRef = useRef(false);
+  isBatchProbingRef.current = Boolean(batchProgress?.running);
+
   const fetchSnapshot = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch('/api/key-pool', {
+        cache: 'no-store',
         headers: adminPin.trim() ? { 'x-key-pool-pin': adminPin.trim() } : {},
       });
       if (res.ok) {
@@ -245,18 +258,63 @@ export default function KeyPoolModal({ open, onClose, onPoolUpdated }: KeyPoolMo
   }, []);
 
   useEffect(() => {
+    const wasOpen = wasOpenRef.current;
+    const hadOtherOverlayOpen = hadOtherOverlayRef.current;
+    wasOpenRef.current = open;
+    hadOtherOverlayRef.current = hasOtherOverlayOpen;
+
     if (!open) {
       abortBatchProbeImmediately();
       return;
     }
-    modelDirtyRef.current = false;
-    fetchSnapshot();
+
+    if (!wasOpen) {
+      modelDirtyRef.current = false;
+    }
+
+    if (
+      shouldRefreshKeyPoolSnapshot({
+        open,
+        wasOpen,
+        hadOtherOverlayOpen,
+        hasOtherOverlayOpen,
+        isBatchProbing: isBatchProbingRef.current,
+      })
+    ) {
+      fetchSnapshot();
+    }
+  }, [open, hasOtherOverlayOpen, fetchSnapshot, abortBatchProbeImmediately]);
+
+  useEffect(() => {
+    if (!open) return;
+
     const timer = setInterval(() => setNowTick(Date.now()), 1000);
+
+    const handleRevealRefresh = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (
+        shouldRefreshKeyPoolSnapshot({
+          open: true,
+          wasOpen: true,
+          hadOtherOverlayOpen: false,
+          hasOtherOverlayOpen,
+          regainedWindowFocus: true,
+          isBatchProbing: isBatchProbingRef.current,
+        })
+      ) {
+        fetchSnapshot();
+      }
+    };
+
+    window.addEventListener('focus', handleRevealRefresh);
+    document.addEventListener('visibilitychange', handleRevealRefresh);
+
     return () => {
       clearInterval(timer);
-      abortBatchProbeImmediately();
+      window.removeEventListener('focus', handleRevealRefresh);
+      document.removeEventListener('visibilitychange', handleRevealRefresh);
     };
-  }, [open, fetchSnapshot, abortBatchProbeImmediately]);
+  }, [open, hasOtherOverlayOpen, fetchSnapshot]);
 
   if (!open) return null;
 
@@ -269,6 +327,7 @@ export default function KeyPoolModal({ open, onClose, onPoolUpdated }: KeyPoolMo
     if (!clean) return;
     try {
       const res = await fetch('/api/key-pool', {
+        cache: 'no-store',
         headers: { 'x-key-pool-pin': clean },
       });
       if (res.ok) {
@@ -657,7 +716,7 @@ export default function KeyPoolModal({ open, onClose, onPoolUpdated }: KeyPoolMo
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-3 sm:p-5 bg-slate-950/75 backdrop-blur-sm">
       <div className="w-full max-w-5xl max-h-[92vh] overflow-hidden rounded-2xl border border-[var(--t-border-acc)] bg-[var(--t-bg)] text-[var(--t-text)] shadow-2xl flex flex-col">
         {/* Header */}
         <div className="px-5 py-4 border-b border-[var(--t-border)] bg-[var(--t-card)] flex items-center justify-between gap-3">

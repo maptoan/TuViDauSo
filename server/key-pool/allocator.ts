@@ -472,6 +472,7 @@ export class KeyAllocator {
     state.roundRobinCursor = (chosenIndex + 1) % total;
     chosen.stats.lastUsedAt = now;
     chosen.updatedAt = now;
+    this.onStateMutated(false);
 
     const currentInFlight = this.getInFlightCount(chosen.id);
     this.inFlightCounts.set(chosen.id, currentInFlight + 1);
@@ -573,6 +574,14 @@ export class KeyAllocator {
       });
     } else {
       key.healthScore = Math.min(100, key.healthScore + 5);
+      this.appendLog({
+        timestamp: now,
+        keyId: key.id,
+        maskedKey: key.maskedKey,
+        fromStatus: prevStatus,
+        toStatus: 'ready',
+        reason: `CALL_SUCCESS (${modelUsed ? `model=${modelUsed}, ` : ''}health=${key.healthScore}, ttfb=${Math.round(ttfbLatencyMs)}ms)`,
+      });
     }
 
     this.onStateMutated(false);

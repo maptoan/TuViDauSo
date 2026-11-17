@@ -494,20 +494,6 @@ function AppContent() {
         </div>
       </footer>
 
-      <KeyPoolModal
-        open={showKeyPool}
-        onClose={() => setShowKeyPool(false)}
-        onPoolUpdated={(snap) =>
-          setPoolSummary((prev) =>
-            prev &&
-            prev.ready === snap.summary.ready &&
-            prev.total === snap.summary.total
-              ? prev
-              : { ready: snap.summary.ready, total: snap.summary.total },
-          )
-        }
-      />
-
       <DetailedDossierModal
         open={showDossierModal}
         onClose={() => setShowDossierModal(false)}
@@ -524,6 +510,21 @@ function AppContent() {
         context={chatDrawerContext}
         onClose={() => setChatDrawerContext(null)}
         isDossierGenerating={isDossierGenerating}
+      />
+
+      <KeyPoolModal
+        open={showKeyPool}
+        onClose={() => setShowKeyPool(false)}
+        hasOtherOverlayOpen={showDossierModal || chatDrawerContext !== null}
+        onPoolUpdated={(snap) =>
+          setPoolSummary((prev) =>
+            prev &&
+            prev.ready === snap.summary.ready &&
+            prev.total === snap.summary.total
+              ? prev
+              : { ready: snap.summary.ready, total: snap.summary.total },
+          )
+        }
       />
     </div>
   );

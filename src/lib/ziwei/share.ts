@@ -27,10 +27,14 @@ export function formToTrueSolarTime(form: Pick<BirthFormState, 'year' | 'month' 
  * 这与「时辰支同为子(0)」并不冲突——子时分早晚两段，需要在日期上区分。
  */
 export function formToBirthInfo(form: BirthFormState): BirthInfo {
-  let y = parseInt(form.year) || 0;
-  let m = parseInt(form.month) || 0;
-  let d = parseInt(form.day) || 0;
+  const origYear = parseInt(form.year, 10) || 0;
+  const origMonth = parseInt(form.month, 10) || 0;
+  const origDay = parseInt(form.day, 10) || 0;
+  let y = origYear;
+  let m = origMonth;
+  let d = origDay;
   let hour = 0;
+  let origInput: BirthInfo['origInput'] = undefined;
 
   // 晚子时换日按真太阳时判定，与时辰支同一口径（见 true-solar-time.ts 的 resolveZiweiDayOffset）。
   if (!form.unknownTime) {
@@ -40,6 +44,13 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     if (dayOffset !== 0 && solar.dateValid) {
       ({ year: y, month: m, day: d } = shiftGregorianDate({ year: y, month: m, day: d }, dayOffset));
     }
+    origInput = {
+      year: origYear,
+      month: origMonth,
+      day: origDay,
+      clockHour: parseInt(form.clockHour, 10) || 0,
+      clockMinute: parseInt(form.clockMinute, 10) || 0,
+    };
   }
 
   return {
@@ -50,6 +61,7 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
     province: form.province || undefined,
     city: form.city || undefined,
     longitude: form.province ? form.longitude : undefined,
+    origInput,
   };
 }
 

@@ -56,7 +56,37 @@ function buildLocalHemingFallback(chartA: ZiweiChart, chartB: ZiweiChart): strin
 2. **Phân Công Vai Trò:** Người có nhóm sao Đế Tinh / Khai Sáng (Tử Vi, Thiên Phủ, Vũ Khúc, Thất Sát) nên đảm nhận hoạch định chiến lược; người có nhóm sao Trí Tuệ / Hòa Hợp (Thiên Cơ, Thái Âm, Thiên Lương, Thiên Đồng) nên nắm giữ hậu phương và quản trị rủi ro.`;
 }
 
+const DEFAULT_HEMING_FORM_A: BirthFormState = {
+  name: 'Nguyễn Minh Quân',
+  year: '1993',
+  month: '5',
+  day: '12',
+  clockHour: '9',
+  clockMinute: '30',
+  unknownTime: false,
+  gender: 'male',
+  province: 'Việt Nam — Miền Bắc',
+  city: 'Hà Nội',
+  longitude: 105.85,
+};
+
+const DEFAULT_HEMING_FORM_B: BirthFormState = {
+  name: 'Trần Ngọc Lan',
+  year: '1996',
+  month: '10',
+  day: '24',
+  clockHour: '14',
+  clockMinute: '15',
+  unknownTime: false,
+  gender: 'female',
+  province: 'Việt Nam — Miền Nam & ĐBSCL',
+  city: 'TP. Hồ Chí Minh (Sài Gòn)',
+  longitude: 106.7,
+};
+
 export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
+  const [formA, setFormA] = useState<BirthFormState>(DEFAULT_HEMING_FORM_A);
+  const [formB, setFormB] = useState<BirthFormState>(DEFAULT_HEMING_FORM_B);
   const [chartA, setChartA] = useState<ZiweiChart | null>(null);
   const [chartB, setChartB] = useState<ZiweiChart | null>(null);
   const [result, setResult] = useState('');
@@ -186,20 +216,9 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
           <BirthForm
             compact
             submitLabel="Xác Nhận Lá Số A"
-            initialState={{
-              name: 'Nguyễn Minh Quân',
-              year: '1993',
-              month: '5',
-              day: '12',
-              clockHour: '9',
-              clockMinute: '30',
-              unknownTime: false,
-              gender: 'male',
-              province: 'Việt Nam — Miền Bắc',
-              city: 'Hà Nội',
-              longitude: 105.85,
-            }}
-            onChartGenerated={(c: ZiweiChart, _f: BirthFormState) => {
+            initialState={formA}
+            onChartGenerated={(c: ZiweiChart, f: BirthFormState) => {
+              setFormA(f);
               setChartA(c);
               setResult('');
             }}
@@ -215,20 +234,9 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
           <BirthForm
             compact
             submitLabel="Xác Nhận Lá Số B"
-            initialState={{
-              name: 'Trần Ngọc Lan',
-              year: '1996',
-              month: '10',
-              day: '24',
-              clockHour: '14',
-              clockMinute: '15',
-              unknownTime: false,
-              gender: 'female',
-              province: 'Việt Nam — Miền Nam & ĐBSCL',
-              city: 'TP. Hồ Chí Minh (Sài Gòn)',
-              longitude: 106.7,
-            }}
-            onChartGenerated={(c: ZiweiChart, _f: BirthFormState) => {
+            initialState={formB}
+            onChartGenerated={(c: ZiweiChart, f: BirthFormState) => {
+              setFormB(f);
               setChartB(c);
               setResult('');
             }}
