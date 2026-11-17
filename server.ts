@@ -171,6 +171,7 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
 3. KỶ LUẬT PHÂN TẦNG TỨ HÓA & NHÃN CUNG KỲ HẠN:
    - Giữ NGUYÊN tiền tố 4 tầng Tứ Hóa đúng như Bảng dữ kiện: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
    - Khi bàn về bất kỳ cung nào có Lưu Tứ Hóa (hoặc Đại Hạn Tứ Hóa) tọa thủ HAY đối cung xung chiếu, BẮT BUỘC phải gọi đúng nhãn vai trò kỳ hạn từ Bảng dữ kiện ("Cung Lưu <Tên Cung>" đối với Lưu Niên, hoặc "Cung Đại Hạn <Tên Cung>" đối với Đại Hạn) cho CẢ cung tọa thủ lẫn đối cung xung chiếu, kèm tên cung Bản Mệnh gốc trùng vào đó; tuyệt đối không tự suy vai trò và TUYỆT ĐỐI CẤM lược bỏ chữ "Lưu" (như viết "tam hợp Tài Bạch (trùng Mệnh Cung)" gây nhầm với Tài Bạch gốc).
+   - Đọc trực tiếp tọa độ sao, Cát/Sát tinh và vai trò Lưu/Đại Hạn từ mục [Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn (Tra Cứu Cố Định — Không Tự Nhẩm Địa Chi)], không tự nhẩm lại cung tam hợp hay đối cung.
    - BẮT BUỘC phải nhắc và phân tích ĐỦ CẢ 4 SAO TỨ HÓA CỦA KỲ HẠN (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ — nêu rõ tên sao + loại hóa + cung kỳ hạn tọa thủ + đối cung xung chiếu), tuyệt đối không được bỏ sót bất kỳ hóa nào.
 4. Phân biệt rõ tính chất kỳ hạn:
    - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
@@ -456,7 +457,7 @@ Hãy trả lời trực diện, chuẩn xác theo đúng dữ kiện xác địn
 }
 
 export function registerApiRoutes(app: express.Express) {
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '512kb' }));
 
   // GET /api/ai-diagnostics — Chẩn đoán an toàn toàn pool (KHÔNG bao giờ lộ giá trị key)
   app.get('/api/ai-diagnostics', (_req, res) => {

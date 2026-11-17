@@ -1,0 +1,6 @@
+{
+  "name": "Tử Vi Đẩu Số — Hệ Thống Thiên Kỷ Nghê Hải Hạ",
+  "description": "Ứng dụng lập lá số Tử Vi Đẩu Số chính tông theo hệ thống Thiên Kỷ của danh sư Nghê Hải Hạ, tích hợp hiệu chỉnh Giờ Mặt Trời Thực, nhận diện cách cục cổ thư, hợp hôn hợp mệnh và luận giải chuyên sâu bằng tiếng Việt.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,95 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --t-bg: #FBF8F1;
+  --t-surface: #F3EDE0;
+  --t-card: rgba(255, 253, 248, 0.92);
+  --t-card-hover: rgba(255, 250, 240, 0.98);
+  --t-border: rgba(145, 108, 38, 0.20);
+  --t-border-acc: rgba(145, 108, 38, 0.42);
+  --t-gold: #8C5E14;
+  --t-gold-bright: #B47B1C;
+  --t-text: #181A20;
+  --t-text2: #3F4554;
+  --t-faint: #6E7687;
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.dark {
+  --t-bg: #070C18;
+  --t-surface: #0D1528;
+  --t-card: rgba(15, 24, 44, 0.85);
+  --t-card-hover: rgba(20, 32, 58, 0.94);
+  --t-border: rgba(212, 168, 67, 0.16);
+  --t-border-acc: rgba(212, 168, 67, 0.42);
+  --t-gold: #D4A843;
+  --t-gold-bright: #F0CA6D;
+  --t-text: #EAEFF8;
+  --t-text2: #B8C5DC;
+  --t-faint: #7F91B0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--t-bg);
+  color: var(--t-text);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono-tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-glass {
+  background: var(--t-card);
+  border: 1px solid var(--t-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.card-inner {
+  background: var(--t-surface);
+  border: 1px solid var(--t-border);
+}
+
+.grad-text-dark {
+  background: linear-gradient(160deg, #C8993A 0%, #F2D580 42%, #C8993A 72%, #F0C755 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.grad-text-light {
+  background: linear-gradient(160deg, #5C3804 0%, #9E6910 45%, #5C3804 75%, #87520D 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.ziwei-print-dossier-sheet {
+  display: none;
+}
+
+@media print {
+  body:has(.ziwei-print-dossier-sheet) #root {
+    display: none !important;
+  }
+  body:has(.ziwei-print-dossier-sheet) {
+    background: #FFFFFF !important;
+    color: #181A20 !important;
+  }
+  .ziwei-print-dossier-sheet {
+    display: block !important;
+    background: #FFFFFF !important;
+    color: #181A20 !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+  }
+}

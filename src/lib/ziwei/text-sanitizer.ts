@@ -39,6 +39,14 @@ const VIET_SYLLABLE_END_BEFORE_D_RE =
   /(?<=[aăâeêioôơuưyáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵptcmnhg])(?=đ[aăâeêioôơuưyáàảãạắằẳẵặấầẩẫậéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ])/gu;
 
 /**
+ * QĐ-H6 (B-03): Tách nguyên âm tiếng Việt có dấu hoặc 'đ' thường đứng liền trước chữ IN HOA
+ * (ví dụ: "nhưThiên Cơ" -> "như Thiên Cơ", "cóVũ Khúc" -> "có Vũ Khúc").
+ * Tuyệt đối không khớp các ký tự ASCII thường (bảo vệ an toàn iPhone, iPad, eBay, macOS, JavaScript, TypeScript, YouTube, McDonald).
+ */
+const VIET_DIACRITIC_LOWER_BEFORE_UPPER_RE =
+  /(?<=[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựýỳỷỹỵđ])(?=[A-ZÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰỲÝỶỸỴĐ])/gu;
+
+/**
  * Bộ lọc Lớp 3A đơn thuần (an toàn cho từng chunk SSE đơn lẻ):
  * Chỉ xóa ký tự thuộc các hệ chữ ngoại lai không hợp lệ; không tách từ dính qua biên chunk.
  * Chế độ song ngữ mặc định TẮT (`allowHan = false` -> lọc cả chữ Hán \p{Script=Han}).
@@ -68,8 +76,10 @@ export function sanitizeAiVietnameseOutput(
     .replace(allowHan ? EMPTY_FOREIGN_BRACKETS_NO_HAN_RE : EMPTY_FOREIGN_BRACKETS_WITH_HAN_RE, '');
   out = sanitizeLayer3AOnly(out, allowHan);
 
-  // Lớp 3B (i): Tách từ dính ngay trước âm tiết bắt đầu bằng 'đ' thường tiếng Việt.
-  out = out.replace(VIET_SYLLABLE_END_BEFORE_D_RE, ' ');
+  // Lớp 3B (i): Tách từ dính ngay trước âm tiết bắt đầu bằng 'đ' thường hoặc từ viết hoa sau chữ Việt có dấu.
+  out = out
+    .replace(VIET_SYLLABLE_END_BEFORE_D_RE, ' ')
+    .replace(VIET_DIACRITIC_LOWER_BEFORE_UPPER_RE, ' ');
 
   // Lớp 3B (ii): Sửa từ điển cố định cực hẹp với biên chữ Unicode (?<!\p{L})...(?!\p{L}).
   // Tuyệt đối không dùng regex tổng quát và không đụng tới "Canh Thìn", "Canh Dần", tên sao hay tên cung.
@@ -114,9 +124,10 @@ function isPeriodSiHuaMentionedInText(normText: string, sh: PeriodSiHuaImpact): 
     `(${shortToken})`,
   ];
 
-  // Tách theo các mục tiêu đề Markdown để tránh ghép nhầm tên sao ở mục trước với tiêu đề mục sau.
+  // Tách theo các mục tiêu đề Markdown và ranh giới câu/dòng để tránh ghép nhầm sao giữa 2 câu khác nhau.
   const sections = normText.split(/(?=^#{1,6}\s)/m);
   const starRe = new RegExp(`(?<!\\p{L})${escapeRegExp(starLower)}(?!\\p{L})`, 'gu');
+  const sentenceBoundaryRe = /[.!?\n;|]/;
 
   for (const section of sections) {
     // Bỏ qua chính dòng tiêu đề mục (nơi có thể liệt kê chung "(Lộc · Quyền · Khoa · Kỵ)").
@@ -124,8 +135,18 @@ function isPeriodSiHuaMentionedInText(normText: string, sh: PeriodSiHuaImpact): 
     starRe.lastIndex = 0;
     let match: RegExpExecArray | null;
     while ((match = starRe.exec(bodyWithoutHeading)) !== null) {
-      const start = Math.max(0, match.index - 140);
-      const end = Math.min(bodyWithoutHeading.length, match.index + match[0].length + 140);
+      const minStart = Math.max(0, match.index - 140);
+      let start = match.index;
+      while (start > minStart && !sentenceBoundaryRe.test(bodyWithoutHeading[start - 1])) {
+        start -= 1;
+      }
+
+      const maxEnd = Math.min(bodyWithoutHeading.length, match.index + match[0].length + 140);
+      let end = match.index + match[0].length;
+      while (end < maxEnd && !sentenceBoundaryRe.test(bodyWithoutHeading[end])) {
+        end += 1;
+      }
+
       const windowText = bodyWithoutHeading.slice(start, end);
       if (mutagenPatterns.some((pat) => windowText.includes(pat))) {
         return true;

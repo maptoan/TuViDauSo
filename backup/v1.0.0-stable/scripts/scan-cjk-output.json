@@ -1,0 +1,682 @@
+{
+  "generatedAt": "2026-11-16T08:40:52.291Z",
+  "beforeTotals": {
+    "totalLinesWithCjk": 3597,
+    "i_default_ui": 388,
+    "ii_hanzi_toggle": 14,
+    "iii_internal_key": 2018,
+    "iv_comment": 1177
+  },
+  "afterTotals": {
+    "totalLinesWithCjk": 3226,
+    "i_default_ui": 0,
+    "ii_hanzi_toggle": 14,
+    "iii_internal_key": 2093,
+    "iv_comment": 1119
+  },
+  "fileComparison": [
+    {
+      "file": "src/App.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/BirthForm.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/ChartBoard.tsx",
+      "before": {
+        "total": 1,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 1
+      },
+      "after": {
+        "total": 1,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 1
+      }
+    },
+    {
+      "file": "src/components/HemingView.tsx",
+      "before": {
+        "total": 3,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 3,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 3,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 3,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/InsightPanel.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/KnowledgeView.tsx",
+      "before": {
+        "total": 3,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 3,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 3,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 3,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/MarkdownContent.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/PalaceCell.tsx",
+      "before": {
+        "total": 12,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 12,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 12,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 12,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/PatternsCard.tsx",
+      "before": {
+        "total": 1,
+        "i_default_ui": 1,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/StarDetailPanel.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/ThemeProvider.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/components/TimeNav.tsx",
+      "before": {
+        "total": 20,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 20,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 20,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 20,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/lib/ziwei/algorithm.ts",
+      "before": {
+        "total": 222,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 61,
+        "iv_comment": 161
+      },
+      "after": {
+        "total": 222,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 61,
+        "iv_comment": 161
+      }
+    },
+    {
+      "file": "src/lib/ziwei/cities.ts",
+      "before": {
+        "total": 542,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 518,
+        "iv_comment": 24
+      },
+      "after": {
+        "total": 542,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 518,
+        "iv_comment": 24
+      }
+    },
+    {
+      "file": "src/lib/ziwei/clock-adjust.ts",
+      "before": {
+        "total": 13,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 13
+      },
+      "after": {
+        "total": 13,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 13
+      }
+    },
+    {
+      "file": "src/lib/ziwei/constants.ts",
+      "before": {
+        "total": 94,
+        "i_default_ui": 14,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 31,
+        "iv_comment": 49
+      },
+      "after": {
+        "total": 94,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 45,
+        "iv_comment": 49
+      }
+    },
+    {
+      "file": "src/lib/ziwei/db-analysis.ts",
+      "before": {
+        "total": 36,
+        "i_default_ui": 13,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 13,
+        "iv_comment": 10
+      },
+      "after": {
+        "total": 23,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 13,
+        "iv_comment": 10
+      }
+    },
+    {
+      "file": "src/lib/ziwei/dst-cn.ts",
+      "before": {
+        "total": 33,
+        "i_default_ui": 1,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 32
+      },
+      "after": {
+        "total": 32,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 32
+      }
+    },
+    {
+      "file": "src/lib/ziwei/famous.ts",
+      "before": {
+        "total": 68,
+        "i_default_ui": 46,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 22
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/lib/ziwei/heming-knowledge.ts",
+      "before": {
+        "total": 239,
+        "i_default_ui": 194,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 14,
+        "iv_comment": 31
+      },
+      "after": {
+        "total": 32,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 32,
+        "iv_comment": 0
+      }
+    },
+    {
+      "file": "src/lib/ziwei/history.ts",
+      "before": {
+        "total": 2,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 1,
+        "iv_comment": 1
+      },
+      "after": {
+        "total": 2,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 1,
+        "iv_comment": 1
+      }
+    },
+    {
+      "file": "src/lib/ziwei/lunar-javascript.d.ts",
+      "before": {
+        "total": 4,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 4
+      },
+      "after": {
+        "total": 4,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 4
+      }
+    },
+    {
+      "file": "src/lib/ziwei/lunar-solar.ts",
+      "before": {
+        "total": 19,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 19
+      },
+      "after": {
+        "total": 19,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 19
+      }
+    },
+    {
+      "file": "src/lib/ziwei/patterns-dingfu.ts",
+      "before": {
+        "total": 67,
+        "i_default_ui": 15,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 20,
+        "iv_comment": 32
+      },
+      "after": {
+        "total": 52,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 20,
+        "iv_comment": 32
+      }
+    },
+    {
+      "file": "src/lib/ziwei/patterns-dinggui.ts",
+      "before": {
+        "total": 195,
+        "i_default_ui": 17,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 99,
+        "iv_comment": 79
+      },
+      "after": {
+        "total": 178,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 99,
+        "iv_comment": 79
+      }
+    },
+    {
+      "file": "src/lib/ziwei/patterns-dingpin.ts",
+      "before": {
+        "total": 91,
+        "i_default_ui": 19,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 32,
+        "iv_comment": 40
+      },
+      "after": {
+        "total": 72,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 32,
+        "iv_comment": 40
+      }
+    },
+    {
+      "file": "src/lib/ziwei/patterns-dingza.ts",
+      "before": {
+        "total": 140,
+        "i_default_ui": 13,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 39,
+        "iv_comment": 88
+      },
+      "after": {
+        "total": 127,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 39,
+        "iv_comment": 88
+      }
+    },
+    {
+      "file": "src/lib/ziwei/patterns.ts",
+      "before": {
+        "total": 480,
+        "i_default_ui": 20,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 361,
+        "iv_comment": 99
+      },
+      "after": {
+        "total": 479,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 380,
+        "iv_comment": 99
+      }
+    },
+    {
+      "file": "src/lib/ziwei/school-config.ts",
+      "before": {
+        "total": 121,
+        "i_default_ui": 33,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 13,
+        "iv_comment": 75
+      },
+      "after": {
+        "total": 73,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 3,
+        "iv_comment": 70
+      }
+    },
+    {
+      "file": "src/lib/ziwei/school-data.ts",
+      "before": {
+        "total": 197,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 44,
+        "iv_comment": 153
+      },
+      "after": {
+        "total": 197,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 44,
+        "iv_comment": 153
+      }
+    },
+    {
+      "file": "src/lib/ziwei/school-tables.generated.ts",
+      "before": {
+        "total": 40,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 40
+      },
+      "after": {
+        "total": 40,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 40
+      }
+    },
+    {
+      "file": "src/lib/ziwei/share.ts",
+      "before": {
+        "total": 8,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 8
+      },
+      "after": {
+        "total": 8,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 8
+      }
+    },
+    {
+      "file": "src/lib/ziwei/shier-shen.ts",
+      "before": {
+        "total": 71,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 14,
+        "iv_comment": 57
+      },
+      "after": {
+        "total": 71,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 14,
+        "iv_comment": 57
+      }
+    },
+    {
+      "file": "src/lib/ziwei/sihua.ts",
+      "before": {
+        "total": 61,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 4,
+        "iv_comment": 57
+      },
+      "after": {
+        "total": 61,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 4,
+        "iv_comment": 57
+      }
+    },
+    {
+      "file": "src/lib/ziwei/true-solar-time.ts",
+      "before": {
+        "total": 13,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 13
+      },
+      "after": {
+        "total": 13,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 13
+      }
+    },
+    {
+      "file": "src/lib/ziwei/types.ts",
+      "before": {
+        "total": 45,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 2,
+        "iv_comment": 43
+      },
+      "after": {
+        "total": 45,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 2,
+        "iv_comment": 43
+      }
+    },
+    {
+      "file": "src/lib/ziwei/vi-i18n.ts",
+      "before": {
+        "total": 734,
+        "i_default_ui": 2,
+        "ii_hanzi_toggle": 14,
+        "iii_internal_key": 713,
+        "iv_comment": 5
+      },
+      "after": {
+        "total": 766,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 14,
+        "iii_internal_key": 747,
+        "iv_comment": 5
+      }
+    },
+    {
+      "file": "src/lib/ziwei/yunxian-context.ts",
+      "before": {
+        "total": 22,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 1,
+        "iv_comment": 21
+      },
+      "after": {
+        "total": 22,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 1,
+        "iv_comment": 21
+      }
+    },
+    {
+      "file": "src/main.tsx",
+      "before": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      },
+      "after": {
+        "total": 0,
+        "i_default_ui": 0,
+        "ii_hanzi_toggle": 0,
+        "iii_internal_key": 0,
+        "iv_comment": 0
+      }
+    }
+  ]
+}

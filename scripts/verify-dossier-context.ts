@@ -86,11 +86,17 @@ async function runTests() {
     const overview = buildNatalOverviewFactSheetVi(adultChart);
     assert.ok(overview.factSheetMarkdown.includes('[Tứ Hóa Bản Mệnh - Can'));
     assert.strictEqual(overview.natalSiHuaTags.length, 4);
+    assert.ok(overview.factSheetMarkdown.includes('[Bản cung]'));
+    assert.ok(overview.factSheetMarkdown.includes('[Tam hợp (+4)]'));
+    assert.ok(overview.factSheetMarkdown.includes('[Tam hợp (+8)]'));
+    assert.ok(overview.factSheetMarkdown.includes('[Xung chiếu (+6)]'));
+    const patternSectionCount = (overview.factSheetMarkdown.match(/\[CÁCH CỤC NHẬN DIỆN TỪ ENGINE/g) ?? []).length;
+    assert.strictEqual(patternSectionCount, 1, 'Không trùng lặp mục cách cục patterns.ts');
 
     const combinedMarkdown = `${core.factSheetMarkdown}\n${family.factSheetMarkdown}\n${social.factSheetMarkdown}`;
     assert.ok(combinedMarkdown.includes('[Tứ Hóa Bản Mệnh - Can'));
     assert.ok(combinedMarkdown.includes('[Tự Hóa Can Cung') || combinedMarkdown.includes('[Phi Tinh Can Cung'));
-    console.log('  -> Đạt: 3 nhóm F2 phủ đủ 12 cung (4+4+4 = 12) kèm tiền tố tầng Tứ Hóa tường minh.');
+    console.log('  -> Đạt: 3 nhóm F2 phủ đủ 12 cung (4+4+4 = 12), Tam Phương Tứ Chính tường minh & tiền tố tầng Tứ Hóa.');
   }
 
   // ── BÀI 2: Ma trận đa năm 2026–2030 (5 năm) & 2026–2035 (10 năm) đủ 8 nhóm trường ─
@@ -285,6 +291,14 @@ async function runTests() {
       ctx2027.factTableMarkdown.includes('[Bảng Ánh Xạ Đầy Đủ 12 Cung Kỳ Hạn ↔ 12 Cung Bản Mệnh Gốc (Tra Cứu Bắt Buộc)]'),
       'factTableMarkdown phải có bảng ánh xạ đầy đủ 12 cung kỳ hạn',
     );
+    assert.ok(
+      ctx2027.factTableMarkdown.includes('[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn'),
+      'factTableMarkdown phải có mục Tam Phương Tứ Chính của kỳ hạn',
+    );
+    assert.ok(
+      ctx2027.factTableMarkdown.includes('Cát tinh:') && ctx2027.factTableMarkdown.includes('Sát tinh:'),
+      'QĐ-H3 B-04: Mục Tam Phương Tứ Chính kỳ hạn phải in sẵn Cát tinh và Sát tinh',
+    );
 
     // Đủ 12 nhãn Cung Lưu ...
     for (const cnName of PALACE_NAMES_ORDER) {
@@ -325,6 +339,20 @@ async function runTests() {
         `Sao lưu ${ds.starLabelVi} thiếu vai trò cung Lưu trong factTableMarkdown`,
       );
     }
+
+    // Kiểm tra QĐ-H2 A-01: cacheKey tách biệt theo tên / kinh độ
+    const anDiffName = generateChart({
+      name: 'Trần Văn Bình',
+      year: 1995,
+      month: 8,
+      day: 16,
+      hour: 5,
+      gender: 'male',
+      longitude: 105.85,
+    });
+    const ctxDiffName = buildYunxianPeriodContext(anDiffName, { mode: 'liunian', year: 2027 });
+    assert.ok(ctxDiffName);
+    assert.notStrictEqual(ctx2027.cacheKey, ctxDiffName.cacheKey, 'Hai lá số khác tên phải khác periodContext.cacheKey');
 
     // Kiểm tra Chương 7 (2026–2030) & Chương 8 (2026–2035) giữ đủ toàn bộ trường PeriodSiHuaImpact
     for (const [label, horizon] of [

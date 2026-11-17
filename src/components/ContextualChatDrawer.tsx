@@ -12,6 +12,7 @@ import {
   buildChatStorageKey,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
+  filterPersistableChatMessages,
   getBrowserSessionStorage,
   getSharedDossierGenerating,
   readLruSessionEntry,
@@ -139,8 +140,9 @@ export default function ContextualChatDrawer({
       storageKey,
     );
     if (saved && Array.isArray(saved.messages)) {
+      const cleanMessages = filterPersistableChatMessages(saved.messages);
       setMessages(
-        saved.messages.map((m) =>
+        cleanMessages.map((m) =>
           m.role === 'assistant' && m.content
             ? { ...m, content: sanitizeAiVietnameseOutput(m.content) }
             : m,
@@ -196,12 +198,17 @@ export default function ContextualChatDrawer({
     (nextMessages: StoredChatMessage[]) => {
       if (!context || !chartIdentityKey || !storageKey) return;
       const storage = getBrowserSessionStorage();
+      const persistable = filterPersistableChatMessages(nextMessages);
+      if (persistable.length === 0) {
+        removeLruSessionEntry(storage, CHAT_LRU_INDEX_KEY, storageKey);
+        return;
+      }
       const thread: StoredChatThread = {
         storageKey,
         chartIdentityKey,
         contextKey: context.contextKey,
         sectionTitle: context.sectionTitle,
-        messages: nextMessages,
+        messages: persistable,
         updatedAt: Date.now(),
       };
       upsertLruSessionEntry(
@@ -415,7 +422,7 @@ export default function ContextualChatDrawer({
               interrupted: wasInterrupted || Boolean(streamError),
             }
           : undefined,
-        interrupted: wasInterrupted,
+        interrupted: wasInterrupted || Boolean(streamError && accumulated.trim()),
         error:
           streamError ||
           (!accumulated.trim() && !wasInterrupted

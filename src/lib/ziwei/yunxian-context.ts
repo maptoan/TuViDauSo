@@ -286,6 +286,30 @@ function formatPalaceMajorsVi(palace: Palace): {
 }
 
 /**
+ * QĐ-H2 (A-01): Nguồn chuẩn duy nhất cho khóa định danh lá số, chống va chạm cache khi đổi tên,
+ * đổi giờ/phút gốc trong cùng canh giờ, đổi tháng nhuận hoặc kinh độ nơi sinh.
+ */
+export function buildChartIdentityKey(chart: ZiweiChart): string {
+  const b = chart.birthInfo;
+  const nameSlug =
+    (b.name || '')
+      .trim()
+      .normalize('NFC')
+      .toLowerCase()
+      .replace(/[^a-z0-9\p{L}]+/gu, '-')
+      .replace(/^-+|-+$/g, '') || 'anon';
+  const leapFlag = chart.lunarInfo?.isLeapMonth ? 'leap1' : 'leap0';
+  const origSig = b.origInput
+    ? `${b.origInput.year}-${b.origInput.month}-${b.origInput.day}@${b.origInput.clockHour}:${b.origInput.clockMinute}`
+    : 'no_clock';
+  const lonSig =
+    typeof b.longitude === 'number' && Number.isFinite(b.longitude)
+      ? b.longitude.toFixed(2)
+      : 'no_lon';
+  return `${b.year}_${b.month}_${b.day}_${b.hour}_${b.gender}__${nameSlug}__mg${chart.mingGongBranch}__${leapFlag}__${origSig}__${lonSig}`;
+}
+
+/**
  * Xây dựng ngữ cảnh kỳ hạn xác định (Deterministic Period Context)
  * Dùng thuần túy dữ liệu và bảng tra sẵn có của engine (yunxian-context, sihua, constants, school-tables, shier-shen).
  */
@@ -295,7 +319,7 @@ export function buildYunxianPeriodContext(
 ): YunxianPeriodContext | null {
   if (input.mode === 'natal') return null;
 
-  const chartIdentityKey = `${chart.birthInfo.year}_${chart.birthInfo.month}_${chart.birthInfo.day}_${chart.birthInfo.hour}_${chart.birthInfo.gender}`;
+  const chartIdentityKey = buildChartIdentityKey(chart);
   const prefix = input.mode === 'dahan' ? 'Đại Hạn' : 'Lưu';
 
   let stemIndex = 0;
@@ -611,7 +635,7 @@ export function buildYunxianPeriodContext(
   factLines.push(`• **Bộ Kình Đà (Dương Đà giáp Lộc)**: ${satTinhStr}`);
   factLines.push(`• **Vòng Tuế Tiền · Tướng Tiền**: ${tueTuongStr}`);
 
-  factLines.push(`\n**[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn]**`);
+  factLines.push(`\n**[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn (Tra Cứu Cố Định — Không Tự Nhẩm Địa Chi)]**`);
   for (const node of [
     sanFangSiZheng.benGong,
     sanFangSiZheng.xungChieu,
@@ -620,8 +644,10 @@ export function buildYunxianPeriodContext(
   ]) {
     const shText = node.periodSiHuaHere.length > 0 ? ` | Tứ Hóa kỳ hạn: **${node.periodSiHuaHere.join(', ')}**` : '';
     const dynText = node.dynamicStarsHere.length > 0 ? ` | Sao vận hạn: ${node.dynamicStarsHere.join(', ')}` : '';
+    const luckyText = node.luckyStarsVi.length > 0 ? node.luckyStarsVi.join(', ') : 'Không';
+    const shaText = node.shaStarsVi.length > 0 ? node.shaStarsVi.join(', ') : 'Không';
     factLines.push(
-      `• **${node.roleVi}** → Đóng nhờ trên cung Bản Mệnh gốc **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}**${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
+      `• **${node.roleVi}** → Đóng nhờ trên cung Bản Mệnh gốc **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}** | Cát tinh: ${luckyText} | Sát tinh: ${shaText}${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
     );
   }
 

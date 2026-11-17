@@ -168,7 +168,7 @@ export default function InsightPanel({
 
         if (!res.ok) {
           let errMsg =
-            'Chưa cấu hình AI (kho khóa chưa có Gemini API key khả dụng). Hệ thống giữ nguyên Khung dữ kiện xác định ở trên và không giả lập văn bản AI.';
+            'Chưa thể kết nối dịch vụ AI cho kỳ hạn này. Hệ thống giữ nguyên Khung dữ kiện xác định ở trên.';
           let errCode = '';
           try {
             const errJson = await res.json();
@@ -180,7 +180,7 @@ export default function InsightPanel({
           setAiPeriodCache((prev) => ({
             ...prev,
             [pKey]: {
-              notConfigured: res.status === 503 && errCode !== 'AI_POOL_EXHAUSTED',
+              notConfigured: res.status === 503 && errCode === 'AI_NOT_CONFIGURED',
               errorCode: errCode,
               error: errMsg,
             },
@@ -192,8 +192,8 @@ export default function InsightPanel({
           setAiPeriodCache((prev) => ({
             ...prev,
             [pKey]: {
-              notConfigured: true,
-              error: 'Chưa cấu hình AI hoặc không nhận được luồng phản hồi từ máy chủ.',
+              notConfigured: false,
+              error: 'Không nhận được luồng phản hồi từ máy chủ.',
             },
           }));
           return;

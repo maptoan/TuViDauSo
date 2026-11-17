@@ -5,6 +5,7 @@ import {
   type DossierSectionId,
 } from './ziwei/dossier-context';
 import {
+  buildChartIdentityKey as buildCanonicalChartIdentityKey,
   buildYunxianPeriodContext,
   getDaXianYears,
   resolveEffectiveDaXianIndex,
@@ -18,6 +19,7 @@ import {
 import {
   enforceCanonicalPalaceGroupHeadings,
   sanitizeAiVietnameseOutput,
+  verifyAndEnsureCompletePeriodSiHua,
 } from './ziwei/text-sanitizer';
 import {
   VI_BRANCHES,
@@ -61,8 +63,7 @@ export interface AiPeriodEntry {
 // ─── 2. KHÓA ĐỊNH DANH & KHÓA CACHE XÁC ĐỊNH ────────────────────────────────
 
 export function buildChartIdentityKey(chart: ZiweiChart): string {
-  const b = chart.birthInfo;
-  return `${b.year}_${b.month}_${b.day}_${b.hour}_${b.gender}`;
+  return buildCanonicalChartIdentityKey(chart);
 }
 
 export function buildPeriodCacheKeyForYear(chart: ZiweiChart, year: number): string {
@@ -170,9 +171,25 @@ export function sanitizeDossierChapterText(
   text: string | undefined,
   chapterId: DossierChapterId,
   chart?: ZiweiChart,
+  options?: { skipPeriodSiHuaCheck?: boolean },
 ): string | undefined {
   if (typeof text !== 'string') return text;
   let cleaned = sanitizeAiVietnameseOutput(text);
+  if (
+    !options?.skipPeriodSiHuaCheck &&
+    chart &&
+    (chapterId === 'year_2026' || chapterId === 'year_2027') &&
+    cleaned.trim()
+  ) {
+    const periodYear = chapterId === 'year_2026' ? 2026 : 2027;
+    const periodCtx = buildYunxianPeriodContext(chart, {
+      mode: 'liunian',
+      year: periodYear,
+    });
+    if (periodCtx) {
+      cleaned = verifyAndEnsureCompletePeriodSiHua(cleaned, periodCtx).patchedText;
+    }
+  }
   if (chart && PALACE_GROUP_CHAPTER_IDS.has(chapterId)) {
     cleaned = enforceCanonicalPalaceGroupHeadings(cleaned, chart);
   }
@@ -225,11 +242,13 @@ export function readDossierCacheEntry(
   const cleanedSections: StoredDossierRecord['sections'] = {};
   for (const [rawKey, val] of Object.entries(stored.sections)) {
     if (!val) continue;
-    const chapterId = rawKey as Exclude<DossierChapterId, 'year_2026' | 'year_2027'>;
+    const chapterId = rawKey as DossierChapterId;
     cleanedSections[chapterId] = {
       ...val,
       text: sanitizeDossierChapterText(val.text, chapterId, chart),
-      incompleteText: sanitizeDossierChapterText(val.incompleteText, chapterId, chart),
+      incompleteText: sanitizeDossierChapterText(val.incompleteText, chapterId, chart, {
+        skipPeriodSiHuaCheck: true,
+      }),
     };
   }
 
@@ -237,6 +256,50 @@ export function readDossierCacheEntry(
     ...stored,
     sections: cleanedSections,
   };
+}
+
+/**
+ * QĐ-H1 (F-04): Lưu 1 chương hoàn tất (kể cả Lưu Niên 2026/2027) vào sessionStorage LRU hồ sơ.
+ */
+export function saveDossierSectionToCache(
+  storage: StorageLike | null,
+  chart: ZiweiChart,
+  chapterId: DossierChapterId,
+  chapterState: DossierChapterState,
+): boolean {
+  if (!storage || chapterState.status !== 'completed' || !chapterState.text?.trim()) {
+    return false;
+  }
+  const chartIdentityKey = buildChartIdentityKey(chart);
+  const dossierStorageKey = buildDossierStorageKey(chartIdentityKey);
+  const existing = readLruSessionEntry<StoredDossierRecord>(
+    storage,
+    DOSSIER_LRU_INDEX_KEY,
+    dossierStorageKey,
+  );
+  const sanitizedText =
+    sanitizeDossierChapterText(chapterState.text, chapterId, chart) ?? chapterState.text;
+  const nextSections: StoredDossierRecord['sections'] = {
+    ...(existing?.sections ?? {}),
+    [chapterId]: {
+      ...chapterState,
+      chapterId,
+      text: sanitizedText,
+      sourceBadge: chapterState.sourceBadge,
+    },
+  };
+  const record: StoredDossierRecord = {
+    chartIdentityKey,
+    updatedAt: Date.now(),
+    sections: nextSections,
+  };
+  return upsertLruSessionEntry(
+    storage,
+    DOSSIER_LRU_INDEX_KEY,
+    dossierStorageKey,
+    record,
+    MAX_DOSSIERS_IN_SESSION,
+  ).ok;
 }
 
 export function upsertLruSessionEntry<T>(
@@ -503,6 +566,26 @@ export interface StoredChatMessage {
   error?: string;
 }
 
+export function filterPersistableChatMessages(
+  messages: readonly StoredChatMessage[],
+): StoredChatMessage[] {
+  const kept: StoredChatMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === 'assistant') {
+      const hasContent = Boolean(msg.content && msg.content.trim());
+      const isPureErrorOrEmpty = !hasContent || (Boolean(msg.error) && !msg.interrupted);
+      if (isPureErrorOrEmpty) {
+        if (kept.length > 0 && kept[kept.length - 1].role === 'user') {
+          kept.pop();
+        }
+        continue;
+      }
+    }
+    kept.push(msg);
+  }
+  return kept;
+}
+
 export function trimChatHistoryForRequest(
   messages: readonly StoredChatMessage[],
   maxMessages = CHAT_MAX_HISTORY_MESSAGES,
@@ -566,7 +649,7 @@ export interface DossierChapterSpec {
   year?: number;
 }
 
-export const DOSSIER_INTER_CHAPTER_PACING_MS = 2_200;
+export const DOSSIER_INTER_CHAPTER_PACING_MS = 1_200;
 
 export const DOSSIER_CHAPTER_SPECS: readonly DossierChapterSpec[] = [
   {
@@ -667,7 +750,7 @@ export interface DossierChapterState {
 export interface StoredDossierRecord {
   chartIdentityKey: string;
   updatedAt: number;
-  sections: Partial<Record<Exclude<DossierChapterId, 'year_2026' | 'year_2027'>, DossierChapterState>>;
+  sections: Partial<Record<DossierChapterId, DossierChapterState>>;
 }
 
 export function formatDossierSourceBadge(
@@ -735,7 +818,9 @@ export function resolveDossierChapterFromCaches(
         chapterId: spec.id,
         sectionCacheKey,
         status: 'incomplete',
-        incompleteText: sanitizeDossierChapterText(periodEntry.incompleteText, spec.id, chart),
+        incompleteText: sanitizeDossierChapterText(periodEntry.incompleteText, spec.id, chart, {
+          skipPeriodSiHuaCheck: true,
+        }),
         interruptedReason: periodEntry.interruptedReason || periodEntry.error,
         error: periodEntry.error,
         meta: periodEntry.meta,
@@ -759,7 +844,9 @@ export function resolveDossierChapterFromCaches(
     return {
       ...stored,
       text: sanitizeDossierChapterText(stored.text, spec.id, chart),
-      incompleteText: sanitizeDossierChapterText(stored.incompleteText, spec.id, chart),
+      incompleteText: sanitizeDossierChapterText(stored.incompleteText, spec.id, chart, {
+        skipPeriodSiHuaCheck: true,
+      }),
     };
   }
 
@@ -894,16 +981,20 @@ export function buildDossierHeaderMetadata(chart: ZiweiChart): DossierHeaderMeta
   const shenZhuVi = chart.shenZhu ? translateStarName(chart.shenZhu) : 'Không rõ';
 
   const hourBranchNameVi = VI_BRANCHES[b.hour] ?? 'Tý';
-  const longitude =
-    typeof b.longitude === 'number' && Number.isFinite(b.longitude) ? b.longitude : 105.0;
+  const hasValidLongitude =
+    typeof b.longitude === 'number' && Number.isFinite(b.longitude);
+  const longitude = hasValidLongitude ? b.longitude! : 105.0;
   const provinceVi = b.province ? translateProvinceName(b.province) : '';
   const placeParts = [b.city, provinceVi].filter((x): x is string => Boolean(x && x.trim()));
-  const locationVi =
-    placeParts.length > 0
+  const locationVi = hasValidLongitude
+    ? placeParts.length > 0
       ? `${placeParts.join(', ')} (${longitude.toFixed(2)}°Đ)`
-      : `Việt Nam (Kinh tuyến chuẩn ${longitude.toFixed(2)}°Đ)`;
+      : `Việt Nam (Kinh tuyến chuẩn ${longitude.toFixed(2)}°Đ)`
+    : placeParts.length > 0
+      ? `${placeParts.join(', ')} (chưa có kinh độ, giữ giờ chuẩn)`
+      : 'Chưa chọn địa phương (không hiệu chỉnh kinh độ)';
 
-  if (b.origInput) {
+  if (b.origInput && hasValidLongitude) {
     const clockTimeVi = `${String(b.origInput.clockHour).padStart(2, '0')}:${String(
       b.origInput.clockMinute,
     ).padStart(2, '0')}`;
@@ -940,6 +1031,35 @@ export function buildDossierHeaderMetadata(chart: ZiweiChart): DossierHeaderMeta
       clockTimeVi,
       trueSolarTimeHHMM,
       trueSolarCorrectionMin,
+      trueSolarTimeVi,
+      birthTimeFullSummaryVi,
+      locationVi,
+      longitude,
+    };
+  }
+
+  if (b.origInput) {
+    const clockTimeVi = `${String(b.origInput.clockHour).padStart(2, '0')}:${String(
+      b.origInput.clockMinute,
+    ).padStart(2, '0')}`;
+    const trueSolarTimeVi = `Giờ ${hourBranchNameVi} (chưa chọn địa phương, giữ nguyên giờ chuẩn)`;
+    const birthTimeFullSummaryVi = `Giờ đồng hồ: ${clockTimeVi} (Giờ ${hourBranchNameVi}, chưa chọn địa phương nên giữ giờ chuẩn không hiệu chỉnh kinh độ)`;
+
+    return {
+      name,
+      solar,
+      lunar,
+      yinYang: translateYinYang(chart.yinYangGender),
+      ju: translateWuxingJu(chart.wuxingJuName),
+      mingBranch: VI_BRANCHES[chart.mingGongBranch],
+      mingMajors,
+      mingZhuVi,
+      shenZhuVi,
+      hourBranchNameVi,
+      hasExactBirthTime: true,
+      clockTimeVi,
+      trueSolarTimeHHMM: null,
+      trueSolarCorrectionMin: null,
       trueSolarTimeVi,
       birthTimeFullSummaryVi,
       locationVi,
@@ -1730,7 +1850,9 @@ export function buildDossierMarkdownExport(
       sanitizeDossierChapterText(st?.text, spec.id, chart),
     )?.trim();
     const cleanIncomplete = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart),
+      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart, {
+        skipPeriodSiHuaCheck: true,
+      }),
     )?.trim();
 
     lines.push(`\n---\n\n## ${spec.titleVi}`);
@@ -1796,7 +1918,9 @@ export function buildDossierStandaloneHtmlExport(
       sanitizeDossierChapterText(st?.text, spec.id, chart),
     )?.trim();
     const cleanIncomplete = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart),
+      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart, {
+        skipPeriodSiHuaCheck: true,
+      }),
     )?.trim();
     const isDone = st?.status === 'completed' && Boolean(cleanText);
 

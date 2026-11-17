@@ -14,12 +14,9 @@ import {
   DOSSIER_CHAPTER_SPECS,
   DOSSIER_EDITORIAL_PRINT_CSS,
   DOSSIER_INTER_CHAPTER_PACING_MS,
-  DOSSIER_LRU_INDEX_KEY,
   DossierChapterId,
   DossierChapterSpec,
   DossierChapterState,
-  MAX_DOSSIERS_IN_SESSION,
-  StoredDossierRecord,
   buildChartIdentityKey,
   buildDossierChapterCacheKey,
   buildDossierHeaderMetadata,
@@ -33,13 +30,12 @@ import {
   formatDossierSourceBadge,
   getBrowserSessionStorage,
   readDossierCacheEntry,
-  readLruSessionEntry,
   resolveChapterDeterministicFactSheet,
   resolveDossierChapterFromCaches,
+  saveDossierSectionToCache,
   setSharedDossierGenerating,
   simpleMarkdownToHtml,
   stripInternalExportMetaLines,
-  upsertLruSessionEntry,
 } from '../lib/dossier-chat-ui';
 import {
   enforceCanonicalPalaceGroupHeadings,
@@ -79,8 +75,6 @@ interface DetailedDossierModalProps {
   onOpenKeyPool?: () => void;
   onDossierGeneratingChange?: (generating: boolean) => void;
 }
-
-type NonPeriodChapterId = Exclude<DossierChapterId, 'year_2026' | 'year_2027'>;
 
 function isPeriodChapter(
   spec: DossierChapterSpec,
@@ -152,58 +146,66 @@ export default function DetailedDossierModal({
     [chartIdentityKey],
   );
 
-  // Nạp & tự làm sạch (QĐ-G2/T2) các chương non-period đã lưu trong sessionStorage khi đổi lá số hoặc mở modal
+  // Nạp & tự làm sạch (QĐ-G2/T2 + QĐ-H1) cả 8 chương đã lưu trong sessionStorage khi đổi lá số hoặc mở modal
   useEffect(() => {
     const storage = getBrowserSessionStorage();
     const stored = readDossierCacheEntry(storage, dossierStorageKey, chart);
     if (stored && stored.sections) {
       const next: Partial<Record<DossierChapterId, DossierChapterState>> = {};
+      const periodPatches: Array<{ periodKey: string; text: string; meta?: AiExecutionMeta }> = [];
+
       for (const [k, val] of Object.entries(stored.sections)) {
         if (val && val.status === 'completed' && val.text?.trim()) {
-          next[k as DossierChapterId] = {
+          const chId = k as DossierChapterId;
+          next[chId] = {
             ...val,
             sourceBadge: formatDossierSourceBadge('cache'),
           };
+          if (chId === 'year_2026' || chId === 'year_2027') {
+            const yr = chId === 'year_2026' ? 2026 : 2027;
+            periodPatches.push({
+              periodKey: buildPeriodCacheKeyForYear(chart, yr),
+              text: val.text,
+              meta: val.meta,
+            });
+          }
         }
       }
       setLocalChapters(next);
+
+      if (periodPatches.length > 0) {
+        onAiPeriodCacheChange((prev) => {
+          let changed = false;
+          const updated = { ...prev };
+          for (const patch of periodPatches) {
+            if (!hasValidCachedPeriodEntry(updated[patch.periodKey])) {
+              updated[patch.periodKey] = {
+                text: patch.text,
+                meta: patch.meta,
+              };
+              changed = true;
+            }
+          }
+          return changed ? updated : prev;
+        });
+      }
     } else {
       setLocalChapters({});
     }
     setSelectedChapterId('chapter_overview');
-  }, [dossierStorageKey, chart]);
+  }, [dossierStorageKey, chart, onAiPeriodCacheChange]);
 
-  // Lưu các chương non-period hoàn tất vào sessionStorage LRU (tối đa 5 hồ sơ)
+  // Lưu bất kỳ chương hoàn tất nào (bao gồm Lưu Niên 2026/2027) vào sessionStorage LRU (tối đa 5 hồ sơ)
   const persistCompletedSectionToSession = useCallback(
-    (chapterId: NonPeriodChapterId, chapterState: DossierChapterState) => {
-      if (chapterState.status !== 'completed' || !chapterState.text?.trim()) return;
-      const storage = getBrowserSessionStorage();
-      const existing = readLruSessionEntry<StoredDossierRecord>(
-        storage,
-        DOSSIER_LRU_INDEX_KEY,
-        dossierStorageKey,
-      );
-      const nextSections: StoredDossierRecord['sections'] = {
-        ...(existing?.sections ?? {}),
-        [chapterId]: {
-          ...chapterState,
-          sourceBadge: chapterState.sourceBadge,
-        },
-      };
-      const record: StoredDossierRecord = {
-        chartIdentityKey,
-        updatedAt: Date.now(),
-        sections: nextSections,
-      };
-      upsertLruSessionEntry(
-        storage,
-        DOSSIER_LRU_INDEX_KEY,
-        dossierStorageKey,
-        record,
-        MAX_DOSSIERS_IN_SESSION,
+    (chapterId: DossierChapterId, chapterState: DossierChapterState) => {
+      saveDossierSectionToCache(
+        getBrowserSessionStorage(),
+        chart,
+        chapterId,
+        chapterState,
       );
     },
-    [chartIdentityKey, dossierStorageKey],
+    [chart],
   );
 
   // Dọn dẹp khi đóng modal hoặc unmount
@@ -362,7 +364,7 @@ export default function DetailedDossierModal({
             onAiPeriodCacheChange((prev) => ({
               ...prev,
               [periodKey]: {
-                notConfigured: res.status === 503 && errCode !== 'AI_POOL_EXHAUSTED',
+                notConfigured: res.status === 503 && errCode === 'AI_NOT_CONFIGURED',
                 errorCode: errCode,
                 error: errMsg,
               },
@@ -586,20 +588,12 @@ export default function DetailedDossierModal({
               meta: receivedMeta,
             },
           }));
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: completedState,
-          }));
-        } else {
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: completedState,
-          }));
-          persistCompletedSectionToSession(
-            spec.id as NonPeriodChapterId,
-            completedState,
-          );
         }
+        setLocalChapters((prev) => ({
+          ...prev,
+          [spec.id]: completedState,
+        }));
+        persistCompletedSectionToSession(spec.id, completedState);
 
         return 'completed';
       } catch (err) {
@@ -653,7 +647,7 @@ export default function DetailedDossierModal({
     }
   };
 
-  // F6: Chạy tự động tuần tự toàn bộ các chương chưa hoàn tất với giãn nhịp 2,200ms
+  // F6 + QĐ-H7: Chạy tự động tuần tự toàn bộ các chương chưa hoàn tất với giãn nhịp 1,200ms
   const handleRunAllSequential = async () => {
     if (autoRunning || activeGeneratingId !== null) return;
 
@@ -666,7 +660,10 @@ export default function DetailedDossierModal({
       );
       if (isPeriodChapter(spec)) {
         const pKey = buildPeriodCacheKeyForYear(chart, spec.year);
-        return !hasValidCachedPeriodEntry(aiPeriodCacheRef.current[pKey]);
+        return (
+          !hasValidCachedPeriodEntry(aiPeriodCacheRef.current[pKey]) &&
+          !(current.status === 'completed' && current.text?.trim())
+        );
       }
       return !(current.status === 'completed' && current.text?.trim());
     });
@@ -1282,7 +1279,7 @@ export default function DetailedDossierModal({
                     </div>
                     <p className="text-xs text-[var(--t-text2)] leading-relaxed">
                       Nhấn <strong className="text-[var(--t-gold)]">"Sinh chương này"</strong> để luận giải riêng chương này, hoặc nhấn{' '}
-                      <strong className="text-[var(--t-gold)]">"Tự động tạo trọn bộ (8 chương)"</strong> ở thanh trên để hệ thống sinh tuần tự từng chương an toàn (giãn nhịp 2,2 giây/chương).
+                      <strong className="text-[var(--t-gold)]">"Tự động tạo trọn bộ (8 chương)"</strong> ở thanh trên để hệ thống sinh tuần tự từng chương an toàn (giãn nhịp 1,2 giây/chương).
                       {isPeriodChapter(selectedSpec) &&
                         ' Kết quả Lưu Niên 2026 & 2027 được đồng bộ bộ nhớ đệm 2 chiều trực tiếp với tab Vận Hạn.'}
                     </p>

@@ -361,9 +361,6 @@ export class GeminiStreamExecutor {
                   classified,
                   this.allocator.getMinRemainingCooldownSec(nowFn()),
                 );
-                options.onChunk(
-                  '\n\n*(Luồng kết nối bị gián đoạn giữa chừng — vui lòng bấm luận giải lại để nhận bản đầy đủ.)*',
-                );
                 options.onInterrupted?.({
                   reason: reasonText,
                   errorCategory: classified.category,
@@ -405,9 +402,6 @@ export class GeminiStreamExecutor {
     if (firstChunkEverSent) {
       const minSec = this.allocator.getMinRemainingCooldownSec(nowFn());
       const reasonText = formatHumanReadableErrorVi(lastClassifiedError, minSec);
-      options.onChunk(
-        '\n\n*(Luồng kết nối bị gián đoạn giữa chừng — vui lòng bấm luận giải lại để nhận bản đầy đủ.)*',
-      );
       options.onInterrupted?.({
         reason: reasonText,
         errorCategory: lastClassifiedError?.category ?? 'UNKNOWN',

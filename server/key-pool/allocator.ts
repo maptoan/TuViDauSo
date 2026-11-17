@@ -104,10 +104,10 @@ export function classifyGeminiError(
     };
   }
 
-  // 2. Lỗi cấp model (404 not found / not supported, hoặc 503 UNAVAILABLE / high demand / overloaded) -> fallback model, không phạt key
+  // 2. Lỗi cấp model (404 not found / not supported, 503 UNAVAILABLE / high demand / overloaded, hoặc abort chủ động khi chờ chunk đầu / hết ngân sách) -> fallback model, không phạt key
   if (
     numericStatus === 404 ||
-    /models\/[a-z0-9.-]+\s+is not found|not supported for generateContent|model is overloaded|currently unavailable|high demand|got status:\s*UNAVAILABLE|"status"\s*:\s*"UNAVAILABLE"|overloaded/i.test(
+    /models\/[a-z0-9.-]+\s+is not found|not supported for generateContent|model is overloaded|currently unavailable|high demand|got status:\s*UNAVAILABLE|"status"\s*:\s*"UNAVAILABLE"|overloaded|\bAbortError\b|FIRST_CHUNK_TIMEOUT|This operation was aborted|The operation was aborted/i.test(
       normalizedText,
     )
   ) {
@@ -155,7 +155,7 @@ export function classifyGeminiError(
   // 4. Lỗi 5xx hoặc mạng / timeout
   if (
     (numericStatus !== null && numericStatus >= 500 && numericStatus < 600) ||
-    /\b(?:500|502|503|504)\b|ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|fetch failed|TimeoutError|AbortError|FIRST_CHUNK_TIMEOUT/i.test(
+    /\b(?:500|502|503|504)\b|ECONNRESET|ETIMEDOUT|ENOTFOUND|ECONNREFUSED|fetch failed|TimeoutError/i.test(
       normalizedText,
     )
   ) {

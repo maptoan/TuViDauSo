@@ -1,19 +1,33 @@
 import type { BirthInfo, BirthFormState } from './types';
-import { calculateTrueSolarTime, resolveZiweiDayOffset, shiftGregorianDate } from './true-solar-time';
+import {
+  calculateTrueSolarTime,
+  isValidGregorianDate,
+  resolveZiweiDayOffset,
+  shiftGregorianDate,
+} from './true-solar-time';
 
 function isValidLongitude(longitude: number): boolean {
-  return longitude >= -180 && longitude <= 180;
+  return Number.isFinite(longitude) && longitude >= -180 && longitude <= 180;
+}
+
+function safeParseInt(raw: string | null | undefined, min: number, max: number): number | null {
+  if (typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^-?\d+$/.test(trimmed)) return null;
+  const num = Number(trimmed);
+  if (!Number.isSafeInteger(num) || num < min || num > max) return null;
+  return num;
 }
 
 /** 表单预览和提交共用：标准时区时间 + 经度修正 + 出生日期对应的均时差。 */
 export function formToTrueSolarTime(form: Pick<BirthFormState, 'year' | 'month' | 'day' | 'clockHour' | 'clockMinute' | 'province' | 'longitude'>) {
   const isVietnam = form.province ? form.province.startsWith('Việt Nam') : true;
   return calculateTrueSolarTime({
-    year: parseInt(form.year) || 0,
-    month: parseInt(form.month) || 0,
-    day: parseInt(form.day) || 0,
-    clockHour: parseInt(form.clockHour) || 0,
-    clockMinute: parseInt(form.clockMinute) || 0,
+    year: safeParseInt(form.year, 1, 9999) ?? 0,
+    month: safeParseInt(form.month, 1, 12) ?? 0,
+    day: safeParseInt(form.day, 1, 31) ?? 0,
+    clockHour: safeParseInt(form.clockHour, 0, 23) ?? 0,
+    clockMinute: safeParseInt(form.clockMinute, 0, 59) ?? 0,
     longitude: form.province ? form.longitude : undefined,
     utcOffsetMinutes: isVietnam ? 420 : 480,
   });
@@ -27,9 +41,9 @@ export function formToTrueSolarTime(form: Pick<BirthFormState, 'year' | 'month' 
  * 这与「时辰支同为子(0)」并不冲突——子时分早晚两段，需要在日期上区分。
  */
 export function formToBirthInfo(form: BirthFormState): BirthInfo {
-  const origYear = parseInt(form.year, 10) || 0;
-  const origMonth = parseInt(form.month, 10) || 0;
-  const origDay = parseInt(form.day, 10) || 0;
+  const origYear = safeParseInt(form.year, 1, 9999) ?? 0;
+  const origMonth = safeParseInt(form.month, 1, 12) ?? 0;
+  const origDay = safeParseInt(form.day, 1, 31) ?? 0;
   let y = origYear;
   let m = origMonth;
   let d = origDay;
@@ -48,8 +62,8 @@ export function formToBirthInfo(form: BirthFormState): BirthInfo {
       year: origYear,
       month: origMonth,
       day: origDay,
-      clockHour: parseInt(form.clockHour, 10) || 0,
-      clockMinute: parseInt(form.clockMinute, 10) || 0,
+      clockHour: safeParseInt(form.clockHour, 0, 23) ?? 0,
+      clockMinute: safeParseInt(form.clockMinute, 0, 59) ?? 0,
     };
   }
 
@@ -85,25 +99,37 @@ export function formToSearchParams(form: BirthFormState): URLSearchParams {
   return p;
 }
 
-/** URLSearchParams → Partial<BirthFormState>，不完整时返回 null */
+/** URLSearchParams → Partial<BirthFormState>，không hợp lệ hoặc NaN trả về null */
 export function searchParamsToForm(params: URLSearchParams): Partial<BirthFormState> | null {
-  const year = params.get('y');
-  const month = params.get('m');
-  const day = params.get('d');
-  if (!year || !month || !day) return null;
+  const yNum = safeParseInt(params.get('y'), 1900, 2100);
+  const mNum = safeParseInt(params.get('m'), 1, 12);
+  const dNum = safeParseInt(params.get('d'), 1, 31);
+  if (yNum === null || mNum === null || dNum === null) return null;
+  if (!isValidGregorianDate(yNum, mNum, dNum)) return null;
+
+  const rawHour = params.get('h');
+  const hNum = rawHour !== null && rawHour.trim() !== '' ? safeParseInt(rawHour, 0, 23) : 8;
+  if (hNum === null) return null;
+
+  const rawMin = params.get('mi');
+  const miNum = rawMin !== null && rawMin.trim() !== '' ? safeParseInt(rawMin, 0, 59) : 0;
+  if (miNum === null) return null;
+
   const rawLongitude = params.get('lo')?.trim();
-  const longitude = rawLongitude ? Number(rawLongitude) : 120;
+  const parsedLon = rawLongitude ? Number(rawLongitude) : 120;
+  const longitude = isValidLongitude(parsedLon) ? parsedLon : 120;
+
   return {
     name: params.get('n') || '',
-    year,
-    month,
-    day,
+    year: String(yNum),
+    month: String(mNum),
+    day: String(dNum),
     unknownTime: params.get('u') === '1',
-    clockHour: params.get('h') || '8',
-    clockMinute: params.get('mi') || '0',
+    clockHour: String(hNum),
+    clockMinute: String(miNum),
     province: params.get('p') || '',
     city: params.get('c') || '',
-    longitude: isValidLongitude(longitude) ? longitude : 120,
+    longitude,
     gender: params.get('g') === 'f' ? 'female' : 'male',
   };
 }

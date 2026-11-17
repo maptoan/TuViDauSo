@@ -268,12 +268,12 @@ export function buildNatalOverviewFactSheetVi(chart: ZiweiChart): NatalOverviewF
     ? chart.lunarInfo.fourPillars.map(translateGanZhi).join(' · ')
     : 'Không có';
 
-  const mingTamHop = [
-    ming,
-    chart.palaces.find((p) => p.branch === (ming.branch + 4) % 12),
-    chart.palaces.find((p) => p.branch === (ming.branch + 8) % 12),
-    chart.palaces.find((p) => p.branch === (ming.branch + 6) % 12),
-  ].filter((p): p is Palace => Boolean(p));
+  const mingTamHopSpecs: Array<{ roleLabel: string; palace: Palace | undefined }> = [
+    { roleLabel: 'Bản cung', palace: ming },
+    { roleLabel: 'Tam hợp (+4)', palace: chart.palaces.find((p) => p.branch === (ming.branch + 4) % 12) },
+    { roleLabel: 'Tam hợp (+8)', palace: chart.palaces.find((p) => p.branch === (ming.branch + 8) % 12) },
+    { roleLabel: 'Xung chiếu (+6)', palace: chart.palaces.find((p) => p.branch === (ming.branch + 6) % 12) },
+  ];
 
   const lines: string[] = [];
   lines.push(`**[CHƯƠNG 1 — TỔNG QUAN MỆNH CỤC & CÁCH CỤC TIÊN THIÊN]**`);
@@ -296,12 +296,14 @@ export function buildNatalOverviewFactSheetVi(chart: ZiweiChart): NatalOverviewF
   lines.push(`• **Đại Hạn hiện tại**: ${sihuaInfo.currentDaXianLabelVi}`);
 
   lines.push(`\n**[TAM PHƯƠNG TỨ CHÍNH CUNG MỆNH]**`);
-  for (const p of mingTamHop) {
+  for (const item of mingTamHopSpecs) {
+    const p = item.palace;
+    if (!p) continue;
     const pm = formatPalaceMajorsList(p);
     const luckys = p.stars.filter((s) => s.type === 'lucky').map((s) => translateStarName(s.name));
     const shas = p.stars.filter((s) => s.type === 'sha').map((s) => translateStarName(s.name));
     lines.push(
-      `• **${translatePalaceName(p.name)} (${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]})**: Chính tinh ${pm.summaryVi} | Cát tinh: ${luckys.join(', ') || 'Không'} | Sát tinh: ${shas.join(', ') || 'Không'}`,
+      `• **[${item.roleLabel}] ${translatePalaceName(p.name)} (${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]})**: Chính tinh ${pm.summaryVi} | Cát tinh: ${luckys.join(', ') || 'Không'} | Sát tinh: ${shas.join(', ') || 'Không'}`,
     );
   }
 

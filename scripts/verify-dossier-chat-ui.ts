@@ -9,9 +9,10 @@ import {
   verifyAndEnsureCompletePeriodSiHua,
 } from '../src/lib/ziwei/text-sanitizer';
 import { formatChartSummaryVi } from '../src/lib/ziwei/vi-i18n';
-import { formToBirthInfo } from '../src/lib/ziwei/share';
+import { formToBirthInfo, searchParamsToForm } from '../src/lib/ziwei/share';
 import type { BirthFormState } from '../src/lib/ziwei/types';
 import { shouldRefreshKeyPoolSnapshot } from '../src/lib/key-pool-ui';
+import { PROVINCES } from '../src/lib/ziwei/cities';
 import {
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
@@ -35,6 +36,7 @@ import {
   MAX_CHAT_THREADS_IN_SESSION,
   MAX_DOSSIERS_IN_SESSION,
   StorageLike,
+  StoredChatMessage,
   buildChartIdentityKey,
   buildChatStorageKey,
   buildDeterministicChartGridHtml,
@@ -50,6 +52,7 @@ import {
   buildPeriodCacheKeyForYear,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
+  filterPersistableChatMessages,
   formatDossierSourceBadge,
   getChatCooldownRemainingSec,
   getSharedDossierGenerating,
@@ -60,6 +63,8 @@ import {
   removeLruSessionEntry,
   resolveChapterDeterministicFactSheet,
   resolveDossierChapterFromCaches,
+  sanitizeDossierChapterText,
+  saveDossierSectionToCache,
   setSharedDossierGenerating,
   stripInternalExportMetaLines,
   subscribeSharedDossierGenerating,
@@ -261,7 +266,7 @@ runTest('F7 Hàng rào Chat (8s cooldown + trần mềm 15 + mở thêm 5 + khó
 });
 
 runTest('Danh sách 8 chương hồ sơ đúng thứ tự + khóa cache + sourceBadge kế thừa/sinh mới', () => {
-  assert.equal(DOSSIER_INTER_CHAPTER_PACING_MS, 2200);
+  assert.equal(DOSSIER_INTER_CHAPTER_PACING_MS, 1200);
   assert.equal(DOSSIER_CHAPTER_SPECS.length, 8);
   assert.deepEqual(
     DOSSIER_CHAPTER_SPECS.map((s) => s.id),
@@ -287,8 +292,12 @@ runTest('Danh sách 8 chương hồ sơ đúng thứ tự + khóa cache + source
 
   const chart = buildFemale1992Chart();
   const chartId = buildChartIdentityKey(chart);
-  assert.equal(chartId, '1992_8_20_8_female');
-  assert.equal(buildDossierChapterCacheKey(chartId, 'palaces_core'), '1992_8_20_8_female::palaces_core');
+  assert.ok(chartId.startsWith('1992_8_20_8_female__'));
+  assert.ok(chartId.includes('mg') && chartId.includes('leap0'));
+  assert.equal(
+    buildDossierChapterCacheKey(chartId, 'palaces_core'),
+    `${chartId}::palaces_core`,
+  );
 
   const pCtx2026 = buildYunxianPeriodContext(chart, { mode: 'liunian', year: 2026 });
   assert.ok(pCtx2026);
@@ -1100,6 +1109,182 @@ runTest('[SỬA NHỎ · TEST-10] Gỡ dòng meta nội bộ khỏi bản kết 
   assert.equal(states.chapter_overview.meta?.maskedKey, 'AIzaSy••••••GyWQ');
   assert.equal(states.palaces_core.sourceBadge, 'Kế thừa từ bộ nhớ đệm');
   assert.equal(states.palaces_core.meta?.modelUsed, 'gemini-3.8-flash');
+});
+
+runTest('[QĐ-H6 · TEST-11] Ranh giới câu Lớp 3B (NV-03) + tách chữ thường có dấu đứng trước chữ hoa & bảo vệ iPhone/iPad/macOS (NV-04)', () => {
+  // (a) NV-04: Tách dính "nhưThiên Cơ, cóVũ Khúc" nhưng TUYỆT ĐỐI KHÔNG cắt các từ tiếng Anh chuẩn camelCase
+  const mixedText =
+    'Dùng iPhone, iPad, macOS hay tra eBay, YouTube, TypeScript, JavaScript hoặc McDonald đều bình thường; nhưng viết dính nhưThiên Cơ, cóVũ Khúc hoặc ởMệnh thì phải tách.';
+  const sanitized = sanitizeAiVietnameseOutput(mixedText);
+  for (const brand of [
+    'iPhone',
+    'iPad',
+    'eBay',
+    'macOS',
+    'JavaScript',
+    'TypeScript',
+    'YouTube',
+    'McDonald',
+  ]) {
+    assert.ok(sanitized.includes(brand), `Không được phép tách thương hiệu/thuật ngữ ${brand}`);
+  }
+  assert.ok(sanitized.includes('như Thiên Cơ'));
+  assert.ok(sanitized.includes('có Vũ Khúc'));
+  assert.ok(sanitized.includes('ở Mệnh'));
+
+  // (b) NV-03: Sao ở câu trước + Hóa ở câu sau KHÔNG được tính là đã nhắc tên Hóa cho sao đó
+  const anChart = buildNguyenVanAn1995Chart();
+  const ctx2026 = buildYunxianPeriodContext(anChart, { mode: 'liunian', year: 2026 });
+  assert.ok(ctx2026);
+  // Năm 2026 Bính Ngọ: Thiên Đồng Hóa Lộc, Thiên Cơ Hóa Quyền, Văn Xương Hóa Khoa, Liêm Trinh Hóa Kỵ
+  const crossSentenceFalsePositiveText = [
+    '### 1. Chủ Đề Kỳ Hạn (Sự Kiện Trong Năm)',
+    'Bản mệnh Liêm Trinh tọa Mệnh rất sáng. Sang Lưu Niên 2026 có Thiên Đồng Hóa Lộc, Thiên Cơ Hóa Quyền và Văn Xương Hóa Khoa.',
+    '### 4. Lời Khuyên Hành Động',
+    'Giữ tâm thế vững vàng.',
+  ].join('\n');
+  const check = verifyAndEnsureCompletePeriodSiHua(crossSentenceFalsePositiveText, ctx2026);
+  assert.ok(
+    check.missingEntries.some((m) => m.mutagenVi === 'Hóa Kỵ'),
+    'Liêm Trinh ở câu 1 và Hóa Lộc/Quyền/Khoa ở câu 2 không được khớp nhầm Hóa Kỵ cho Liêm Trinh',
+  );
+  assert.ok(check.patchedText.includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số'));
+  assert.ok(check.patchedText.includes('Lưu Hóa Kỵ → Sao Liêm Trinh'));
+});
+
+runTest('[QĐ-H1 · TEST-12] Lưu trữ đủ 8 chương (gồm year_2026/year_2027) + Lớp 3B trong sanitizeDossierChapterText', () => {
+  const anChart = buildNguyenVanAn1995Chart();
+  const chartId = buildChartIdentityKey(anChart);
+  const storageKey = buildDossierStorageKey(chartId);
+  const store = new MemoryStorage();
+
+  // Lưu một bản year_2026 thiếu Hóa Kỵ qua saveDossierSectionToCache -> Lớp 3B tự vá trước khi lưu & khi đọc lại
+  const partialYear2026Text =
+    'Bính Ngọ 2026 có Thiên Đồng Hóa Lộc, Thiên Cơ Hóa Quyền và Văn Xương Hóa Khoa.';
+  const savedOk = saveDossierSectionToCache(store, anChart, 'year_2026', {
+    chapterId: 'year_2026',
+    sectionCacheKey: buildDossierChapterCacheKey(chartId, 'year_2026'),
+    status: 'completed',
+    text: partialYear2026Text,
+    sourceBadge: 'Sinh mới trong hồ sơ',
+  });
+  assert.equal(savedOk, true);
+
+  const saved2027Ok = saveDossierSectionToCache(store, anChart, 'year_2027', {
+    chapterId: 'year_2027',
+    sectionCacheKey: buildDossierChapterCacheKey(chartId, 'year_2027'),
+    status: 'completed',
+    text: 'Đinh Mùi 2027: Thái Âm Hóa Lộc, Thiên Đồng Hóa Quyền.',
+    sourceBadge: 'Sinh mới trong hồ sơ',
+  });
+  assert.equal(saved2027Ok, true);
+
+  const hydrated = readDossierCacheEntry(store, storageKey, anChart);
+  assert.ok(hydrated);
+  assert.equal(hydrated.sections.year_2026?.status, 'completed');
+  assert.ok(hydrated.sections.year_2026?.text?.includes('Lưu Hóa Kỵ → Sao Liêm Trinh'));
+  assert.equal(hydrated.sections.year_2027?.status, 'completed');
+  assert.ok(hydrated.sections.year_2027?.text?.includes('Lưu Hóa Kỵ → Sao Cự Môn'));
+
+  // incompleteText phải bỏ qua Lớp 3B (skipPeriodSiHuaCheck: true)
+  const sanitizedIncomplete = sanitizeDossierChapterText('Mở đầu 2026 có Thiên Đồng Hóa Lộc', 'year_2026', anChart, {
+    skipPeriodSiHuaCheck: true,
+  });
+  assert.equal(sanitizedIncomplete?.includes('Tổng Hợp Đầy Đủ Tứ Hóa'), false);
+});
+
+runTest('[QĐ-H2 · TEST-13] Khóa lá số chống va chạm (A-01), lọc error bubble chat (A-04) & validate URL params (A-05)', () => {
+  // (a) A-01: Khác tên / khác phút sinh / khác kinh độ -> khóa khác nhau
+  const chartA = generateChart({
+    name: 'Nguyễn Văn A',
+    year: 1995,
+    month: 8,
+    day: 16,
+    hour: 5,
+    gender: 'male',
+    longitude: 105.85,
+    origInput: { year: 1995, month: 8, day: 16, clockHour: 10, clockMinute: 15 },
+  });
+  const chartB = generateChart({
+    name: 'Trần Văn B',
+    year: 1995,
+    month: 8,
+    day: 16,
+    hour: 5,
+    gender: 'male',
+    longitude: 105.85,
+    origInput: { year: 1995, month: 8, day: 16, clockHour: 10, clockMinute: 15 },
+  });
+  const chartC = generateChart({
+    name: 'Nguyễn Văn A',
+    year: 1995,
+    month: 8,
+    day: 16,
+    hour: 5,
+    gender: 'male',
+    longitude: 106.7,
+    origInput: { year: 1995, month: 8, day: 16, clockHour: 10, clockMinute: 45 },
+  });
+  assert.notEqual(buildChartIdentityKey(chartA), buildChartIdentityKey(chartB));
+  assert.notEqual(buildChartIdentityKey(chartA), buildChartIdentityKey(chartC));
+  assert.notEqual(
+    buildPeriodCacheKeyForYear(chartA, 2026),
+    buildPeriodCacheKeyForYear(chartB, 2026),
+  );
+
+  // (b) A-04: filterPersistableChatMessages giữ câu hợp lệ & interrupted có nội dung, dọn error thuần + user mồ côi
+  const rawMsgs: StoredChatMessage[] = [
+    { id: 'u1', role: 'user', content: 'Hỏi hợp lệ 1', timestamp: 1 },
+    { id: 'a1', role: 'assistant', content: 'Trả lời đầy đủ 1', timestamp: 2 },
+    { id: 'u2', role: 'user', content: 'Hỏi bị gián đoạn nhưng có chữ', timestamp: 3 },
+    { id: 'a2', role: 'assistant', content: 'Nội dung dở dang nhưng có giá trị.', timestamp: 4, interrupted: true, error: 'Đứt luồng' },
+    { id: 'u3', role: 'user', content: 'Hỏi bị lỗi hoàn toàn (user mồ côi)', timestamp: 5 },
+    { id: 'a3', role: 'assistant', content: '', timestamp: 6, error: '503 AI_POOL_EXHAUSTED' },
+  ];
+  const filtered = filterPersistableChatMessages(rawMsgs);
+  assert.deepEqual(
+    filtered.map((m) => m.id),
+    ['u1', 'a1', 'u2', 'a2'],
+  );
+
+  // (c) A-05: searchParamsToForm chặn NaN & ngày không tồn tại (30/02)
+  assert.equal(searchParamsToForm(new URLSearchParams('y=abc&m=8&d=16')), null);
+  assert.equal(searchParamsToForm(new URLSearchParams('y=2025&m=2&d=30')), null);
+  assert.equal(searchParamsToForm(new URLSearchParams('y=1995&m=8&d=16&h=99&mi=0')), null);
+  const validForm = searchParamsToForm(new URLSearchParams('y=1995&m=8&d=16&h=10&mi=30&g=male&lo=105.85'));
+  assert.ok(validForm);
+  assert.equal(validForm.year, '1995');
+  assert.equal(validForm.clockHour, '10');
+  assert.equal(validForm.longitude, 105.85);
+});
+
+runTest('[QĐ-H5 · TEST-14] Header khi có origInput nhưng chưa chọn kinh độ (A-02) + C-05 tỉnh thành VN + QĐ-H3 prompt kỳ hạn', () => {
+  // A-02: Có origInput 10:30 nhưng longitude === undefined -> giữ giờ đồng hồ, không tự hiệu chỉnh theo 105.00°Đ giả
+  const chartNoLon = generateChart({
+    name: 'Lê Hoàng Nam',
+    year: 1995,
+    month: 8,
+    day: 16,
+    hour: 5,
+    gender: 'male',
+    origInput: { year: 1995, month: 8, day: 16, clockHour: 10, clockMinute: 30 },
+  });
+  const headerNoLon = buildDossierHeaderMetadata(chartNoLon);
+  assert.equal(headerNoLon.hasExactBirthTime, true);
+  assert.equal(headerNoLon.clockTimeVi, '10:30');
+  assert.equal(headerNoLon.trueSolarTimeHHMM, null);
+  assert.ok(headerNoLon.birthTimeFullSummaryVi.includes('giữ giờ chuẩn không hiệu chỉnh kinh độ'));
+  assert.ok(headerNoLon.locationVi.includes('Chưa chọn địa phương'));
+  assert.equal(headerNoLon.locationVi.includes('105.00°Đ'), false);
+
+  // C-05: Chỉ giữ 3 vùng Việt Nam trong PROVINCES
+  assert.equal(PROVINCES.length, 3);
+  assert.ok(PROVINCES.every((p) => p.name.startsWith('Việt Nam')));
+
+  // QĐ-H3: buildStrictPeriodAiPrompt có nhắc đọc trực tiếp mục Tam Phương Tứ Chính
+  const pCtx2026 = buildYunxianPeriodContext(chartNoLon, { mode: 'liunian', year: 2026 })!;
+  const built = buildStrictPeriodAiPrompt(pCtx2026, formatChartSummaryVi(chartNoLon));
+  assert.ok(built.systemInstruction.includes('[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn'));
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

@@ -8,9 +8,13 @@ import {
   translateWuxingJu,
   translateStarName,
 } from '../lib/ziwei/vi-i18n';
-import type { ContextualChatContextPayload } from '../lib/dossier-chat-ui';
+import {
+  buildChartIdentityKey,
+  type ContextualChatContextPayload,
+} from '../lib/dossier-chat-ui';
+import { sanitizeAiVietnameseOutput } from '../lib/ziwei/text-sanitizer';
 import MarkdownContent from './MarkdownContent';
-import { HeartHandshake, Sparkles, RefreshCw, Users, CheckCircle2, MessageSquareText } from 'lucide-react';
+import { HeartHandshake, Sparkles, RefreshCw, Users, CheckCircle2, MessageSquareText, AlertTriangle } from 'lucide-react';
 
 interface HemingViewProps {
   onOpenContextualChat?: (context: ContextualChatContextPayload) => void;
@@ -91,6 +95,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
   const [chartB, setChartB] = useState<ZiweiChart | null>(null);
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
+  const [streamNotice, setStreamNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const handleAnalyze = async () => {
@@ -100,6 +105,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
     abortRef.current = controller;
 
     setResult('');
+    setStreamNotice(null);
     setLoading(true);
 
     try {
@@ -111,39 +117,93 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
       });
 
       if (!res.ok || !res.body) {
+        setStreamNotice(
+          'Không kết nối được luồng AI Hợp Bàn — đang hiển thị bản phân tích xác định tại chỗ.',
+        );
         setResult(buildLocalHemingFallback(chartA, chartB));
         return;
       }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let sseBuffer = '';
       let acc = '';
+      let wasInterrupted = false;
+      let streamError = '';
 
-      while (true) {
+      const processLine = (line: string): boolean => {
+        if (!line.startsWith('data: ')) return false;
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') return true;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed?.meta) {
+            return false;
+          }
+          if (parsed?.interrupted) {
+            wasInterrupted = true;
+            if (parsed.message) streamError = parsed.message;
+            return false;
+          }
+          if (parsed?.error) {
+            streamError = parsed.message || 'Luồng AI Hợp Bàn gặp lỗi.';
+            return false;
+          }
+          const text = parsed?.delta?.text ?? '';
+          if (text) {
+            acc = sanitizeAiVietnameseOutput(acc + text);
+            setResult(acc);
+          }
+        } catch {
+          // ignore partial JSON frame
+        }
+        return false;
+      };
+
+      let doneSignal = false;
+      while (!doneSignal) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        for (const line of chunk.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6);
-          if (data === '[DONE]') break;
-          try {
-            const text = JSON.parse(data)?.delta?.text ?? '';
-            if (text) {
-              acc += text;
-              setResult(acc);
-            }
-          } catch {
-            // ignore
+        sseBuffer += decoder.decode(value, { stream: true });
+        const lines = sseBuffer.split('\n');
+        sseBuffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (processLine(line)) {
+            doneSignal = true;
+            break;
           }
         }
       }
+      if (!doneSignal && sseBuffer.trim()) {
+        processLine(sseBuffer.trim());
+      }
 
-      if (!acc.trim()) {
+      acc = sanitizeAiVietnameseOutput(acc);
+      if (acc.trim()) {
+        setResult(acc);
+      }
+
+      if (wasInterrupted || streamError) {
+        if (acc.trim()) {
+          setStreamNotice(
+            streamError ||
+              'Luồng Hợp Bàn bị gián đoạn giữa chừng — đang giữ phần nội dung đã nhận.',
+          );
+        } else {
+          setStreamNotice(
+            streamError ||
+              'Luồng AI Hợp Bàn bị gián đoạn — đang hiển thị bản phân tích xác định tại chỗ.',
+          );
+          setResult(buildLocalHemingFallback(chartA, chartB));
+        }
+      } else if (!acc.trim()) {
         setResult(buildLocalHemingFallback(chartA, chartB));
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
+        setStreamNotice(
+          'Mất kết nối luồng AI Hợp Bàn — đang hiển thị bản phân tích xác định tại chỗ.',
+        );
         setResult(buildLocalHemingFallback(chartA, chartB));
       }
     } finally {
@@ -221,6 +281,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
               setFormA(f);
               setChartA(c);
               setResult('');
+              setStreamNotice(null);
             }}
           />
           {chartA && renderMiniSummary(chartA, 'Lá Số A')}
@@ -239,6 +300,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
               setFormB(f);
               setChartB(c);
               setResult('');
+              setStreamNotice(null);
             }}
           />
           {chartB && renderMiniSummary(chartB, 'Lá Số B')}
@@ -271,7 +333,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
               const nameB = chartB.birthInfo.name || 'Bên B';
               const factSheetVi = `=== LÁ SỐ BÊN A (${nameA}) ===\n${formatChartSummaryVi(chartA)}\n\n=== LÁ SỐ BÊN B (${nameB}) ===\n${formatChartSummaryVi(chartB)}`;
               const excerptVi = result.trim() || buildLocalHemingFallback(chartA, chartB);
-              const bKey = `${chartB.birthInfo.year}_${chartB.birthInfo.month}_${chartB.birthInfo.day}_${chartB.birthInfo.hour}_${chartB.birthInfo.gender}`;
+              const bKey = buildChartIdentityKey(chartB);
               onOpenContextualChat({
                 chart: chartA,
                 chartB,
@@ -311,7 +373,7 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
                     const nameA = chartA.birthInfo.name || 'Bên A';
                     const nameB = chartB.birthInfo.name || 'Bên B';
                     const factSheetVi = `=== LÁ SỐ BÊN A (${nameA}) ===\n${formatChartSummaryVi(chartA)}\n\n=== LÁ SỐ BÊN B (${nameB}) ===\n${formatChartSummaryVi(chartB)}`;
-                    const bKey = `${chartB.birthInfo.year}_${chartB.birthInfo.month}_${chartB.birthInfo.day}_${chartB.birthInfo.hour}_${chartB.birthInfo.gender}`;
+                    const bKey = buildChartIdentityKey(chartB);
                     onOpenContextualChat({
                       chart: chartA,
                       chartB,
@@ -334,6 +396,12 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
               )}
             </div>
           </div>
+          {streamNotice && (
+            <div className="rounded-lg px-3 py-2 border border-amber-500/40 bg-amber-500/10 text-amber-300 text-xs flex items-center gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>{streamNotice}</span>
+            </div>
+          )}
           <div className="text-xs sm:text-sm text-[var(--t-text)] leading-relaxed">
             <MarkdownContent content={result} />
           </div>

@@ -1152,7 +1152,163 @@ async function runTests() {
       console.log('  -> Đạt: acquireLease persist lastUsedAt ngay; recordSuccess (wasProbe=false) ghi CALL_SUCCESS và giữ trần 100 log.');
     }
 
-    console.log('\n=== TẤT CẢ 17 BÀI KIỂM THỬ KHO KHÓA, BATCH PROBE & HỒI QUY B2 ĐỀU ĐẠT ===');
+    // ── BÀI 18: PHA 0 (NV-01 & H4) — AbortError/FIRST_CHUNK_TIMEOUT không phạt key & khử trùng câu cảnh báo gián đoạn ─
+    {
+      console.log('\n[18/18] Kiểm thử NV-01 & Hồi quy H4: AbortError/FIRST_CHUNK_TIMEOUT -> MODEL_UNAVAILABLE (0 phạt key) & không bơm trùng cảnh báo vào onChunk...');
+
+      // (18a) Kiểm thử trực tiếp classifyGeminiError với DOMException AbortError (code=20) và Error('FIRST_CHUNK_TIMEOUT')
+      const domAbortErr = new DOMException('This operation was aborted', 'AbortError');
+      assert.strictEqual(domAbortErr.name, 'AbortError');
+      assert.strictEqual((domAbortErr as unknown as { code?: number }).code, 20);
+      const classifiedDomAbort = classifyGeminiError(domAbortErr);
+      assert.strictEqual(
+        classifiedDomAbort.category,
+        'MODEL_UNAVAILABLE',
+        'DOMException AbortError do AbortController.abort() phải được xếp vào MODEL_UNAVAILABLE để không phạt key',
+      );
+      assert.strictEqual(
+        computeCooldownDurationMs(classifiedDomAbort.category, 1, null, 0, true),
+        null,
+        'MODEL_UNAVAILABLE không đặt cooldown cấp key',
+      );
+
+      const firstChunkTimeoutErr = new Error('FIRST_CHUNK_TIMEOUT');
+      const classifiedFirstChunk = classifyGeminiError(firstChunkTimeoutErr);
+      assert.strictEqual(
+        classifiedFirstChunk.category,
+        'MODEL_UNAVAILABLE',
+        'Error(FIRST_CHUNK_TIMEOUT) từ bộ hẹn giờ chunk đầu phải xếp vào MODEL_UNAVAILABLE',
+      );
+
+      // Đảm bảo lỗi mạng thật & 5xx vẫn giữ nguyên NETWORK_OR_5XX (-10 điểm, 30s cooldown)
+      const realNetErr = classifyGeminiError(new Error('fetch failed: ECONNRESET'));
+      assert.strictEqual(realNetErr.category, 'NETWORK_OR_5XX');
+      assert.strictEqual(computeCooldownDurationMs(realNetErr.category, 1, null, 0, true), 30_000);
+
+      // (18b) Truy vết toàn luồng executeStream khi gemini-3.5-flash-lite bị abort chờ chunk đầu -> fallback sang gemini-3.8-flash, key giữ nguyên 100 điểm & ready
+      const dir18 = fs.mkdtempSync(path.join(tmpDir, 'h4-nv01-'));
+      const mgr18 = new KeyPoolManager(dir18);
+      const kH4 = fakeKey('H4ProactiveAbortKey000000000001');
+      const prev18 = mgr18.previewBatchImport(kH4);
+      mgr18.confirmBatchImport(prev18.previewSessionId);
+      const [idH4] = mgr18._getRawKeyIdsForVerification();
+
+      const attemptedModels18: string[] = [];
+      let out18 = '';
+      const meta18 = await mgr18.executeStream({
+        prompt: 'Kiểm thử NV-01 timeout chunk đầu',
+        onChunk: (t) => {
+          out18 += t;
+        },
+        clientFactory: () => ({
+          models: {
+            async generateContentStream(params) {
+              attemptedModels18.push(params.model);
+              if (params.model === 'gemini-3.5-flash-lite') {
+                throw new DOMException('This operation was aborted', 'AbortError');
+              }
+              async function* gen() {
+                yield { text: 'Phản hồi thành công sau khi abort 3.5-flash-lite.' };
+              }
+              return gen();
+            },
+            async generateContent() {
+              return { text: 'OK' };
+            },
+          },
+        }),
+        disableJitter: true,
+      });
+
+      assert.deepStrictEqual(attemptedModels18, ['gemini-3.5-flash-lite', 'gemini-3.8-flash']);
+      assert.strictEqual(out18, 'Phản hồi thành công sau khi abort 3.5-flash-lite.');
+      assert.strictEqual(meta18.modelUsed, 'gemini-3.8-flash');
+      const recH4 = mgr18._findKeyRecord(idH4)!;
+      assert.strictEqual(recH4.status, 'ready', 'Key KHÔNG được bị đẩy sang cooldown khi abort chờ chunk đầu');
+      assert.strictEqual(recH4.healthScore, 100, 'Key KHÔNG được bị trừ 10 điểm khi abort chờ chunk đầu');
+
+      // (18c) Kiểm thử khử trùng thông báo gián đoạn: khi đứt luồng (cả nhánh !canContinue lẫn nhánh hết lượt nối tiếp),
+      // onChunk chỉ chứa văn bản AI thuần, KHÔNG bị bơm thêm câu "*(Luồng kết nối bị gián đoạn giữa chừng..."
+      let chunkTextBranch1 = '';
+      let interruptedCountBranch1 = 0;
+      await mgr18.executeStream({
+        prompt: 'Kiểm thử nhánh 1 (!canContinue)',
+        maxContinuations: 0,
+        onChunk: (t) => {
+          chunkTextBranch1 += t;
+        },
+        onInterrupted: () => {
+          interruptedCountBranch1 += 1;
+        },
+        clientFactory: () => ({
+          models: {
+            async generateContentStream() {
+              async function* gen() {
+                yield { text: 'Đoạn văn bản AI đang viết dở.' };
+                throw new Error('fetch failed: ECONNRESET');
+              }
+              return gen();
+            },
+            async generateContent() {
+              return { text: 'OK' };
+            },
+          },
+        }),
+        disableJitter: true,
+      });
+
+      assert.strictEqual(interruptedCountBranch1, 1, 'onInterrupted phải được gọi đúng 1 lần ở nhánh !canContinue');
+      assert.strictEqual(
+        chunkTextBranch1,
+        'Đoạn văn bản AI đang viết dở.',
+        'onChunk KHÔNG được chứa câu cảnh báo gián đoạn trùng lặp ở nhánh !canContinue',
+      );
+      assert.ok(!chunkTextBranch1.includes('Luồng kết nối bị gián đoạn giữa chừng'));
+
+      // Khôi phục key để kiểm tra nhánh 2 (firstChunkEverSent sau khi hết lượt thử nối tiếp)
+      mgr18.reactivateKey(idH4);
+      let chunkTextBranch2 = '';
+      let interruptedCountBranch2 = 0;
+      await mgr18.executeStream({
+        prompt: 'Kiểm thử nhánh 2 (hết khóa khi đang nối tiếp)',
+        maxContinuations: 2,
+        onChunk: (t) => {
+          chunkTextBranch2 += t;
+        },
+        onInterrupted: () => {
+          interruptedCountBranch2 += 1;
+        },
+        clientFactory: () => ({
+          models: {
+            async generateContentStream(params) {
+              if (!params.contents.includes('PHẦN ĐÃ VIẾT TRƯỚC ĐÓ')) {
+                async function* genFirst() {
+                  yield { text: 'Phần 1 đã gửi thành công.' };
+                  throw Object.assign(new Error('503 got status: UNAVAILABLE'), { status: 503 });
+                }
+                return genFirst();
+              }
+              throw Object.assign(new Error('503 got status: UNAVAILABLE'), { status: 503 });
+            },
+            async generateContent() {
+              return { text: 'OK' };
+            },
+          },
+        }),
+        disableJitter: true,
+      });
+
+      assert.strictEqual(interruptedCountBranch2, 1, 'onInterrupted phải được gọi đúng 1 lần ở nhánh cuối hàm');
+      assert.strictEqual(
+        chunkTextBranch2,
+        'Phần 1 đã gửi thành công.',
+        'onChunk KHÔNG được chứa câu cảnh báo gián đoạn trùng lặp ở nhánh cuối hàm',
+      );
+      assert.ok(!chunkTextBranch2.includes('Luồng kết nối bị gián đoạn giữa chừng'));
+      console.log('  -> Đạt: AbortError/FIRST_CHUNK_TIMEOUT xếp vào MODEL_UNAVAILABLE (0 phạt key) & khử sạch thông báo gián đoạn trùng lặp.');
+    }
+
+    console.log('\n=== TẤT CẢ 18 BÀI KIỂM THỬ KHO KHÓA, BATCH PROBE, B2 & H4 (NV-01) ĐỀU ĐẠT ===');
   } finally {
     if (origEnvKey !== undefined) process.env.GEMINI_API_KEY = origEnvKey;
     if (origEnvKeys !== undefined) process.env.GEMINI_API_KEYS = origEnvKeys;
