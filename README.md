@@ -9,6 +9,21 @@
 
 ---
 
+## Nguồn gốc & ghi nhận tác giả gốc
+
+- **Repo gốc**: [`Renhuai123/ziwei-doushu`](https://github.com/Renhuai123/ziwei-doushu) *(GitHub Public)*.
+- **Tác giả / chủ sở hữu gốc**: Chủ sở hữu repo trên GitHub là `Renhuai123`; README của repo gốc ghi nhận tác giả là `王多鱼AI` (`Wang Duoyu AI`, mục `"数据集归属"`), nền tảng trực tuyến `OURANIC` ([`https://www.ouranic.cn/`](https://www.ouranic.cn/)), đơn vị vận hành `北京王多鱼科技有限责任公司`.
+- **Tên hệ thống gốc**: `"紫微斗数 · 开源排盘引擎"` — engine lập lá số Tử Vi Đẩu Số mã nguồn mở dựa trên hệ thống `《天纪》` của `倪海厦` (Nghê Hải Hạ); engine nằm ở `lib/ziwei/` trong repo gốc (tương ứng `src/lib/ziwei/` trong ứng dụng này).
+- **Giấy phép** *(theo mục `"协议"` — Chương 9 trong README của repo gốc)*:
+  - Mã nguồn: giấy phép `MIT` *(xem file `LICENSE` tại repo gốc)*.
+  - Dữ liệu (`datasets`): `CC BY 4.0`.
+  - Cổ thư (`古籍原文`): phạm vi công cộng (`Public Domain`).
+  - Phần nguyên văn lời `倪师` (`docs/tianji-ziwei/`): `CC BY-NC-SA 4.0` *(chỉ dùng phi thương mại cho học tập/nghiên cứu)*.
+- **Thư viện nền**: Thuật toán lập lá số dựa trên thư viện mã nguồn mở [`iztro`](https://github.com/SylarLong/iztro) (`https://github.com/SylarLong/iztro`) — được ghi nhận ở đầu file `src/lib/ziwei/algorithm.ts` (*`"紫微斗数排盘算法 — 基于 iztro 开源库"`*).
+- **Phân biệt kế thừa & phần phát triển tiếp nối**: Ứng dụng này (*`"Tử Vi Đẩu Số — Hệ Thống Thiên Kỷ Nghê Hải Hạ"`* theo `metadata.json`) là bản phát triển tiếp nối từ mã nguồn của tác giả gốc; dự án trân trọng ghi nhận công lao và nền tảng thuật toán của tác giả gốc. Phần đóng góp của bản hiện tại tập trung vào: Việt hoá giao diện và nội dung, module kho key Gemini (quản lý nhiều API key, failover), tính năng hồ sơ luận giải & chat (`dossier & chat`), và bộ hậu kiểm (`verify suite`) — chi tiết xem tại [`CHANGELOG.md`](CHANGELOG.md).
+
+---
+
 ## 1. Giới thiệu & Định vị Kỹ thuật
 
 **Tử Vi Thiên Kỷ** (*Tử Vi Đẩu Số — Hệ Thống Thiên Kỷ Nghê Hải Hạ*) là ứng dụng web full-stack (React + Vite + Express + TypeScript) chuyên về an sao lập lá số Tử Vi Đẩu Số theo hệ thống Thiên Kỷ, hiệu chỉnh **Chân Thái Dương Thời** theo kinh độ 63 tỉnh/thành Việt Nam, nhận diện cách cục cổ thư, **Hợp Bàn (Hợp Hôn)** hai lá số, **Hồ Sơ Toàn Diện 8 Chương** chuẩn xuất bản Giấy Cổ (`.html` / `@media print` / `.md` / PlainText) và **Hỏi Đáp Ngữ Cảnh** gắn bảng dữ kiện xác định.
