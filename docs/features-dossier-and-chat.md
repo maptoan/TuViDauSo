@@ -2,10 +2,10 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — SSOT Tính năng Nghiệp vụ & Giao diện AI]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.1.0-rc.1` *(đồng bộ với `/VERSION`)*
-- **Cập nhật lần cuối**: `17/11/2026` *(đồng bộ toàn bộ `F1–F7`, `QĐ-G1..G6`, `QĐ-H1..H3`, `QĐ-H5..H7`)*
-- **Mã nguồn đối chiếu (Code SSOT)**: `src/lib/dossier-chat-ui.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/ziwei/yunxian-context.ts`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/share.ts`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/InsightPanel.tsx`, `src/components/HemingView.tsx`
-- **Quyết định liên quan**: `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..H3`, `QĐ-H5..H7` *(chi tiết tại `docs/decisions-registry.md`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.4.0-rc.1` *(đồng bộ với `/VERSION`)*
+- **Cập nhật lần cuối**: `19/11/2026` *(cập nhật Nền Tri Thức AI Đợt Pilot 1A `QĐ-N1..QĐ-N8`)*
+- **Mã nguồn đối chiếu (Code SSOT)**: `server/knowledge-base/*`, `server.ts`, `src/lib/chart-library.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/ziwei/history.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/ziwei/yunxian-context.ts`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/share.ts`, `src/components/ChartLibraryModal.tsx`, `src/components/DuplicateChartPromptModal.tsx`, `src/components/BirthForm.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/InsightPanel.tsx`, `src/components/HemingView.tsx`
+- **Quyết định liên quan**: `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..H3`, `QĐ-H5..H7`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `QĐ-M1..QĐ-M6`, `QĐ-N1..QĐ-N8` *(chi tiết tại `docs/decisions-registry.md`)*
 
 ---
 
@@ -99,3 +99,65 @@ Mọi đầu ra văn bản AI đều phải đảm bảo tính lũy đẳng **`f
   1. Tích lũy qua `sseBuffer`, tách dòng bằng `\n` và giữ lại phần chưa hoàn chỉnh sang lần `reader.read()` tiếp theo (`HemingView.tsx:164–176`).
   2. Xả nốt `sseBuffer.trim()` nếu stream đóng mà không có dòng mới cuối (`HemingView.tsx:177–179`).
   3. Xử lý `parsed.meta`, `parsed.interrupted`, `parsed.error`, chạy `sanitizeAiVietnameseOutput` trên nội dung tích lũy và fallback về `buildLocalHemingFallback` kèm `streamNotice` nếu kết nối đứt hoàn toàn mà chưa có chữ nào.
+
+---
+
+## 6. Thư Viện Lá Số & Lưu Trữ Bền Vững 8 Chương (`QĐ-L1..L9` & `ĐC-1..ĐC-5`)
+
+### 6.1. Nguồn Sự Thật Duy Nhất (SSOT) 2 Tầng Client & Chốt Chặn Khóa Kép (`ĐC-3`, `LK-01`, `LK-10`)
+- **Kho chỉ mục nhẹ (`window.localStorage['ziwei_chart_library_v1']`)**: Lưu tối đa `MAX_LIBRARY_ENTRIES = 100` mục `ChartLibraryEntry` (trần ghim `MAX_PINNED_ENTRIES = 30`) kèm `deletedTombstones` (tối đa `200` mục trong `90` ngày), huy hiệu xác định (`LibraryDeterministicBadge`), tóm tắt 8 chương (`LibraryDossierSummary`), `customAlias` (tối đa `80` ký tự) và `notes` (tối đa `2.000` ký tự). Khóa `buildChartIdentityKey` luôn bất biến khi sửa alias/notes; hàm `normalizeBirthFormForLibrary` (`src/lib/chart-library.ts`) giữ nguyên toàn vẹn `form.name` (`ĐC-5`).
+- **Kho văn bản bền vững (`IndexedDB` `ziwei_thien_ky_library_db_v1` / store `dossier_records`) + gương RAM (`inMemoryDossierMirror`)**: Là **Nguồn Sự Thật Duy Nhất (SSOT)** cho nội dung 8 chương Hồ Sơ (`StoredDossierRecord`). Khóa `ziwei_dossier_v1::<chartIdentityKey>` trong `sessionStorage` chỉ là **gương ghi-thông (write-through mirror)** phục vụ tương thích; qua cầu nối `registerAuthoritativeDossierBridge` (`src/lib/dossier-chat-ui.ts`), khi lệch dữ liệu thì `IndexedDB` + `inMemoryDossierMirror` luôn thắng.
+- **Chốt chặn rò dữ liệu chéo (`LK-01`, `LK-06`, `LK-10`)**:
+  - `readHotDossierFromLocalStorage`, `getBestKnownDossierSync`, `getDossierReadState`, `sanitizeFullDossierRecord` và `readDossierCacheEntry` đều từ chối mọi bản ghi có `chartIdentityKey` hoặc `val.sectionCacheKey` không khớp với khóa lá số đang truy vấn.
+  - `resolveDossierChapterFromCaches` (`src/lib/dossier-chat-ui.ts`) chỉ chấp nhận `localChapters[spec.id]` khi `rawLocal.sectionCacheKey === "${chartIdentityKey}::${spec.id}"` ở **cả nhánh kỳ hạn (`year_2026`, `year_2027`) lẫn nhánh thường**.
+  - Trong `DetailedDossierModal.tsx`, khi `chartIdentityKey` đổi (`isChartChanged`), luồng sinh cũ lập tức bị hủy (`stopAllGeneration()`) và `localChapters` bị xóa ngay kể cả khi `IndexedDB` chưa hydrated xong; `useEffect` nạp hồ sơ theo dõi cả `open` để không hiện dữ liệu đã xóa (`LK-09`).
+- **Hot cache dự phòng**: `localStorage['ziwei_dossier_hot_v1::*']` giữ tối đa `MAX_HOT_DOSSIERS_LOCALSTORAGE = 3` hồ sơ mở gần nhất và tự xóa sạch nếu `writeLibraryIndexStore` gặp `QuotaExceededError` (`PL-08`, không bao giờ để hot dossier tranh chấp làm hỏng chỉ mục thư viện).
+
+### 6.2. Cổng Hydration Gate (`ĐC-1`) & Chế Độ Suy Giảm (`ĐC-4`)
+- `initChartLibrary` chạy feature-detect `IndexedDB` (`isAvailable()`) lúc khởi động và chuyển trạng thái `hydrationStatus`: `'idle' → 'hydrating' → 'ready' | 'degraded'`.
+- `getDossierReadState(chartIdentityKey, chart)` phân biệt rõ ràng chưa nạp xong (`isHydrated === false`) với thực sự chưa có hồ sơ (`isHydrated === true && record === null`). Trong lúc `'hydrating'`, `DetailedDossierModal.tsx` khóa nút sinh mới/chạy tự động và mọi thao tác ghi phát sinh giữa chừng được xếp hàng `pendingDossierMutations` để hợp nhất đơn điệu với dữ liệu `IndexedDB` sau khi nạp xong (`ĐC-1`).
+- Nếu trình duyệt chặn hoặc không có `IndexedDB` (`ĐC-4`), hệ thống chuyển sang `mode: 'degraded_no_idb'`, hiển thị cảnh báo cố định trong `ChartLibraryModal.tsx` & `DetailedDossierModal.tsx` và nhắc người dùng xuất file `.JSON`.
+
+### 6.3. Di Trú Chính Xác 9 Thành Phần (`QĐ-L2`, `QĐ-L9`), Dọn Chủ Động Có Hoàn Tác (`QĐ-L8`), Thu Hồi An Toàn (`ĐC-2`) & Xuất/Nhập `.JSON`
+- **Di trú exact 9-part kèm Cổng Bảo Vệ Lũy Đẳng (`migrateLegacyHistoryAndDossiers` — `QĐ-L2` & `QĐ-L9`)**: Chỉ gắn hồ sơ phiên `'ziwei_dossier_v1::*'` vào mục `'ziwei_history'` (hoặc `currentForm`) khi **khớp chính xác 100% khóa 9 thành phần (`chartIdentityKey`)** và `rec.chartIdentityKey === chartIdentityKey`; bỏ hoàn toàn phỏng đoán Bậc 2 (`legacyFivePartKey`) và Bậc 3 (`nameSlug` / `fivePartCount === 1`). Hồ sơ phiên chưa liên kết (khóa 5 thành phần cũ hoặc khóa 9 thành phần của người ngoài top-10 `ziwei_history`) được giữ nguyên trong `sessionStorage`. Hàm kiểm tra `deletedTombstones` (không hồi sinh mục đã xóa còn sót trong `ziwei_history`) và áp dụng **No-Op/Dirty Guard** chỉ ghi khi thực sự có mục/chương mới (`LK-05`). `src/lib/ziwei/history.ts` ủy quyền toàn bộ sang `chart-library.ts`.
+- **Dọn chủ động cấp Hồ Sơ & cấp Chương lẻ kèm Hoàn tác (`QĐ-L8` — Phương án B tăng cường `C1+`)**: Không tự động xóa ngầm văn bản khi khởi động (`LK-03`). Người dùng có thể (i) dùng *"Chỉ xóa Hồ Sơ"* (`deleteMode: 'dossier_only'`) trong `ChartLibraryModal.tsx` (được `App.tsx` xóa đồng bộ `aiPeriodCache` theo tiền tố `${targetKey}__`, `LK-09`), hoặc (ii) xóa riêng 1 chương (`removeSingleDossierChapterFromLibrary`) qua nút **"Xóa chương này"** ngay trong `DetailedDossierModal.tsx` (xác nhận 2 bước nội tuyến + hoàn tác trong phiên, đồng bộ `aiPeriodCache`). Khi xóa `entry_and_dossier`, mục tương ứng cũng được dọn khỏi `'ziwei_history'` và ghi tombstone chống hồi sinh.
+- **Thang thu hồi 4 nấc + ĐC-2**: Khi vượt `100` mục, chọn mục chưa ghim theo 4 nấc ưu tiên (`0 chương & rỗng ghi chú` → `0 chương & có ghi chú` → `ít chương nhất < 8` → `đủ 8/8 mở lâu nhất`). **Mục Nấc 3–4 (hoặc có chương hoàn tất) chỉ được xóa sau khi tự động tải file `sao-luu-tu-dong-*.json`** (nếu trình duyệt/hook từ chối tải thì hủy thu hồi), kèm banner hoàn tác (`undoLastEviction`) trong phiên.
+- **Xuất/Nhập `.JSON` (`exportLibraryBundle` / `importLibraryBundleWithMerge`)**: Cho phép sao lưu di động giữa nhiều máy/trình duyệt (không dựng trạm đồng bộ server theo `QĐ-L1`), hỗ trợ hợp nhất đơn điệu từng chương (`mergeDossierRecords` — giữ chương hoàn tất thắng chương dở dang, mới hơn thắng cũ hơn theo từng chương độc lập) và `deletedTombstones` chống hồi sinh ở chế độ `smart_merge` (hoặc bỏ qua tombstone khi chọn `force_restore_all`).
+
+### 6.4. Phát Hiện Lá Số Trùng Khi Lập Lá Số (`QĐ-M1..QĐ-M6`, `DM-01..DM-13`)
+- **Hàm thuần phát hiện & di trú đồng bộ (`src/lib/chart-library.ts`)**:
+  - `initChartLibrary` gọi đồng bộ `migrateLegacyHistoryAndDossiers(currentForm)` ngay khi đặt trạng thái `'hydrating'` (trước IIFE `async` chờ `IndexedDB` — `DM-01`), giữ cho `detectChartDuplicateInLibrary` và `diffBirthFormsForDuplicateModal` thuần khiết 100% (chỉ đọc, không tác dụng phụ ghi storage).
+  - Số chương hiệu dụng của ứng viên dùng `resolveEffectiveDossierSummaryForEntry` (ưu tiên `computeDossierSummary(readState.record)` khi `readState.record !== null` — `DM-11`).
+- **Phân nhánh hành vi theo nguồn gọi `BirthForm.onChartGenerated` (`QĐ-M4`, `DM-04`)**:
+  - Tham số `source?: 'user_form_submit' | 'famous_preset'` tách biệt thao tác nộp biểu mẫu (`handleSubmit`) với bấm chọn nhanh danh nhân (`handleFamousLoad` & `handleFamousSelect`): nguồn `'famous_preset'` chỉ tự nạp êm khi `exact_match`, bỏ qua hộp thoại Trường hợp 2.
+  - Nguồn `'user_form_submit'` xử lý đủ 3 nhánh:
+    1. **Trường hợp 1 (`exact_match` — `QĐ-M1`, `QĐ-M5`, `DM-02`, `DM-07`, `DM-12`)**: Tái tạo `savedChart = buildChartFromForm(existingEntry.form)` và nạp lại nguyên vẹn lá số + hồ sơ đã lưu; **không** đặt nút xóa hồ sơ trên banner; hiển thị phản hồi kép (banner dưới Quick Summary Bar + hộp thông báo nội tuyến ngay trên nút submit trong `BirthForm.tsx` + cuộn mượt lên banner), phân biệt trạng thái `isAlreadyActiveOnBoard`, tự ẩn sau `15 giây` (tạm dừng khi `hover`/`focus`/`touch`, chỉ bắt đầu đếm sau khi hydration `'ready'`/`'degraded'`).
+    2. **Trường hợp 2 (`near_match` — `QĐ-M2`, `DM-05`, `DM-06`, `DM-08`, `DM-13`)**: Tìm ứng viên theo **Nhánh 1** (`same_five_part_key`) và **Nhánh 2 siết chặt** (`same_name_and_solar_date`: trùng tên/`customAlias` chuẩn hóa dài $\ge 2$ khác `'anon'` + cùng ngày/tháng/năm Dương lịch + cùng giới tính + có lệch giờ/phút/`unknownTime`/kinh độ). Sắp xếp tối đa `MAX_NEAR_MATCH_CANDIDATES = 5` ứng viên theo công thức phân tầng không chồng lấn (`1000 / 300 / 150 / 50 / completedCount*5`, phá hòa `lastOpenedAt` rồi `chartIdentityKey`).
+    3. **An toàn chéo khóa & Đồng bộ trực tiếp (`DuplicateChartPromptModal.tsx`, `DM-05`, `DM-08`, `DM-13`)**: Đẩy diff `affectsChartStructure === true` lên đầu bảng (tách riêng `location` và `longitude`), hiện khung cảnh báo Hổ phách và đổi nhãn nút thành `"Mở lá số cũ đã lưu ({Giờ} · Mệnh {Cung})"` khi khác cấu trúc 12 cung; gắn nhãn `[Lá số gốc vừa nạp để chỉnh sửa]` khi đi từ `onLoadIntoFormToEditNew`; định danh lá số ẩn danh kèm trích 80 ký tự ghi chú; áp dụng `Stale Entry Guard` kiểm tra lại `readLibraryIndexStore().entries` trước khi mở lá số đã lưu; bảo toàn nguyên tắc **Zero Cross-Key Contamination** ở mọi nhánh.
+
+---
+
+## 7. Nền Tri Thức AI & Hậu Kiểm Trích Dẫn Học Thuật (`QĐ-N1..QĐ-N8`, Đợt Pilot 1A)
+
+### 7.1. Đơn vị Tri thức Gộp Nhóm `(book, h2, h3)` & Bản quyền Phân tách (`QĐ-N1`, `QĐ-N2`, `QĐ-N7`)
+- **Kho nguồn & Chưng cất ngoại tuyến (`scripts/kb-*.ts`)**: Kho nguồn đặt tại `/knowledge-source/` (kiểm tra bằng `npm run kb:verify-source`: `1.848` dòng `entries.jsonl`, `16` file `tianji-ziwei/*.md`, `classics/`). Hàm gom nhóm tất định `scripts/kb-group-entries.ts` gộp theo `(book, h2, h3)` theo thứ tự `(part ASC, t_hms ASC)`, kéo ngữ cảnh bài giảng khớp `(bvid, t_hms)`, loại trừ hoàn toàn Tầng 3 (`08-yili`, `10-divination`, `11-fengshui`), và chưng cất ngoại tuyến bằng `@google/genai` (`scripts/kb-distill.ts` + checkpoint JSONL + `--dry-run`).
+- **Schema & Mã thẻ nhóm (`server/knowledge-base/types.ts`)**: Mỗi mục tri thức dùng chung mã định danh cấp nhóm `id === citationId` dạng `NH-STAR-###`, `NH-SIHUA-###`, `CL-CTP-###`, `CL-TVP-###`, kèm mảng `hanziAnchor` (`quote`, `bvid`, `t_hms`, `part`), `summaryVi` (`120–350` ký tự tiếng Việt chuẩn `vi-i18n.ts`, 0 chữ Hán) và phân tách bản quyền `sourceRef.sourceLicense` (`CC-BY-NC-SA-4.0` cho Thiên Kỷ của Nghê Hải Hạ; `PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION` cho cổ phú).
+- **Trạng thái dữ liệu Pilot 1A**: Bộ 3 tệp `server/knowledge-base/data/{stars,sihua,classics}.kb.json` hiện chứa **9 mục khung mẫu** (`qaMeta.sample: true`) để vận hành trọn vẹn khung truy hồi, hậu kiểm và kiểm thử `verify:kb` trong môi trường chưa có `/knowledge-source/`, sẵn sàng thay thế bằng `~162` mục thật khi chạy `npm run kb:distill` ngoại tuyến.
+
+### 7.2. Truy hồi Tất định & Ngân sách Bảng 4.2 (`server/knowledge-base/retriever.ts`, `QĐ-N6`, `ĐN-8`)
+- **0 gọi API embedding**: `loader.ts` nạp dữ liệu vào RAM một lần khi khởi động server và dựng chỉ mục đảo (`byStar`, `bySiHua`, `byPalace`, `byPattern`, `bySource`).
+- **Ngân sách & Chia vòng 4 cung (`KB_BUDGET_LIMITS`)**:
+  - `chapter_overview`: tối đa `8` mục / `2.400` ký tự.
+  - `palaces_core`, `palaces_family`, `palaces_social_health`: tối đa `12` mục / `3.200` ký tự, phân bổ round-robin qua 4 cung (tối đa `3` mục/cung) để không bị 1 cung chi phối toàn bộ ngân sách.
+  - `period` (Đại Hạn / Lưu Niên & Chương 5, 6): tối đa `7` mục / `2.100` ký tự.
+  - `horizon_5y`, `horizon_10y`: tối đa `6` mục / `1.800` ký tự.
+  - `chat` (Hỏi đáp ngữ cảnh): tối đa `5` mục / `1.500` ký tự, áp dụng cơ chế best-effort từ từ khóa cung/sao trong câu hỏi.
+- **Kiểm tra vắng mặt sao theo Tam Phương Tứ Chính (`checkEffectiveStarInPalace`, `ĐN-8`)**: Một sao chỉ bị coi là vắng mặt (`starAbsentInQueriedPalace = true`) khi không hiện diện trên **Bản cung + Sao mượn Vô Chính Diệu + 2 cung Tam Hợp (`+4`, `+8`) + Đối cung (`+6`)**; lúc này retriever chèn cảnh báo `coverageBoundaryNoteVi` yêu cầu AI xác nhận không có và không gán nhầm tri thức.
+
+### 7.3. Hậu kiểm Chống Bịa 3 Lớp (`verifier.ts`), Gỡ Thẻ An Toàn (`ĐN-6`) & Phạm vi Đợt 1A (`QĐ-N4`, `QĐ-N5`, `QĐ-N8`)
+- **3 lớp hậu kiểm trên luồng SSE hoàn tất (`!wasInterrupted`)**:
+  1. **`V1` (`INVALID_CITATION_ID`)**: Mọi thẻ `[Nguồn: <ID>]` không nằm trong whitelist các mục đã nạp cho lượt đó bị liệt vào `scrubbedInvalidIds`.
+  2. **`V2` (`UNGROUNDED_ATTRIBUTION`)**: Phát hiện khối đoạn văn / bullet Markdown ($\le 800$ ký tự/khối) viện dẫn *"Nghê Hải Hạ / Nghê Sư / Thiên Kỷ / cổ thư / Tử Vi Đẩu Số Toàn Thư / Cốt Tủy Phú / Thái Vi Phú"* nhưng không mang `[Nguồn: <ID>]` hợp lệ ở đoạn đó.
+  3. **`V3` (`UNSUPPORTED_QUOTE_CLAIM`)**: Phát hiện khối văn bản chứa ngoặc kép `“...”` / `"..."` dài $\ge 15$ ký tự kèm động từ trích dẫn (*"viết rằng", "giảng rằng", "nói rằng", "nguyên văn", "câu phú"*...) mà không có mã thẻ hợp lệ.
+- **Gỡ thẻ an toàn qua `citationAudit` & `scrubInvalidCitationTags` (`ĐN-6`)**: Server không dùng regex sửa chữ giữa câu văn; chỉ phát frame JSON `{ citationAudit: { validIds, scrubbedInvalidIds, hasUncitedClaims } }`, nối khối `> 📚 **[Tư Liệu Học Thuật Tham Chiếu]**` (`bvid` + `t_hms`) và/hoặc hộp `⚠️` lưu ý kiểm chứng trước `data: [DONE]`. Client (`DetailedDossierModal.tsx`, `InsightPanel.tsx`, `ContextualChatDrawer.tsx`) gọi hàm lũy đẳng `scrubInvalidCitationTags` trước khi lưu vào `IndexedDB` / `aiPeriodCache` / `sessionStorage`.
+- **Phạm vi tuyến API Đợt 1A (`QĐ-N8`)**: Tích hợp vào 3 luồng chính `/api/interpret-dossier-section`, `/api/interpret-period`, `/api/interpret-chat`; giữ nguyên `/api/interpret` và `/api/heming` cho Đợt 1B (`1.4.0-rc.2`).

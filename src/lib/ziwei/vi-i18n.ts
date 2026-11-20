@@ -621,7 +621,7 @@ export const VI_SIHUA_DETAILS: Record<string, {
 };
 
 // ─── 7. Chuyển ngữ Cách Cục Toàn Diện (Pattern Translation Engine) ──────────
-const PATTERN_NAME_VI: Record<string, string> = {
+export const PATTERN_NAME_VI: Record<string, string> = {
   // 41 cách cục trong patterns.ts
   '君臣庆会': 'Quân Thần Khánh Hội',
   '紫府同宫': 'Tử Phủ Đồng Cung',

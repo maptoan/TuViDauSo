@@ -4,19 +4,37 @@ import { formToTrueSolarTime, formToBirthInfo } from '../lib/ziwei/share';
 import { generateChart } from '../lib/ziwei/algorithm';
 import { ZiweiChart, BirthFormState } from '../lib/ziwei/types';
 import { HistoryEntry } from '../lib/ziwei/history';
+import type { LibraryHydrationStatus } from '../lib/chart-library';
 import {
   translateProvinceName,
   VI_SHICHEN,
   VI_FAMOUS_PERSONS,
 } from '../lib/ziwei/vi-i18n';
-import { Compass, Clock, MapPin, Sparkles, History, Trash2, UserCheck } from 'lucide-react';
+import { Compass, Clock, MapPin, Sparkles, History, Trash2, UserCheck, Pin, Library, BookOpen, X } from 'lucide-react';
+
+export type ChartGenerationSource = 'user_form_submit' | 'famous_preset';
+
+export interface BirthFormInlineDuplicateNotice {
+  title: string;
+  message: string;
+  completedCount: number;
+  hydrationStatus: LibraryHydrationStatus;
+  onOpenDossier: () => void;
+  onDismiss: () => void;
+}
 
 interface BirthFormProps {
-  onChartGenerated: (chart: ZiweiChart, form: BirthFormState) => void;
+  onChartGenerated: (
+    chart: ZiweiChart,
+    form: BirthFormState,
+    source?: ChartGenerationSource,
+  ) => void;
   initialState?: BirthFormState | null;
   historyItems?: HistoryEntry[];
   onSelectHistory?: (form: BirthFormState) => void;
   onRemoveHistory?: (id: string) => void;
+  onOpenLibrary?: () => void;
+  inlineDuplicateNotice?: BirthFormInlineDuplicateNotice | null;
   compact?: boolean;
   submitLabel?: string;
 }
@@ -67,6 +85,8 @@ export default function BirthForm({
   historyItems = [],
   onSelectHistory,
   onRemoveHistory,
+  onOpenLibrary,
+  inlineDuplicateNotice = null,
   compact = false,
   submitLabel = 'An Sao Lập Lá Số',
 }: BirthFormProps) {
@@ -160,7 +180,7 @@ export default function BirthForm({
       const chart = generateChart(birthInfo);
       lastSyncedInitialKeyRef.current = serializeBirthFormState(normalizedForm);
       setForm(normalizedForm);
-      onChartGenerated(chart, normalizedForm);
+      onChartGenerated(chart, normalizedForm, 'user_form_submit');
     } catch (err) {
       setError(
         err instanceof Error
@@ -195,7 +215,7 @@ export default function BirthForm({
     try {
       const birthInfo = formToBirthInfo(presetForm);
       const chart = generateChart(birthInfo);
-      onChartGenerated(chart, presetForm);
+      onChartGenerated(chart, presetForm, 'famous_preset');
     } catch {
       // ignore
     }
@@ -226,26 +246,39 @@ export default function BirthForm({
           </h2>
         </div>
 
-        {!compact && historyItems.length > 0 && (
+        {!compact && (historyItems.length > 0 || Boolean(onOpenLibrary)) && (
           <button
             type="button"
             onClick={() => setShowHistory((v) => !v)}
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border border-[var(--t-border)] text-[var(--t-text2)] hover:text-[var(--t-gold)] hover:border-[var(--t-gold)] transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
             <History className="w-3.5 h-3.5" />
-            <span>Lịch sử ({historyItems.length})</span>
+            <span>Gần đây ({Math.min(historyItems.length, 10)})</span>
           </button>
         )}
       </div>
 
-      {/* Saved History Drawer */}
-      {!compact && showHistory && historyItems.length > 0 && (
+      {/* Saved Recent Drawer + Library Link */}
+      {!compact && showHistory && (
         <div className="rounded-lg p-3 border border-[var(--t-border)] bg-[var(--t-surface)] space-y-2">
           <div className="flex items-center justify-between text-xs text-[var(--t-text2)]">
             <span className="font-medium">Lá số đã tra cứu gần đây</span>
+            {onOpenLibrary && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowHistory(false);
+                  onOpenLibrary();
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--t-gold)] hover:underline cursor-pointer"
+              >
+                <Library className="w-3 h-3" />
+                <span>Mở Thư Viện ({historyItems.length})</span>
+              </button>
+            )}
           </div>
-          <div className="max-h-36 overflow-y-auto space-y-1">
-            {historyItems.map((item) => (
+          <div className="max-h-44 overflow-y-auto space-y-1">
+            {historyItems.slice(0, 10).map((item) => (
               <div
                 key={item.id}
                 className="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-md hover:bg-[var(--t-card)] text-xs group"
@@ -258,15 +291,23 @@ export default function BirthForm({
                     onSelectHistory?.(item.form);
                     setShowHistory(false);
                   }}
-                  className="text-left flex-1 truncate text-[var(--t-text)] group-hover:text-[var(--t-gold)] transition-colors cursor-pointer"
+                  className="text-left flex-1 min-w-0 flex items-center gap-1.5 text-[var(--t-text)] group-hover:text-[var(--t-gold)] transition-colors cursor-pointer"
                 >
-                  {item.label}
+                  {item.pinned && (
+                    <Pin className="w-3 h-3 text-[var(--t-gold)] shrink-0" />
+                  )}
+                  <span className="truncate">{item.label}</span>
+                  {(item.completedCount ?? 0) > 0 && (
+                    <span className="shrink-0 font-mono-tabular text-[10px] px-1.5 py-0.5 rounded bg-[var(--t-gold)]/15 text-[var(--t-gold)]">
+                      {item.completedCount}/8
+                    </span>
+                  )}
                 </button>
                 {onRemoveHistory && (
                   <button
                     type="button"
                     onClick={() => onRemoveHistory(item.id)}
-                    className="text-[var(--t-faint)] hover:text-rose-400 p-1 cursor-pointer"
+                    className="text-[var(--t-faint)] hover:text-rose-400 p-1 cursor-pointer shrink-0"
                     title="Xóa"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -275,6 +316,18 @@ export default function BirthForm({
               </div>
             ))}
           </div>
+          {onOpenLibrary && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowHistory(false);
+                onOpenLibrary();
+              }}
+              className="w-full pt-2 border-t border-[var(--t-border)] text-center text-[11px] font-semibold text-[var(--t-gold)] hover:underline cursor-pointer"
+            >
+              Mở Toàn Bộ Thư Viện (Tìm kiếm · Ghi chú · Sao lưu)...
+            </button>
+          )}
         </div>
       )}
 
@@ -286,7 +339,7 @@ export default function BirthForm({
             type="text"
             placeholder="Nhập họ tên (VD: Nguyễn Văn An)"
             value={form.name}
-            maxLength={32}
+            maxLength={120}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             className={selectClass}
           />
@@ -495,6 +548,44 @@ export default function BirthForm({
       {error && (
         <div className="rounded-lg bg-rose-950/60 border border-rose-700/60 px-3 py-2 text-xs text-rose-300">
           {error}
+        </div>
+      )}
+
+      {inlineDuplicateNotice && (
+        <div className="rounded-lg border border-[var(--t-gold)]/55 bg-[var(--t-gold)]/10 px-3 py-2.5 text-xs space-y-1.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="font-semibold text-[var(--t-gold)]">
+              {inlineDuplicateNotice.title}
+            </div>
+            <button
+              type="button"
+              onClick={inlineDuplicateNotice.onDismiss}
+              className="p-0.5 text-[var(--t-faint)] hover:text-[var(--t-text)] cursor-pointer shrink-0"
+              title="Đóng thông báo"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+          <p className="text-[var(--t-text2)] leading-relaxed">
+            {inlineDuplicateNotice.message}
+          </p>
+          <div className="flex items-center gap-2 pt-0.5">
+            <button
+              type="button"
+              onClick={inlineDuplicateNotice.onOpenDossier}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 cursor-pointer"
+            >
+              <BookOpen className="w-3 h-3" />
+              <span>
+                {inlineDuplicateNotice.completedCount > 0
+                  ? `Mở Hồ Sơ (${inlineDuplicateNotice.completedCount}/8 Chương)`
+                  : inlineDuplicateNotice.hydrationStatus === 'hydrating' ||
+                      inlineDuplicateNotice.hydrationStatus === 'idle'
+                    ? 'Mở Hồ Sơ (Đang nạp...)'
+                    : 'Mở Hồ Sơ 8 Chương'}
+              </span>
+            </button>
+          </div>
         </div>
       )}
 

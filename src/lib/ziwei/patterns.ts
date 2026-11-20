@@ -15,10 +15,10 @@
  *  - 倪师《天纪》紫微斗数讲义
  */
 
-import type { ZiweiChart, Palace, Star, SiHua } from './types';
-import { detectDingGui } from './patterns-dinggui';
-import { detectDingFu } from './patterns-dingfu';
-import { detectDingPin } from './patterns-dingpin';
+import type { ZiweiChart, Palace, Star, SiHua } from './types.ts';
+import { detectDingGui } from './patterns-dinggui.ts';
+import { detectDingFu } from './patterns-dingfu.ts';
+import { detectDingPin } from './patterns-dingpin.ts';
 
 // ────────────────── 类型 ──────────────────
 export interface PatternCondition {

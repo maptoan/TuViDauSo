@@ -1,10 +1,10 @@
 import {
-  GeminiKeyRecord,
-  KeyErrorCategory,
-  KeyLease,
-  KeyPoolLogEntry,
-  KeyPoolState,
-  KeyStatus,
+  type GeminiKeyRecord,
+  type KeyErrorCategory,
+  type KeyLease,
+  type KeyPoolLogEntry,
+  type KeyPoolState,
+  type KeyStatus,
   LEASE_ABSOLUTE_MAX_TTL_MS,
   LEASE_MAX_TTL_MS,
   MAX_RECENT_LOGS,
@@ -25,11 +25,26 @@ function collectErrorText(raw: unknown, depth = 0, visited = new Set<unknown>())
   visited.add(raw);
 
   if (raw instanceof Error) {
-    const parts: string[] = [`${raw.name}: ${raw.message}`];
+    const header = `${raw.name}: ${raw.message}`;
+    const parts: string[] = [header];
     const anyErr = raw as Error & { status?: unknown; code?: unknown; cause?: unknown; details?: unknown };
     if (anyErr.status !== undefined) parts.push(`status=${String(anyErr.status)}`);
     if (anyErr.code !== undefined) parts.push(`code=${String(anyErr.code)}`);
-    if (raw.stack) parts.push(raw.stack);
+    if (raw.stack) {
+      let trimmedStack = raw.stack;
+      if (trimmedStack.startsWith(header)) {
+        trimmedStack = trimmedStack.slice(header.length).replace(/^\r?\n/, '');
+      } else {
+        const lines = trimmedStack.split(/\r?\n/);
+        if (lines[0]?.trim() === header.trim()) {
+          trimmedStack = lines.slice(1).join('\n');
+        }
+      }
+      const restStack = trimmedStack.trim();
+      if (restStack) {
+        parts.push(restStack);
+      }
+    }
     if (anyErr.cause) parts.push(`cause=${collectErrorText(anyErr.cause, depth + 1, visited)}`);
     if (anyErr.details) parts.push(`details=${collectErrorText(anyErr.details, depth + 1, visited)}`);
     return parts.join(' | ');
@@ -274,12 +289,19 @@ export function computeCooldownDurationMs(
 export class KeyAllocator {
   private readonly inFlightCounts = new Map<string, number>();
   private readonly leaseTimers = new Map<string, number[]>();
+  private readonly getState: () => KeyPoolState;
+  private readonly getRawKeysById: () => Map<string, string>;
+  private readonly onStateMutated: (immediatePersist: boolean) => void;
 
   constructor(
-    private readonly getState: () => KeyPoolState,
-    private readonly getRawKeysById: () => Map<string, string>,
-    private readonly onStateMutated: (immediatePersist: boolean) => void,
-  ) {}
+    getState: () => KeyPoolState,
+    getRawKeysById: () => Map<string, string>,
+    onStateMutated: (immediatePersist: boolean) => void,
+  ) {
+    this.getState = getState;
+    this.getRawKeysById = getRawKeysById;
+    this.onStateMutated = onStateMutated;
+  }
 
   public getInFlightCount(keyId: string): number {
     return this.inFlightCounts.get(keyId) ?? 0;

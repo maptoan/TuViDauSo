@@ -2,10 +2,10 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — SSOT Vận hành Kho Khóa & Failover]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.1.0-rc.1` *(đồng bộ với `/VERSION`)*
-- **Cập nhật lần cuối**: `17/11/2026` *(đã tích hợp `QĐ-H4` theo `docs/h4-diagnosis.md`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.4.0-rc.2` *(đồng bộ với `/VERSION`)*
+- **Cập nhật lần cuối**: `19/11/2026` *(đã tích hợp `QĐ-H4` và `Fast-Sweep` `QĐ-F1..QĐ-F4`)*
 - **Mã nguồn đối chiếu (Code SSOT)**: `server/key-pool/types.ts`, `server/key-pool/allocator.ts`, `server/key-pool/executor.ts`, `server/key-pool/crypto-store.ts`, `server/key-pool/index.ts`, `src/lib/key-pool-ui.ts`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `QĐ-H4` *(chi tiết tại `docs/decisions-registry.md`)*
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `QĐ-H4`, `QĐ-F1..QĐ-F4` *(chi tiết tại `docs/decisions-registry.md`)*
 
 ---
 
@@ -95,13 +95,14 @@ Với mỗi khóa `'ready'` có ít nhất 1 model không nằm trong `modelCool
 
 ## 5. Vòng Thực Thi Stream, Failover & Tự Động Viết Nối Tiếp (`executor.ts`)
 
-1. **Vòng failover có ngân sách (`executeStream` — `server/key-pool/executor.ts:115–442`)**:
-   - Giới hạn tối đa `MAX_KEY_ATTEMPTS = 5` lần thuê khóa và tổng thời gian không vượt `TOTAL_FAILOVER_TIME_BUDGET_MS = 35_000 ms`.
-   - Trước mỗi lượt gọi Gemini, bộ hẹn giờ đặt mức `firstChunkTimeoutMs = Math.min(FIRST_CHUNK_TIMEOUT_MS, remainingTotalMs)` (`executor.ts:236`) theo dõi cờ `attemptSentAnyChunk` (`executor.ts:221`).
-   - Khi có lỗi trước khi gửi bất kỳ chunk nào (`!attemptSentAnyChunk`), `executor.ts` quay vòng đổi model dự phòng hoặc thuê khóa kế tiếp trong ngân sách `35 giây`.
+1. **Vòng failover có ngân sách & Fast-Sweep (`executeStream` — `server/key-pool/executor.ts:123–470`)**:
+   - Giới hạn tối đa `MAX_KEY_ATTEMPTS = 5` lần thuê khóa cho lỗi tạm thời/cấp model và tổng thời gian không vượt `TOTAL_FAILOVER_TIME_BUDGET_MS = 35_000 ms` (kiểm tra trước mỗi lượt gọi).
+   - **Fast-Sweep (`QĐ-F1`, `FS2-02`, `FS2-05`)**: Các lượt gọi API thất bại trước chunk đầu (`!attemptSentAnyChunk`) thuộc nhóm lỗi loại khóa cố định `{QUOTA_PROJECT_ZERO, QUOTA_DAILY_EXHAUSTED, AUTH_INVALID_KEY}` được đếm vào `fastEliminatedSweeps` (trần `MAX_KEYS_IN_POOL = 50` lượt gọi, không tiêu hao `MAX_KEY_ATTEMPTS = 5`), cho phép quét sạch các khóa hết quota/project=0 trong 1 request duy nhất cho tới khi gặp khóa khỏe hoặc hết ngân sách `35 giây`.
+   - **Chuẩn hóa lỗi cuối vòng (`FS2-01`)**: Khi thoát vòng lặp mà chưa phát chunk nào, chỉ ném `PoolExhaustedError('AI_POOL_EXHAUSTED')` nếu `remainingUsable === 0`, hoặc cạn ngân sách `35 giây`, hoặc `lastClassifiedError.category` thuộc `{QUOTA_PROJECT_ZERO, QUOTA_DAILY_EXHAUSTED, RATE_LIMIT_RPM, AUTH_INVALID_KEY, MODEL_UNAVAILABLE, NETWORK_OR_5XX}`; lỗi `UNKNOWN` khi còn khóa `ready` và còn ngân sách giữ nguyên `throw new Error(cleanMsg)`.
+   - Trước mỗi lượt gọi Gemini, bộ hẹn giờ đặt mức `firstChunkTimeoutMs = Math.min(FIRST_CHUNK_TIMEOUT_MS, remainingTotalMs)` theo dõi cờ `attemptSentAnyChunk`.
 2. **Tự động viết nối tiếp khi đứt luồng giữa chừng (`buildContinuationPrompt` — `executor.ts:93–106`)**:
-   - Nếu stream bị ngắt sau khi đã nhận một phần nội dung (`streamedTextSoFar`), cho phép tối đa `maxContinuations = 2` lần viết nối tiếp (`executor.ts:160`), ưu tiên model dự phòng (`FALLBACK_MODEL`) khi nối tiếp (`executor.ts:208–213`) kèm đuôi văn bản đã nhận để AI viết tiếp liền mạch không lặp lại.
-3. **Thông báo gián đoạn một kênh (`QĐ-H4` — `executor.ts:364–368, 405–409`)**:
+   - Nếu stream bị ngắt sau khi đã nhận một phần nội dung (`streamedTextSoFar`), cho phép tối đa `maxContinuations = 2` lần viết nối tiếp, ưu tiên model dự phòng (`FALLBACK_MODEL`) khi nối tiếp kèm đuôi văn bản đã nhận để AI viết tiếp liền mạch không lặp lại.
+3. **Thông báo gián đoạn một kênh (`QĐ-H4` — `executor.ts`)**:
    - Nếu hết ngân sách hoặc hết lượt nối tiếp sau khi đã gửi dữ liệu, `executor.ts` **chỉ phát sự kiện cấu trúc `options.onInterrupted`** (không bơm câu cảnh báo lặp vào `options.onChunk`), để tầng endpoint/client hiển thị thông báo sạch một lần.
 
 ---

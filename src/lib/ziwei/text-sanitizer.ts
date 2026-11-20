@@ -1,11 +1,11 @@
-import type { ZiweiChart } from './types';
+import type { ZiweiChart } from './types.ts';
 import {
   formatPeriodSiHuaFactLine,
   type PeriodSiHuaImpact,
   type YunxianPeriodContext,
-} from './yunxian-context';
-import { formatCanonicalPalaceHeading } from './dossier-context';
-import { VI_STEMS, translatePalaceName } from './vi-i18n';
+} from './yunxian-context.ts';
+import { formatCanonicalPalaceHeading } from './dossier-context.ts';
+import { VI_STEMS, translatePalaceName } from './vi-i18n.ts';
 
 /**
  * Hệ chữ ngoại lai không bao giờ hợp lệ trong văn bản luận giải tiếng Việt.
@@ -98,6 +98,53 @@ export function sanitizeAiVietnameseOutput(
     .join('\n');
 
   return out;
+}
+
+const CITATION_TAG_SCAN_RE = /\[Nguồn:\s*([A-Z0-9_-]{4,24})(?:\s*[·,|]\s*[^\]]+)?\]/giu;
+
+/**
+ * ĐN-6 (Bậc 1 — Safe Tag Scrubbing): Gỡ bỏ an toàn các token thẻ `[Nguồn: ID]` nằm trong danh sách lỗi `V1`/`V3`
+ * (hoặc mọi thẻ ngoài `allowedIds` nếu truyền vào) mà KHÔNG sửa đổi chữ/ngữ pháp trong câu văn tiếng Việt.
+ * Đảm bảo tính lũy đẳng: f(f(x)) === f(x).
+ */
+export function scrubInvalidCitationTags(
+  text: string,
+  options?: { invalidIds?: ReadonlySet<string> | readonly string[]; allowedIds?: ReadonlySet<string> | readonly string[] },
+): string {
+  if (!text) return text;
+  const invalidSet = options?.invalidIds
+    ? new Set(Array.from(options.invalidIds, (x) => x.trim().toUpperCase()))
+    : null;
+  const allowedSet = options?.allowedIds
+    ? new Set(Array.from(options.allowedIds, (x) => x.trim().toUpperCase()))
+    : null;
+
+  if (!invalidSet && !allowedSet) return text;
+  if (invalidSet && invalidSet.size === 0 && !allowedSet) return text;
+
+  let changed = false;
+  const replaced = text.replace(CITATION_TAG_SCAN_RE, (fullMatch, rawId: string) => {
+    const idUpper = rawId.trim().toUpperCase();
+    const isInvalid =
+      (invalidSet ? invalidSet.has(idUpper) : false) ||
+      (allowedSet ? !allowedSet.has(idUpper) : false);
+    if (!isInvalid) return fullMatch;
+    changed = true;
+    return '';
+  });
+
+  if (!changed) return text;
+
+  return replaced
+    .split('\n')
+    .map((line) => {
+      if (/^\s*\|/.test(line)) return line;
+      return line
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/[ \t]+([.,;:!?])/g, '$1')
+        .replace(/[ \t]+$/g, '');
+    })
+    .join('\n');
 }
 
 export interface PeriodSiHuaCheckResult {

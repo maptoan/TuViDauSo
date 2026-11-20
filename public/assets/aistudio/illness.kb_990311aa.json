@@ -1,0 +1,2054 @@
+{
+ "schemaVersion": "1.0.0",
+ "generatedAtIso": "2026-11-20T21:28:25+07:00",
+ "category": "05-illness",
+ "sourceLicense": "CC-BY-NC-SA-4.0",
+ "isSampleData": false,
+ "entries": [
+  {
+   "id": "NH-ILL-001",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-001",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "⚠️ 核心方法论(重大修正)",
+     "h3Cn": ""
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Phương pháp luận cốt lõi: Cách xem bệnh qua cung Tật Ách (đính chính trọng đại)",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:09:19–00:48:18",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     115,
+     116,
+     117,
+     118,
+     119,
+     132,
+     138,
+     817,
+     1061
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Cự Môn",
+     "Thái Dương"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Tý",
+     "Sửu",
+     "Dần",
+     "Mão",
+     "Thìn",
+     "Tỵ",
+     "Ngọ",
+     "Mùi",
+     "Thân",
+     "Dậu",
+     "Tuất",
+     "Hợi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Đây là đính chính phương pháp luận cốt lõi về cách xem bệnh trong Đẩu Số: cung Tật Ách chỉ để tham khảo; khi thật sự luận đoán, cách gán cứng mỗi sao trong cung Tật Ách ứng với một bệnh — như Thất Sát ở cung Tật Ách là bệnh trĩ — bị nguồn bác bỏ. Xem mệnh phải nhắm vào Trí Mệnh Thương (vết thương chí mạng); người xem cần có thường thức y học. Khi xem cung Tật Ách phải xem toàn bộ lá số, tìm cung xấu nhất để định bệnh; nếu hai cung cùng xấu thì hai tạng phủ đối ứng với hai cung đó cùng mắc bệnh (ở ca đang giảng, hai cung xấu nhất đối ứng Can và Thận). Bài giảng dẫn bài Ca Quyết trong Nội Kinh về đối ứng mười hai địa chi với tạng phủ, và bác lối suy máy móc bằng phản vấn: cung Tật Ách không có sao không có nghĩa là không có bệnh, kết luận như vậy là tự hại mình.",
+   "fullTranslationVi": "Chư vị xem cung Tật Ách trên lá số Đẩu Số, tham khảo thì được. Nhưng khi anh thật sự luận đoán thì nó không dùng được.\nThất Sát ở cung Tật Ách đại diện cho bệnh trĩ — điều này không quan trọng.\nChúng ta xem mệnh phải nói đến Trí Mệnh Thương (vết thương chí mạng).\nVì sao phải có thường thức y học. Trong Nội Kinh của Trung y có một bài Ca Quyết.\nBài ca rằng: Phế ở Dần, Đại Trường ở Mão, Vị ở cung Thìn; Tỳ ở Tỵ, Tâm ở Ngọ, Tiểu Trường ở trong Mùi; Thân là Bàng Quang, Dậu là Thận, Tâm Bao ở Tuất; Hợi là Tam Tiêu, Tý là Đởm, Sửu là Can, thông suốt.\nNếu một ngày nào đó lá số xếp ra mà cung Tật Ách không có sao thì thế nào? Có trường hợp đó — chẳng lẽ không có sao tức là không có bệnh? Luận như thế thì anh xong rồi, tự mình bán mình.\nTrước hết, khi chúng ta xem cung Tật Ách, chúng ta xem thế này: nhìn một lượt, tìm xem cung nào xấu nhất. Vậy nếu hai cung đều xấu thì sao? Thì Can và Thận cùng mắc bệnh.\nXem lại Thất Sát ở cung Ngọ, thấy không? Đừng quản — trước hết đừng quản cung Tật Ách của anh ta; anh xem cung Tật Ách của anh ta: Thất Sát ở cung Ngọ là Tật Ách; Thất Sát ở cung Tật Ách không phải là bệnh trĩ; những thứ này đều không có tác dụng gì.\nCung Tật Ách — chư vị khi xem Tật Ách, trước hết phải xem toàn bộ lá số; toàn bộ lá số phải xem kết hợp, không thể chỉ xem một cung mà thôi, không thể nói sao Cự Môn này, sao Thái Dương ở cung Tật Ách đại diện cho cái gì — như thế là không chuẩn. Khi nhìn toàn bộ bàn cục một lượt thì…",
+   "conditionsVi": "Áp dụng theo đúng mức khẳng định của nguồn — đây là phương pháp luận luận bệnh theo lá số của thầy, không phải chẩn đoán y khoa: (1) Không áp dụng cách gán cứng sao trong cung Tật Ách ứng với một bệnh danh cụ thể; nguồn bác bỏ trực tiếp ví dụ Thất Sát ở cung Tật Ách là bệnh trĩ, kể cả trường hợp Thất Sát ở cung Ngọ thuộc về Tật Ách trong một lá số cụ thể. (2) Khi luận bệnh phải xem toàn bộ lá số, tìm cung xấu nhất rồi đối ứng sang tạng phủ theo bài ca mười hai địa chi; hai cung cùng xấu thì hai tạng phủ đối ứng với hai cung đó cùng mắc bệnh (ca đang giảng cho kết quả Can và Thận vì hai cung xấu nhất đối ứng hai tạng đó; đây không phải cặp cố định cho mọi lá số). (3) Trọng tâm của việc xem bệnh là Trí Mệnh Thương, và người xem cần có thường thức y học. (4) Cung Tật Ách không có sao KHÔNG có nghĩa là không có bệnh: nguồn nêu trường hợp này dưới dạng phản vấn để bác lối suy máy móc ấy; khi đó vẫn phải xem toàn bộ lá số để định bệnh. Bảng đối ứng trong bài ca: Dần – Phế (phổi), Mão – Đại Trường (ruột già), Thìn – Vị (dạ dày), Tỵ – Tỳ (tỳ vị), Ngọ – Tâm (tim), Mùi – Tiểu Trường (ruột non), Thân – Bàng Quang, Dậu – Thận, Tuất – Tâm Bao, Hợi – Tam Tiêu, Tý – Đởm (túi mật), Sửu – Can (gan).",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "诸位看斗数上面的疾厄宫，参考可以。但是你真的批的时候他就没有用。",
+      "t_hms": "00:44:35",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 115
+     },
+     {
+      "quoteCn": "七杀在疾厄宫代表痔疮，这个不重要。",
+      "t_hms": "00:45:07",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 116
+     },
+     {
+      "quoteCn": "我们算命要讲致命伤。",
+      "t_hms": "00:45:16",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 117
+     },
+     {
+      "quoteCn": "为什么要有医学的常识。中医在内经里有个歌诀。",
+      "t_hms": "00:45:32",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 118
+     },
+     {
+      "quoteCn": "叫做肺寅大卯胃辰宫，脾巳心午小未中，申膀酉肾心包戌，亥焦子胆丑肝通。",
+      "noteCn": "已按裁决改正：申胱西肾→申膀酉肾",
+      "t_hms": "00:45:45",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 119
+     },
+     {
+      "quoteCn": "那有一天那个排在疾厄宫没有星呢，有啊没有星那就没有病，你就完了，自己给自己卖了。",
+      "t_hms": "00:47:19",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 132
+     },
+     {
+      "quoteCn": "首先我们看疾厄宫的时候，我们先看这样子一看，我们找到哪一个宫最差。那如果两个宫都差呢，那肝肾一起病。",
+      "t_hms": "00:48:18",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 138
+     },
+     {
+      "quoteCn": "再来看七杀在午宫看到没有，不要管先不要管他疾厄宫，你看他疾厄宫，七杀在午宫疾厄，七杀在疾厄不是痔疮，这都没有这都没有用的哈",
+      "t_hms": "00:29:03",
+      "bvid": "BV1KJsLekEfA",
+      "part": 13,
+      "sectionCn": "6",
+      "sourceLineNumber": 817
+     },
+     {
+      "quoteCn": "疾厄宫诸位看疾厄的时候，首先看整个通盘，通盘要兼看，你不能光看一个宫而已，不能说啊这个这个巨门星，太阳星在疾厄宫代表什么，这个不准的，整个盘局一看的时候",
+      "noteCn": "cleaned",
+      "t_hms": "00:09:19",
+      "bvid": "BV1KJsLekEfA",
+      "part": 17,
+      "sectionCn": "4",
+      "sourceLineNumber": 1061
+     }
+    ],
+    "combinedQuotesCn": "诸位看斗数上面的疾厄宫，参考可以。但是你真的批的时候他就没有用。\n七杀在疾厄宫代表痔疮，这个不重要。\n我们算命要讲致命伤。\n为什么要有医学的常识。中医在内经里有个歌诀。\n叫做肺寅大卯胃辰宫，脾巳心午小未中，申膀酉肾心包戌，亥焦子胆丑肝通。\n那有一天那个排在疾厄宫没有星呢，有啊没有星那就没有病，你就完了，自己给自己卖了。\n首先我们看疾厄宫的时候，我们先看这样子一看，我们找到哪一个宫最差。那如果两个宫都差呢，那肝肾一起病。\n再来看七杀在午宫看到没有，不要管先不要管他疾厄宫，你看他疾厄宫，七杀在午宫疾厄，七杀在疾厄不是痔疮，这都没有这都没有用的哈\n疾厄宫诸位看疾厄的时候，首先看整个通盘，通盘要兼看，你不能光看一个宫而已，不能说啊这个这个巨门星，太阳星在疾厄宫代表什么，这个不准的，整个盘局一看的时候"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "b30060982739d765",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT_SAU_SUA",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-002",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-002",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "子宫(水)—— 胆(另说膀胱)"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Tý (Thủy) — Đởm (có thuyết nói Bàng Quang)",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:36:35–00:46:31",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     120,
+     1256
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Tý"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này ghi lại đối ứng của cung Tý trong hệ địa chi – tạng phủ theo bài giảng: giờ Tý khai Đởm (túi mật), tức cung Tý ứng với Đởm. Đoạn trích còn lại là lúc thầy tùy tiện chọn thử một lá số để xem cung Tật Ách: thầy đặt câu hỏi trường hợp này ở giờ Tý có phải Hóa Kỵ không, nói chỗ hung nhất là ở Đởm, và chỉ ra Thất Sát ở phía đó là một sát tinh.",
+   "fullTranslationVi": "Giờ Tý khai Đởm.\nNếu luận cung Tật Ách thì có biết xem không? Chúng ta tùy tiện chọn thử xem có biết xem cung Tật Ách không. Cái này ở giờ Tý có phải là Hóa Kỵ không? Hung nhất là ở Đởm. Thất Sát ở bên này — Thất Sát là một sát tinh.",
+   "conditionsVi": "Điều kiện theo nguồn: đối ứng giờ Tý – Đởm (túi mật) dùng khi luận cung Tật Ách theo hệ địa chi – tạng phủ. Đoạn trích thứ hai là một lần chọn thử lá số tại chỗ của thầy, trong đó thầy nhắc Hóa Kỵ ở giờ Tý, Đởm là chỗ hung nhất và Thất Sát là sát tinh — đây là mạch luận của riêng lần thử đó, nguồn không tuyên bố thành điều kiện chung trong mục này. Toàn bộ là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "子时开胆。",
+      "t_hms": "00:46:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 120
+     },
+     {
+      "quoteCn": "如果算疾厄会不会看，我们随便挑一挑疾厄会不会看，这个在子时是不是化忌，最凶的在什么胆，七杀在这边七杀是个杀星",
+      "noteCn": "cleaned",
+      "t_hms": "00:36:35",
+      "bvid": "BV1KJsLekEfA",
+      "part": 19,
+      "sectionCn": "10",
+      "sourceLineNumber": 1256
+     }
+    ],
+    "combinedQuotesCn": "子时开胆。\n如果算疾厄会不会看，我们随便挑一挑疾厄会不会看，这个在子时是不是化忌，最凶的在什么胆，七杀在这边七杀是个杀星"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "5670b86d7c05a315",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-003",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-003",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "丑宫(土)—— 肝"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Sửu (Thổ) — Can",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:26:33–00:46:31",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     121,
+     536
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Sửu"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này ghi lại đối ứng của cung Sửu trong hệ địa chi – tạng phủ theo bài giảng: giờ Sửu khai Can (gan), tức cung Sửu ứng với Can. Đoạn trích còn lại là lúc thầy luận một lá số có cung Tật Ách nằm ở cung Sửu: thầy xác nhận cung Sửu đại diện cho nội tạng là Can, và dẫn lại câu trong bài ca đối ứng — Hợi là Tam Tiêu, Tý là Đởm, Sửu là Can thông suốt — làm căn cứ cho đối ứng này.",
+   "fullTranslationVi": "Giờ Sửu khai Can.\nỞ cung Sửu, ở trong cung Tật Ách — có phải là ở trong cung Tật Ách không? Cung Tật Ách nằm ở cung Sửu; cung Sửu đại diện cho nội tạng là Can; có câu 'Hợi là Tam Tiêu, Tý là Đởm, Sửu là Can thông suốt' đấy thôi.",
+   "conditionsVi": "Điều kiện theo nguồn: khi cung Tật Ách nằm ở cung Sửu thì tạng phủ đối ứng để luận là Can (gan), theo bài ca đối ứng mười hai địa chi với tạng phủ mà thầy dẫn. Ngoài đối ứng này, nguồn không nêu thêm điều kiện, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này. Đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "丑时开肝。",
+      "t_hms": "00:46:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 121
+     },
+     {
+      "quoteCn": "在丑宫啊在疾厄宫里面，是不是在疾厄宫里面是不是，那疾厄宫在丑宫，丑宫代表什么内脏是肝，有没有亥焦子胆丑肝通",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:33",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "8",
+      "sourceLineNumber": 536
+     }
+    ],
+    "combinedQuotesCn": "丑时开肝。\n在丑宫啊在疾厄宫里面，是不是在疾厄宫里面是不是，那疾厄宫在丑宫，丑宫代表什么内脏是肝，有没有亥焦子胆丑肝通"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "2185f9041716faf7",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-004",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-004",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "寅宫(木)—— 肺"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Dần (Mộc) — Phế",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:31",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     122
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Dần"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này chỉ gồm một câu duy nhất trong bài giảng, ghi lại đối ứng của cung Dần trong hệ địa chi – tạng phủ mà thầy dùng khi luận bệnh theo lá số: giờ Dần khai Phế, tức cung Dần ứng với Phế (phổi). Câu nguồn phát biểu đối ứng này theo giờ giấc của mười hai địa chi: đến giờ Dần thì tạng được 'khai' là Phế (phổi), và đây là toàn bộ nội dung của mục.",
+   "fullTranslationVi": "Giờ Dần khai Phế.",
+   "conditionsVi": "Nguồn chỉ nêu duy nhất đối ứng giờ Dần – Phế (phổi) và không nêu điều kiện áp dụng riêng, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "寅时开肺。",
+      "t_hms": "00:46:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 122
+     }
+    ],
+    "combinedQuotesCn": "寅时开肺。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "12c2875af28ac865",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-005",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-005",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "卯宫(木)—— 大肠"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Mão (Mộc) — Đại Trường",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:37",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     123
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Mão"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này chỉ gồm một câu duy nhất trong bài giảng, ghi lại đối ứng của cung Mão trong hệ địa chi – tạng phủ mà thầy dùng khi luận bệnh theo lá số: Đại Trường (ruột già) khai vào giờ Mão, tức cung Mão ứng với Đại Trường (ruột già). Câu nguồn phát biểu đối ứng này theo giờ giấc của mười hai địa chi, và đây là toàn bộ nội dung của mục.",
+   "fullTranslationVi": "Đại Trường khai vào giờ Mão.",
+   "conditionsVi": "Nguồn chỉ nêu duy nhất đối ứng giờ Mão – Đại Trường (ruột già) và không nêu điều kiện áp dụng riêng, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "大肠开卯时。",
+      "t_hms": "00:46:37",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 123
+     }
+    ],
+    "combinedQuotesCn": "大肠开卯时。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "3c02f75518401664",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-006",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-006",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "辰宫(土)—— 胃"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Thìn (Thổ) — Vị",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:17:05–00:51:38",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     124,
+     146,
+     647,
+     1388
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thái Âm",
+     "Liêm Trinh",
+     "Tham Lang"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Thìn"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này ghi lại đối ứng của cung Thìn trong hệ địa chi – tạng phủ theo bài giảng: Vị (dạ dày) khai vào giờ Thìn, cung Thìn đại diện cho Vị (dạ dày). Bài giảng kèm một ví dụ cá biệt: một nữ mệnh có sao Thái Âm ở cung Thìn Hóa Kỵ thì thầy luận Vị (dạ dày) của cô ấy không tốt, và trong giai đoạn Liêm Trinh, Tham Lang lạc hãm thì Tỳ (tỳ vị) của cô ấy cũng không tốt — đó là luận cho riêng lá số của cô ấy.",
+   "fullTranslationVi": "Vị khai vào giờ Thìn.\nThìn đại diện cho cái gì? Là Vị.\nAnh xem sao Thái Âm của cô ấy ở cung Thìn có Hóa Kỵ không — cho nên Vị (dạ dày) của cô ấy nhất định cũng không tốt, đúng không? Mà giai đoạn đó lại có Liêm Trinh, Tham Lang lạc hãm, thì Tỳ (tỳ vị) nhất định cũng không tốt, đúng không?\nNhư cung Tật Ách này, như cung Thìn là Vị.",
+   "conditionsVi": "Điều kiện theo nguồn: cung Thìn đối ứng với Vị (dạ dày) khi luận cung Tật Ách theo hệ địa chi – tạng phủ. Ví dụ trong bài giảng là ca cá biệt: nữ mệnh có Thái Âm tại cung Thìn Hóa Kỵ thì được luận là Vị (dạ dày) không tốt; riêng phần Tỳ (tỳ vị) không tốt trong ca đó gắn với Liêm Trinh, Tham Lang lạc hãm ở giai đoạn đang xét, không phải đối ứng của cung Thìn và không được khái quát thành quy tắc chung. Tất cả là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "胃开辰时。",
+      "t_hms": "00:46:37",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 124
+     },
+     {
+      "quoteCn": "辰是代表什么，胃。",
+      "t_hms": "00:51:38",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 146
+     },
+     {
+      "quoteCn": "你看她的太阴星在辰宫化忌有没有，所以她的胃一定也不好是不是，那这段时间又廉贪落陷，是不是脾一定也不好",
+      "t_hms": "00:17:05",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "3",
+      "sourceLineNumber": 647
+     },
+     {
+      "quoteCn": "像这个疾厄宫，像辰宫胃",
+      "t_hms": "00:31:35",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "8",
+      "sourceLineNumber": 1388
+     }
+    ],
+    "combinedQuotesCn": "胃开辰时。\n辰是代表什么，胃。\n你看她的太阴星在辰宫化忌有没有，所以她的胃一定也不好是不是，那这段时间又廉贪落陷，是不是脾一定也不好\n像这个疾厄宫，像辰宫胃"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "5d587091e8558f98",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-007",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-007",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "巳宫(火)—— 脾"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Tỵ (Hỏa) — Tỳ",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:43",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     125
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Tỵ"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này chỉ gồm một câu duy nhất trong bài giảng, ghi lại đối ứng của cung Tỵ trong hệ địa chi – tạng phủ mà thầy dùng khi luận bệnh theo lá số: Tỳ (tỳ vị) khai vào giờ Tỵ, tức cung Tỵ ứng với Tỳ (tỳ vị). Câu nguồn phát biểu đối ứng này theo giờ giấc của mười hai địa chi, và đây là toàn bộ nội dung của mục.",
+   "fullTranslationVi": "Tỳ khai vào giờ Tỵ.",
+   "conditionsVi": "Nguồn chỉ nêu duy nhất đối ứng giờ Tỵ – Tỳ (tỳ vị) và không nêu điều kiện áp dụng riêng, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "脾开巳时。",
+      "noteCn": "已按裁决改正：已→巳",
+      "t_hms": "00:46:43",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 125
+     }
+    ],
+    "combinedQuotesCn": "脾开巳时。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "e30e6813b15574be",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-008",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-008",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "午宫(火)—— 心"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Ngọ (Hỏa) — Tâm",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:36:56–00:46:43",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     126,
+     1257
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Ngọ"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này ghi lại đối ứng của cung Ngọ trong hệ địa chi – tạng phủ theo bài giảng: Tâm (tim) khai vào giờ Ngọ, cung Ngọ chính là Tâm (tim). Đoạn trích còn lại thuộc một ca luận cụ thể trong bài giảng: vì sát tinh không gặp được cát tinh nên cung Ngọ của đương số bị luận là rất không tốt, và thầy nhắc lại cung Ngọ ứng với Tâm (tim).",
+   "fullTranslationVi": "Tâm khai vào giờ Ngọ.\nSát tinh vì không gặp được cát tinh, cho nên cung Ngọ của anh ta cũng như vậy — cho nên cung Ngọ của anh ta cũng rất không tốt. Cung Ngọ là gì? Là Tâm (tim). Cung Ngọ chính là Tâm (tim).",
+   "conditionsVi": "Điều kiện theo nguồn: cung Ngọ đối ứng với Tâm (tim) khi luận cung Tật Ách theo hệ địa chi – tạng phủ. Trong ca được dẫn, cung Ngọ bị đánh giá là rất không tốt vì sát tinh không gặp được cát tinh — đây là luận cho riêng ca đó, không phải hệ quả chung cho mọi lá số có cung Ngọ. Ngoài ra nguồn không nêu điều kiện riêng nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "心开午时。",
+      "t_hms": "00:46:43",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 126
+     },
+     {
+      "quoteCn": "杀星因为没有遇上吉星，所以他午宫也是怎么样，所以他午宫也是怎么样很不好，午宫是什么心脏，午宫是心脏",
+      "noteCn": "cleaned",
+      "t_hms": "00:36:56",
+      "bvid": "BV1KJsLekEfA",
+      "part": 19,
+      "sectionCn": "10",
+      "sourceLineNumber": 1257
+     }
+    ],
+    "combinedQuotesCn": "心开午时。\n杀星因为没有遇上吉星，所以他午宫也是怎么样，所以他午宫也是怎么样很不好，午宫是什么心脏，午宫是心脏"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "81ed85036cb303da",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-009",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-009",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "未宫(土)—— 小肠"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Mùi (Thổ) — Tiểu Trường",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:43",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     127
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Mùi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này chỉ gồm một câu duy nhất trong bài giảng, ghi lại đối ứng của cung Mùi trong hệ địa chi – tạng phủ mà thầy dùng khi luận bệnh theo lá số: Tiểu Trường (ruột non) khai vào giờ Mùi, tức cung Mùi ứng với Tiểu Trường (ruột non). Câu nguồn phát biểu đối ứng này theo giờ giấc của mười hai địa chi, và đây là toàn bộ nội dung của mục.",
+   "fullTranslationVi": "Tiểu Trường khai vào giờ Mùi.",
+   "conditionsVi": "Nguồn chỉ nêu duy nhất đối ứng giờ Mùi – Tiểu Trường (ruột non) và không nêu điều kiện áp dụng riêng, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "小肠开未时。",
+      "t_hms": "00:46:43",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 127
+     }
+    ],
+    "combinedQuotesCn": "小肠开未时。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "6d47dc7c5801472b",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-010",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-010",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "申宫(金)—— 膀胱"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Thân (Kim) — Bàng Quang",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:48",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     128
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách",
+     "Thân Cung"
+    ],
+    "branchesVi": [
+     "Thân"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Mục này chỉ gồm một câu duy nhất trong bài giảng, ghi lại đối ứng của cung Thân trong hệ địa chi – tạng phủ mà thầy dùng khi luận bệnh theo lá số: giờ Thân khai Bàng Quang, tức cung Thân ứng với Bàng Quang. Câu nguồn phát biểu đối ứng này theo giờ giấc của mười hai địa chi: đến giờ Thân thì tạng được 'khai' là Bàng Quang, và đây là toàn bộ nội dung của mục.",
+   "fullTranslationVi": "Giờ Thân khai Bàng Quang.",
+   "conditionsVi": "Nguồn chỉ nêu duy nhất đối ứng giờ Thân – Bàng Quang và không nêu điều kiện áp dụng riêng, cấu hình sao hay trường hợp bệnh cụ thể nào khác trong mục này; đây là luận đoán theo lá số trong hệ thống của thầy, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "申时开膀胱。",
+      "t_hms": "00:46:48",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 128
+     }
+    ],
+    "combinedQuotesCn": "申时开膀胱。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "507b3aeb4173c06b",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-011",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-011",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "酉宫(金)—— 肾"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Dậu (Kim) — Thận",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:09:38–00:46:48",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     129,
+     534,
+     1062
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Dậu"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Theo đối ứng cung vị – tạng phủ trong bài giảng, cung Dậu chủ về Thận: giờ Dậu là giờ khai mở Thận, cung Dậu đại diện cho Thận, nên Hóa Kỵ đóng ở cung Dậu thì luận đến Thận. Nguồn đồng thời phân biệt rõ cung Mùi chủ về Tiểu Trường (ruột non), tránh nhầm hai cung này khi luận tạng phủ.",
+   "fullTranslationVi": "Giờ Dậu khai mở Thận, cung Dậu.\nHóa Kỵ ở cung Dậu; cung Dậu đại diện cho Thận.\nMột là cung Mùi, một là cung Dậu; cung Dậu chủ về Thận, cung Mùi chủ về Tiểu Trường (ruột non).",
+   "conditionsVi": "Áp dụng khi luận tạng phủ theo cung vị trên lá số: cung Dậu đối ứng Thận (Hóa Kỵ ở cung Dậu thì xét đến Thận), cung Mùi đối ứng Tiểu Trường (ruột non). Đây là đối ứng luận đoán trong hệ thống mệnh lý của bài giảng, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "酉时开肾酉宫。",
+      "t_hms": "00:46:48",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 129
+     },
+     {
+      "quoteCn": "化忌在酉宫，酉宫代表肾",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:22",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "8",
+      "sourceLineNumber": 534
+     },
+     {
+      "quoteCn": "一个是未宫，一个是什么酉宫酉宫，酉宫主的是肾，未宫主的是什么小肠",
+      "noteCn": "cleaned",
+      "t_hms": "00:09:38",
+      "bvid": "BV1KJsLekEfA",
+      "part": 17,
+      "sectionCn": "4",
+      "sourceLineNumber": 1062
+     }
+    ],
+    "combinedQuotesCn": "酉时开肾酉宫。\n化忌在酉宫，酉宫代表肾\n一个是未宫，一个是什么酉宫酉宫，酉宫主的是肾，未宫主的是什么小肠"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "5bd5cd5a2a717f53",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-012",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-012",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "戌宫(土)—— 心包"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Tuất (Thổ) — Tâm Bao",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:57",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     130
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Tuất"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Trong bảng đối ứng mười hai cung địa chi với tạng phủ theo ca quyết Tý Ngọ Lưu Chú mà bài giảng liệt kê lần lượt từng cung, cung Tuất (hành Thổ) đối ứng với Tâm Bao. Đoạn trích chỉ gồm đúng một câu xác định đối ứng này, không kèm luận đoán cát hung hay điều kiện phát bệnh nào khác.",
+   "fullTranslationVi": "Đây là Tâm Bao.",
+   "conditionsVi": "Nguồn không nêu điều kiện áp dụng riêng cho mục này; nguồn chỉ xác định đối ứng cung Tuất — Tâm Bao trong bảng đối ứng cung vị – tạng phủ theo ca quyết Tý Ngọ Lưu Chú. Câu trích là câu chỉ định nằm trong dãy liệt kê của ca quyết ở cùng tiết giảng: đối ứng này đi theo thứ tự cố định của ca quyết (sau Dậu – Thận là Tuất – Tâm Bao) và được bài ca đối ứng mười hai địa chi trong cùng bài giảng xác nhận.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "这是心包。",
+      "t_hms": "00:46:57",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 130
+     }
+    ],
+    "combinedQuotesCn": "这是心包。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "e13675f2ffc55e3a",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-013",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-013",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "12 地支宫 → 脏腑(倪师子午流注歌诀版)",
+     "h3Cn": "亥宫(水)—— 三焦"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Hợi (Thủy) — Tam Tiêu",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:46:57",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     131
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Hợi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Trong bảng đối ứng mười hai cung địa chi với tạng phủ theo ca quyết Tý Ngọ Lưu Chú mà bài giảng liệt kê lần lượt từng cung, cung Hợi (hành Thủy) đối ứng với Tam Tiêu. Đoạn trích chỉ gồm đúng một câu xác định đối ứng này, không kèm luận đoán cát hung hay điều kiện phát bệnh nào khác.",
+   "fullTranslationVi": "Đây là Tam Tiêu.",
+   "conditionsVi": "Nguồn không nêu điều kiện áp dụng riêng cho mục này; nguồn chỉ xác định đối ứng cung Hợi — Tam Tiêu trong bảng đối ứng cung vị – tạng phủ theo ca quyết Tý Ngọ Lưu Chú. Câu trích là câu chỉ định nằm trong dãy liệt kê của ca quyết ở cùng tiết giảng: đối ứng này đi theo thứ tự cố định của ca quyết (sau Tuất – Tâm Bao là Hợi – Tam Tiêu) và được bài ca đối ứng mười hai địa chi trong cùng bài giảng xác nhận.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "这是三焦。",
+      "t_hms": "00:46:57",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 131
+     }
+    ],
+    "combinedQuotesCn": "这是三焦。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "b3cb087686719f65",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-014",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-014",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "煞星入疾厄(开刀、血光、致命伤)",
+     "h3Cn": "总纲"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Sát Tinh nhập cung Tật Ách (mổ xẻ, huyết quang, thương tích trí mạng) — Tổng cương",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:11:46–00:47:39",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     133,
+     134,
+     347,
+     535,
+     646,
+     1258,
+     1389,
+     1390,
+     1414,
+     1448,
+     1580,
+     1768
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Đà La",
+     "Kình Dương",
+     "Liêm Trinh",
+     "Phá Quân",
+     "Tham Lang",
+     "Linh Tinh",
+     "Hỏa Tinh",
+     "Địa Không"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Dần"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Tổng cương về Sát Tinh vào cung Tật Ách: trong mệnh ai cũng có Sát Tinh và Cát Tinh; Sát Tinh tập trung ở cung nào thì luận đến tạng phủ đối ứng cung đó (một chỗ là Đởm, một chỗ là Tâm Tạng). Đà La vào Tật Ách thì chủ chết vì bệnh và Huyết Quang; Đà La và Kình Dương là hai sao chủ Khai Đao (mổ xẻ), thấy Huyết Quang; Lưu Niên gặp hai sao này thì bệnh tai đến. Liêm Trinh Phá Quân, Liêm Trinh Tham Lang là sao hoành họa. Nguồn kèm các ca cá biệt: nữ mệnh Tật Ách ở cung Dần có Đà La Lạc Hãm mang Linh Tinh (luận Phế và chân phải); ca 39 tuổi có thể chí mạng vì tai nạn xe; ca 53 tuổi trúng phong ở não; ca mổ suốt mười năm không chết.",
+   "fullTranslationVi": "Trong mệnh của chúng ta đều có Sát Tinh và Cát Tinh.\nTa xem Sát Tinh: nếu Sát Tinh tất cả tập trung ở chỗ này, là Đởm (túi mật); Sát Tinh tất cả tập trung ở chỗ này, là Tâm Tạng (trái tim).\nCho nên Lưu Niên gặp phải hai sao này, bệnh tai của thân thể liền đến, bệnh tai liền đến.\nCái thứ nhất này, cái thứ hai này — các vị xem trong các cung của cô ấy, trong tất cả các sao, có phải có Hỏa Tinh không; Hỏa Tinh, và còn gì nữa — Địa Không ở chỗ này.\nCác vị xem Tật Ách của cô ấy: cung Tật Ách là Đà La Lạc Hãm, mang theo Linh Tinh; cung Tật Ách có phải ở cung Dần không; thứ nhất, vốn dĩ cung Dần đã rất sát rồi, đúng không; Dần là gì — nội tạng là Phế (phổi), về ngoại khoa là chân phải; là chân phải đấy, các vị đừng viết thành chân trái nhé, đây là chân phải; thứ hai…\nTật Ách thì chỉ tính tai họa của năm nay, vì bản cung tuy không có sao, nhưng phía đối diện có Khoa, Lộc đến, Nhật Nguyệt cùng năm đến hội; cho nên vì mười năm tới có đại vận, nên ở tuổi 33, hoặc khi gặp cung này — gặp loại Đại Tiểu Nhị Hạn Phùng ở tuổi 33 như thế — thì chỉ là tiểu tai, không có đại tai; hiểu ý tôi không, tiểu tai.\nBản thân cung Tật Ách, khi Đà La — Sát Tinh — tiến vào, người này ắt chết vì bệnh tật của thân thể, nhất định là Huyết Quang (tai ách đổ máu); theo toán mệnh mà nói…\nCó hai sao sẽ Khai Đao (mổ xẻ): một là Đà La, một là Kình Dương; hai sao sẽ thấy Huyết Quang — thấy Huyết Quang thì ắt sẽ thấy Huyết Quang thuộc loại này.\nKhi xem cung Tật Ách thì ta biết sức khỏe có vấn đề; có người thì chết vì tai nạn xe; như Liêm Trinh Phá Quân kia — vừa nói Liêm Trinh Phá Quân ở đây; như loại Liêm Trinh Tham Lang này đều là sao hoành họa (tai họa bất ngờ); còn bản thân anh ta thì thuộc loại này: chết vì bệnh tai của thân thể, vì bệnh tai mà chết.\nNếu không thì ở tuổi 39, khi cô ấy gặp cái này, một tai nạn xe cũng có thể chí mạng; vì sao — cô ấy không chịu nhường, gây gổ với người ta, kết quả bị người ta giết chết.\nĐến tuổi 53, anh ta xảy ra chuyện: trúng phong ở não; sau khi trúng phong, não có chướng ngại, từ đó không nói được nữa, bộ dạng như người nửa si ngốc.\nCó người mổ xẻ suốt mười năm cũng không chết — hiểu không, cũng không chết; có người đang rất khỏe, ra ngoài bị người ta tông chết cũng có, xảy đến ngay tức khắc, đột ngột — hiểu ý tôi không.",
+   "conditionsVi": "Áp dụng khi luận cung Tật Ách và các cung có Sát Tinh tụ tập: tạng phủ bị luận theo cung đối ứng trên bản đồ cung – tạng phủ của bài giảng; Đà La vào Tật Ách chủ chết vì bệnh và Huyết Quang; Đà La, Kình Dương chủ Khai Đao; Lưu Niên gặp hai sao này thì bệnh tai đến (hai sao được mạch giảng liền trước xác định là Kình Dương và Đà La). Mức khẳng định ở đây là luận đoán trong hệ thống mệnh lý của bài giảng, không phải chẩn đoán hay tiên lượng y khoa. Các ca ở tuổi 33, 39, 53 và ca mổ mười năm là ví dụ cá biệt của từng lá số, không phải quy luật chung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "我们命里面都有杀星跟吉星。",
+      "t_hms": "00:47:36",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 133
+     },
+     {
+      "quoteCn": "我们看杀星，如果杀星统统集中在这里，胆。杀星统统集中在这里，心脏。",
+      "t_hms": "00:47:39",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 134
+     },
+     {
+      "quoteCn": "所以流年逢到这两颗星，身体病灾就来了，病灾就来了",
+      "t_hms": "00:12:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 7,
+      "sectionCn": "4",
+      "sourceLineNumber": 347
+     },
+     {
+      "quoteCn": "这第一个第二个，你看她诸宫里面，所有的星里面是不是火星，火星还有的是什么，地空在这个地方",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:25",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "8",
+      "sourceLineNumber": 535
+     },
+     {
+      "quoteCn": "诸位看她的疾厄，疾厄宫是陀罗星落陷带铃星，疾厄宫是不是在寅宫啊，第一个本来寅宫就很杀了对不对寅是什么，肺内脏是肺，外科呢右脚，是不是右脚，你不要把它写到左脚去了哈这是右脚第二个",
+      "noteCn": "已按裁决改正：寅官→寅宫",
+      "t_hms": "00:16:45",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "3",
+      "sourceLineNumber": 646
+     },
+     {
+      "quoteCn": "疾厄那光算今年的灾，因为哈本宫虽然没有星，但对面来科禄这个日月同年来会，所以因为未来十年有大运，所以33岁或者遇到这个宫，遇到33岁这种大小二限逢，只是小灾不会有大灾，懂不懂我意思小灾",
+      "t_hms": "00:37:07",
+      "bvid": "BV1KJsLekEfA",
+      "part": 19,
+      "sectionCn": "10",
+      "sourceLineNumber": 1258
+     },
+     {
+      "quoteCn": "疾厄宫本身呢，就是陀罗星杀星进来的时候，这个人势必死在身体的疾病上面，一定是血光啊，算命上面来说",
+      "noteCn": "cleaned",
+      "t_hms": "00:31:44",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "9",
+      "sourceLineNumber": 1389
+     },
+     {
+      "quoteCn": "有两颗星会开刀的，一个是陀罗一个擎羊，两颗星会见血光的，见血光势必会见血光的本类",
+      "t_hms": "00:31:54",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "9",
+      "sourceLineNumber": 1390
+     },
+     {
+      "quoteCn": "疾厄宫的时候我们就知道，健康有问题，有的人的有的人呢，是车祸死掉，像那廉贞破军，刚刚讲的廉贞破军在这里，像这种廉贞贪狼都是横祸灾星，那他本身呢他自己是这种，身体的病灾而亡啊，因为病灾而亡",
+      "noteCn": "cleaned",
+      "t_hms": "00:43:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "12",
+      "sourceLineNumber": 1414
+     },
+     {
+      "quoteCn": "不然的话她39岁遇到这个，她可能一个车祸可能都会有致命，为什么她不退让，跟人家干起来结果被他杀掉",
+      "t_hms": "00:11:46",
+      "bvid": "BV1KJsLekEfA",
+      "part": 23,
+      "sectionCn": "4",
+      "sourceLineNumber": 1448
+     },
+     {
+      "quoteCn": "他到53岁的时候出事了脑中风了，中风以后脑就有障碍了，从此就不能讲话，半白痴的样子啊",
+      "noteCn": "已按裁决改正：半自痴→半白痴",
+      "t_hms": "00:28:03",
+      "bvid": "BV1KJsLekEfA",
+      "part": 25,
+      "sectionCn": "7",
+      "sourceLineNumber": 1580
+     },
+     {
+      "quoteCn": "开刀开十年的，也没死哦，你懂吧也没死啊，哎有的先生很好啊，出去给人给撞死了都有马上发生，突如其来的，你了解我意思吧",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:49",
+      "bvid": "BV1KJsLekEfA",
+      "part": 29,
+      "sectionCn": "6",
+      "sourceLineNumber": 1768
+     }
+    ],
+    "combinedQuotesCn": "我们命里面都有杀星跟吉星。\n我们看杀星，如果杀星统统集中在这里，胆。杀星统统集中在这里，心脏。\n所以流年逢到这两颗星，身体病灾就来了，病灾就来了\n这第一个第二个，你看她诸宫里面，所有的星里面是不是火星，火星还有的是什么，地空在这个地方\n诸位看她的疾厄，疾厄宫是陀罗星落陷带铃星，疾厄宫是不是在寅宫啊，第一个本来寅宫就很杀了对不对寅是什么，肺内脏是肺，外科呢右脚，是不是右脚，你不要把它写到左脚去了哈这是右脚第二个\n疾厄那光算今年的灾，因为哈本宫虽然没有星，但对面来科禄这个日月同年来会，所以因为未来十年有大运，所以33岁或者遇到这个宫，遇到33岁这种大小二限逢，只是小灾不会有大灾，懂不懂我意思小灾\n疾厄宫本身呢，就是陀罗星杀星进来的时候，这个人势必死在身体的疾病上面，一定是血光啊，算命上面来说\n有两颗星会开刀的，一个是陀罗一个擎羊，两颗星会见血光的，见血光势必会见血光的本类\n疾厄宫的时候我们就知道，健康有问题，有的人的有的人呢，是车祸死掉，像那廉贞破军，刚刚讲的廉贞破军在这里，像这种廉贞贪狼都是横祸灾星，那他本身呢他自己是这种，身体的病灾而亡啊，因为病灾而亡\n不然的话她39岁遇到这个，她可能一个车祸可能都会有致命，为什么她不退让，跟人家干起来结果被他杀掉\n他到53岁的时候出事了脑中风了，中风以后脑就有障碍了，从此就不能讲话，半白痴的样子啊\n开刀开十年的，也没死哦，你懂吧也没死啊，哎有的先生很好啊，出去给人给撞死了都有马上发生，突如其来的，你了解我意思吧"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "ba4dc389a04ebb15",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-015",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-015",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "与中医结合 · 重要原则",
+     "h3Cn": "先天 vs 后天"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Kết hợp Trung y — Nguyên tắc trọng yếu: Tiên thiên và Hậu thiên",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:14:39–00:50:39",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     135,
+     582,
+     648,
+     649,
+     650,
+     927,
+     931
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Nguyên tắc kết hợp mệnh lý với Trung Y: Tâm Bao khác Tâm Tạng — Tâm Bao ứng bệnh tim phát về Hậu Thiên, Tâm Tạng ứng bệnh Tiên Thiên, sinh ra tim đã có vấn đề. Theo Trung Y, ưu (lo âu) làm tổn thương Phế (phổi): cơn ho cảm mạo kéo dài hai ba tháng không khỏi có thể vì đang lo lắng, căng thẳng, u uất; tư (suy tư) làm tổn thương Tỳ (tỳ vị): suy tư quá nặng làm Tỳ mất nhu động, Vị (dạ dày) không dung chứa nổi thức ăn, ăn như nhai sáp — như ca Lương Sơn Bá. Nguồn còn nêu ca đứa trẻ bị tiếng gọi của mẹ làm kinh sợ, ảnh hưởng Tiểu Trường (ruột non) vì Tiểu Trường và Tâm là biểu lý, gây đại tiện không thông và nhiều di chứng. Thầy chủ trương người xem mệnh phải tinh thông y lý: chưa bệnh thì phòng ngừa, đã bệnh thì dựa vào kỹ thuật y học.",
+   "fullTranslationVi": "Tâm Bao này khác với Tâm Tạng (trái tim): Tâm Bao là bệnh tim phát về Hậu Thiên; còn Tâm Tạng là Tiên Thiên — sinh ra trái tim đã có vấn đề.\nKết quả các vị biết không, người mẹ ở phía sau gọi một tiếng — mục đích tiếng gọi của bà có thể là lo thủy tinh đâm vào nó; kết quả bà vừa gọi, đứa trẻ bị tiếng gọi của bà làm cho giật mình — bà đúng là sư tử Hà Đông gầm một tiếng — vừa gọi, đứa trẻ bị kinh sợ; một khi kinh sợ thì Tiểu Trường (ruột non) và Tâm là quan hệ biểu lý, kết quả nhu động của Tiểu Trường liền không tốt, đại tiện không ra được, thế là bị đưa đi, đứa trẻ bị hành hạ đến thê thảm; rất nhiều di chứng đều do người mẹ gây ra.\nLại theo quan niệm của Trung Y mà nói, rất thảm: quan điểm của Trung Y là ưu (lo âu) có thể làm tổn thương Phế (phổi), tư (suy tư) có thể làm tổn thương Tỳ (tỳ vị).\nCho nên đôi khi các vị cảm thấy cảm mạo, ho — lạ thật, sao ho hai ba tháng rồi vẫn chưa khỏi — đó là ngoại chứng của anh, biểu chứng cảm mạo ho của anh chưa khỏi; nhưng thực ra anh có nghĩ tới không: nhất định anh đang lo lắng việc gì đó, rất căng thẳng, rất u uất, nên cơn ho này mãi không khỏi.\nCòn có người thì tư làm tổn thương Tỳ: suy tư quá nặng làm tổn thương Tỳ tạng; Vị (dạ dày) của chúng ta và Tỳ tạng cùng nhu động — nhu động của Vị và nhu động của Tỳ là đồng thời; Tỳ tạng trương to ra thì Vị thu nhỏ lại, Tỳ tạng thu nhỏ lại thì Vị theo đó trương ra. Anh suy tư quá nặng — như Lương Sơn Bá suy tư quá nặng, Tỳ tạng chết hẳn, không còn nhu động — thì đồ trong Vị đương nhiên không xuống được. Cho nên khi yêu đương rất sâu đậm, khi nhớ nhung đối phương, thật sự là ăn như nhai sáp, ăn gì vào cũng không có vị, chua ngọt đắng cay ăn vào đều không thấy vị, vì đã tổn thương đến Tỳ tạng.\nNgười cực kỳ tinh thông y lý thì nhất định hiểu y. Các vị biết vì sao phải hiểu y không: chúng ta không nói chuyện khác, chỉ riêng xem mệnh thôi — 'Thưa ông, ông có bệnh tim.' Người ta nói: 'Thầy Nghê, thầy tính rất chuẩn, tôi thật sự có bệnh tim.'\nKhi bước vào nhân gian đạo, lúc ban đầu còn chưa mắc bệnh, thì phòng ngừa để anh khỏi nhiễm Thương Hàn mà sinh bệnh; rồi còn cần vị trí địa lý, cần tạo nên vòng tuần hoàn lành tính. Nhưng đã có bệnh rồi thì làm sao — chúng ta phải dựa vào kỹ thuật của y học. Cho nên nếu còn tinh thông y lý nữa, thì không có thứ gì không giải quyết được, không có vấn đề nào không giải quyết được. Đó là tam tài thiên, nhân, địa của người Trung Hoa xưa.",
+   "conditionsVi": "Áp dụng trong luận đoán sức khỏe theo hệ thống của bài giảng: phân biệt bệnh Tiên Thiên (thuộc Tâm Tạng) với bệnh phát về Hậu Thiên (thuộc Tâm Bao); luận Phế gắn với ưu, Tỳ gắn với tư theo quan niệm Trung Y mà nguồn dẫn. Ca đứa trẻ bị kinh sợ và ca Lương Sơn Bá là ví dụ minh họa cá biệt, không phải quy luật áp cho mọi lá số. Các luận điểm này thuộc khung mệnh lý – Trung Y của bài giảng, không thay thế chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "这个心包和心脏不一样，心包是后天的发的心脏病，这是先天的。生下来心脏就有问题。",
+      "t_hms": "00:47:49",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 135
+     },
+     {
+      "quoteCn": "结果你知道妈妈在后面啊一叫，你叫的目的可能是担心玻璃刺到他，结果呢你一叫小孩子被你那一叫吓到，你是河东狮吼啊，一叫好了小孩子受到惊吓，一惊的话小肠和心表里，结果小肠的蠕动就不好，大便不出来，就被抓去小孩子给整惨，很多后遗症都是妈妈造成的",
+      "t_hms": "00:50:39",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "11",
+      "sourceLineNumber": 582
+     },
+     {
+      "quoteCn": "再按照中医的观念里面来说呢，很惨啊中医的观点呢忧能伤肺思能伤脾",
+      "t_hms": "00:17:16",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "3",
+      "sourceLineNumber": 648
+     },
+     {
+      "quoteCn": "所以诸位有时候感觉到感冒咳嗽，奇怪怎么咳了两三个月还没好，你那是你的外症呐，你的表症上感冒咳嗽没好，实际上你有没有想到，你一定在担忧事情，很紧张很忧郁，这咳嗽一直没好",
+      "t_hms": "00:17:40",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "3",
+      "sourceLineNumber": 649
+     },
+     {
+      "quoteCn": "还有的人呢思能伤脾，思虑太重了伤了脾脏，我们的胃跟脾脏，胃的蠕动跟脾脏蠕动同时的，脾脏一胀大胃就缩小，脾脏一缩小胃就跟着胀，那你思虑太重了，像梁山伯思虑太重了，脾脏都死掉了没有蠕动了，胃它里面东西当然吃不下去，所以恋爱谈的很深的时候，思念对方的时候，真的是胃如同嚼蜡啊，吃东西一点味道都没有，酸甜苦辣吃下去没有味道的，因为伤到脾脏",
+      "t_hms": "00:17:53",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "3",
+      "sourceLineNumber": 650
+     },
+     {
+      "quoteCn": "非常精那个精于医理的，一定懂医的，你知道为什么懂医，我们不要讲别的嘛光是算命，哎呀先生你有心脏病，那他说啊倪先生，你算的很准，我真的有心脏病",
+      "noteCn": "cleaned",
+      "t_hms": "00:14:39",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "4",
+      "sourceLineNumber": 927
+     },
+     {
+      "quoteCn": "进入人间道的时候，那刚开始还没得病的时候，就预防你感染伤寒生病了，然后要地理位置，那就需要良性循环起来，但是已经有病怎么办，我们要靠医学的技术，所以能够再精通医理的话，那没有东西不能解決，没有没有问题不能解決，这是中国人的过去天人地三才",
+      "noteCn": "cleaned",
+      "t_hms": "00:15:37",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "4",
+      "sourceLineNumber": 931
+     }
+    ],
+    "combinedQuotesCn": "这个心包和心脏不一样，心包是后天的发的心脏病，这是先天的。生下来心脏就有问题。\n结果你知道妈妈在后面啊一叫，你叫的目的可能是担心玻璃刺到他，结果呢你一叫小孩子被你那一叫吓到，你是河东狮吼啊，一叫好了小孩子受到惊吓，一惊的话小肠和心表里，结果小肠的蠕动就不好，大便不出来，就被抓去小孩子给整惨，很多后遗症都是妈妈造成的\n再按照中医的观念里面来说呢，很惨啊中医的观点呢忧能伤肺思能伤脾\n所以诸位有时候感觉到感冒咳嗽，奇怪怎么咳了两三个月还没好，你那是你的外症呐，你的表症上感冒咳嗽没好，实际上你有没有想到，你一定在担忧事情，很紧张很忧郁，这咳嗽一直没好\n还有的人呢思能伤脾，思虑太重了伤了脾脏，我们的胃跟脾脏，胃的蠕动跟脾脏蠕动同时的，脾脏一胀大胃就缩小，脾脏一缩小胃就跟着胀，那你思虑太重了，像梁山伯思虑太重了，脾脏都死掉了没有蠕动了，胃它里面东西当然吃不下去，所以恋爱谈的很深的时候，思念对方的时候，真的是胃如同嚼蜡啊，吃东西一点味道都没有，酸甜苦辣吃下去没有味道的，因为伤到脾脏\n非常精那个精于医理的，一定懂医的，你知道为什么懂医，我们不要讲别的嘛光是算命，哎呀先生你有心脏病，那他说啊倪先生，你算的很准，我真的有心脏病\n进入人间道的时候，那刚开始还没得病的时候，就预防你感染伤寒生病了，然后要地理位置，那就需要良性循环起来，但是已经有病怎么办，我们要靠医学的技术，所以能够再精通医理的话，那没有东西不能解決，没有没有问题不能解決，这是中国人的过去天人地三才"
+   },
+   "priorityTier": 3,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "f99f674748db0df1",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-016",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-016",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "与中医结合 · 重要原则",
+     "h3Cn": "三焦与糖尿病"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Kết hợp Trung y — Nguyên tắc trọng yếu: Tam Tiêu và bệnh Tiểu Đường",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:48:03–00:48:10",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     136,
+     137
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Hợi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Tam Tiêu, theo bài giảng, là lớp màng lưới dầu trên thân người, gồm rất nhiều vách ngăn, màng ngăn và khoang ngăn trong tổ chức cơ thể. Đường Niệu Bệnh (bệnh tiểu đường) cũng thuộc phạm vi của Tam Tiêu: người có vấn đề ở Tam Tiêu thì loại bệnh tiểu đường này xuất hiện tương đối nhiều.",
+   "fullTranslationVi": "Tam Tiêu chính là lớp màng lưới dầu trên thân người chúng ta; tổ chức của chúng ta có rất nhiều vách ngăn, màng ngăn, khoang ngăn.\nĐường Niệu Bệnh (bệnh tiểu đường) cũng thuộc về Tam Tiêu. Cho nên người có vấn đề ở Tam Tiêu thì loại bệnh tiểu đường này tương đối nhiều.",
+   "conditionsVi": "Áp dụng khi luận Tam Tiêu theo đối ứng của bài giảng (cung Hợi đối ứng Tam Tiêu): Tam Tiêu có vấn đề thì luận đến bệnh tiểu đường xuất hiện nhiều hơn. Đây là luận đoán trong hệ thống mệnh lý – Trung Y của nguồn, không phải chẩn đoán y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "三焦就是我们人身上的油网。我们的那组织间隔很多间隔膜间隔腔。",
+      "t_hms": "00:48:03",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 136
+     },
+     {
+      "quoteCn": "糖尿病也是属于三焦的。所以三焦有问题的，糖尿病这种比较多。",
+      "t_hms": "00:48:10",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 137
+     }
+    ],
+    "combinedQuotesCn": "三焦就是我们人身上的油网。我们的那组织间隔很多间隔膜间隔腔。\n糖尿病也是属于三焦的。所以三焦有问题的，糖尿病这种比较多。"
+   },
+   "priorityTier": 3,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "f5aac18828cc5815",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-017",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-017",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "疾厄 + 大限/流年 = 判病时点",
+     "h3Cn": ""
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Cung Tật Ách + Đại Hạn/Lưu Niên = Thời điểm phát bệnh",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:27:27–00:55:26",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     139,
+     140,
+     152,
+     318,
+     1403,
+     1404,
+     1578
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Đà La",
+     "Hồng Loan",
+     "Thái Âm"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Ngọ"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe",
+     "van-han"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health",
+     "horizon_5y",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Nguyên tắc định thời điểm phát bệnh: bệnh khi nào phát thì xem Lưu Niên; Đại Hạn là khung mười năm — Đại Hạn đi vào cung Tật Ách thì lấy cung Tật Ách làm 'sao' chủ quản mười năm đó (thần trực nhật mười năm), thân thể là mặt bị ảnh hưởng lớn nhất và hung nhất. Nguồn nêu: dù cung Tật Ách ở vị trí khác, nếu cung Ngọ của trái tim toàn Sát Tinh thì vẫn kết luận bệnh tim là vết thương chí mạng. Nếu để thầy cải hóa Đại Hạn thì phải làm trước ba năm mới có cách hóa giải; có Đại Hạn không phải bệnh phát từ bên trong mà là tai họa đến từ bên ngoài. Nguồn kèm ca cá biệt: đương số xảy ra chuyện ở tuổi 53; một ca khác Lưu Niên tuổi 56 rơi đúng cung của Đại Hạn thành Đại Tiểu Nhị Hạn Phùng.",
+   "fullTranslationVi": "Vậy khi nào phát ra, chính là xem Lưu Niên.\nDù cung Tật Ách ở phía này — anh ta bày lá số ra, dù cung Tật Ách ở phía này — kết quả cung Ngọ của trái tim vô cùng hung, toàn là Sát Tinh, vậy thì đó là bệnh tim. Anh viết vào cung Tật Ách: bệnh tim là vết thương chí mạng của anh ta.\nNói chung, khi Đại Hạn đến, nếu để chúng ta cải hóa, thì trước ba năm nhất định có cách hóa giải.\nVậy thì Đại Hạn này của anh nhất định không phải bệnh phát từ bên trong, rất có thể là tai họa đến từ bên ngoài.\nĐà La ở cung Tật Ách — cung Tật Ách này, chúng ta đừng xem nó là cung, hãy xem nó như một sao, lấy cung làm sao mà xem. Thái Tuế trực trị mười năm là cái gì — là Tật Ách; cho nên cái ảnh hưởng đến anh ta lớn nhất chính là Tật Ách. Vậy cái ảnh hưởng đến anh ta lớn nhất còn là gì: Hồng Loan là hôn nhân, Thái Âm là mẹ — có hay không; người vợ ảnh hưởng đến anh ta lớn nhất.\nBiết xem cái Đại Hạn này không: Đà La này tiến vào chính là Đại Hạn rồi; vậy anh xem Lưu Niên — anh ta, tuổi 56 có phải vừa đúng rơi vào cùng một cung không; cho nên tuổi 56 là gì — là Đại Tiểu Nhị Hạn Phùng.\nAnh ta ở tuổi 53 thì xảy ra chuyện. Tôi đã nói đi nói lại với các vị: mười năm đại vận là cung Tật Ách, nghĩa là trong mười năm này nó làm thần trực nhật suốt mười năm; cái thần trực trị mười năm ấy là Tật Ách, đại diện cho thân thể; hung nhất chính là thân thể.",
+   "conditionsVi": "Áp dụng khi luận thời điểm phát bệnh theo Đại Hạn và Lưu Niên: Đại Hạn nhập cung Tật Ách thì mười năm đó thân thể là trọng tâm hung nhất; thời điểm phát cụ thể xét theo Lưu Niên, đặc biệt khi Lưu Niên đồng cung với Đại Hạn (Đại Tiểu Nhị Hạn Phùng). Phân biệt bệnh nội phát với tai họa ngoại lai theo tính chất của Đại Hạn như nguồn nêu. Các mốc 53 tuổi và 56 tuổi là ca cá biệt của từng lá số, không phải quy luật chung. Đây là luận đoán mệnh lý của bài giảng, không phải tiên lượng y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "那什么时候发，就是看流年。",
+      "t_hms": "00:48:37",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 139
+     },
+     {
+      "quoteCn": "即使疾厄宫在这边。他排出来八字即使疾厄宫是在这边，结果心脏午时这个宫非常的凶都是杀星，那你就是心脏病。你在疾厄宫里写，心脏病是他的致命伤。",
+      "t_hms": "00:48:53",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 140
+     },
+     {
+      "quoteCn": "一般来说大限到了，如果是我们来改，三年前一定有办法化解。",
+      "t_hms": "00:54:57",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 152
+     },
+     {
+      "quoteCn": "那你这个大限一定不是内发的病，很可能是外来的灾。",
+      "t_hms": "00:55:26",
+      "bvid": "BV1KJsLekEfA",
+      "part": 5,
+      "sectionCn": "12",
+      "sourceLineNumber": 318
+     },
+     {
+      "quoteCn": "那陀罗星在疾厄宫，那这个疾厄宫呢，我们不要把它当成宫看，把它当成星看，把宫当成星看，十年值守的太岁是什么疾厄，所以影响到他最大的就是疾厄，那他影响到他最大的是什么，红鸾婚姻太阴妈妈有没有，太太影响他最大",
+      "noteCn": "cleaned〕〔已按裁决改正：把官当成星看→把宫当成星看",
+      "t_hms": "00:36:54",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "9",
+      "sourceLineNumber": 1403
+     },
+     {
+      "quoteCn": "会不会看这个大大限，这个陀罗星进来就是大限了，那你看流年呢，他，56岁是不是刚好落同宫，所以56岁是什么，大小二限逢",
+      "noteCn": "cleaned",
+      "t_hms": "00:37:23",
+      "bvid": "BV1KJsLekEfA",
+      "part": 21,
+      "sectionCn": "10",
+      "sourceLineNumber": 1404
+     },
+     {
+      "quoteCn": "他在53岁的时候出事了，我一再跟诸位讲，十年大运是疾厄宫，代表这十年中做十年的值日神，值日值十年的神呢，是疾厄代表身体，最凶的就是身体",
+      "noteCn": "cleaned",
+      "t_hms": "00:27:27",
+      "bvid": "BV1KJsLekEfA",
+      "part": 25,
+      "sectionCn": "7",
+      "sourceLineNumber": 1578
+     }
+    ],
+    "combinedQuotesCn": "那什么时候发，就是看流年。\n即使疾厄宫在这边。他排出来八字即使疾厄宫是在这边，结果心脏午时这个宫非常的凶都是杀星，那你就是心脏病。你在疾厄宫里写，心脏病是他的致命伤。\n一般来说大限到了，如果是我们来改，三年前一定有办法化解。\n那你这个大限一定不是内发的病，很可能是外来的灾。\n那陀罗星在疾厄宫，那这个疾厄宫呢，我们不要把它当成宫看，把它当成星看，把宫当成星看，十年值守的太岁是什么疾厄，所以影响到他最大的就是疾厄，那他影响到他最大的是什么，红鸾婚姻太阴妈妈有没有，太太影响他最大\n会不会看这个大大限，这个陀罗星进来就是大限了，那你看流年呢，他，56岁是不是刚好落同宫，所以56岁是什么，大小二限逢\n他在53岁的时候出事了，我一再跟诸位讲，十年大运是疾厄宫，代表这十年中做十年的值日神，值日值十年的神呢，是疾厄代表身体，最凶的就是身体"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "786d37f004703b38",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-018",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-018",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "头面四肢 · 身体地图",
+     "h3Cn": ""
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Bản đồ cơ thể: Đầu, mặt, tứ chi",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:09:51–00:50:49",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     141,
+     142,
+     1063
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Linh Tinh",
+     "Hỏa Tinh",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Mùi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Bản đồ thân thể theo bài giảng: lấy rốn làm đầu thì hai bên lần lượt là vai, ngực, sườn và chân phải, chân trái; hai vị trí phía dưới là Bàng Quang của nam và Tử Cung, buồng trứng của nữ — Tử Cung ở giữa, hai buồng trứng hai bên. Phần đầu mặt do cung Mùi chủ: ca trong nguồn có Linh Tinh, Hỏa Tinh, Địa Kiếp ở đầu thì tai họa về đầu nhiều (như trúng phong), và Hậu Thiên còn nhiều tai họa ở Thận — là điểm chí mạng của nữ đương số trong ca.",
+   "fullTranslationVi": "Nếu rốn này là cái đầu, thì đây là gì — vai phải. Vai trái. Ngực trái. Ngực phải. Khoảng này là sườn phải, đây là sườn trái. Rồi đây là chân phải, đây là chân trái.\nHai chỗ ở phía dưới này là Bàng Quang, Tử Cung — chỗ của phụ khoa. Tử Cung, buồng trứng đều ở đây. Hai chỗ này tính như nhau. Tử Cung ở giữa, hai buồng trứng này ở hai bên. Đây là của phụ nữ. Của nam giới là Bàng Quang; của phụ nữ là Tử Cung, buồng trứng.\nVề ngũ quan, Đầu Diện (vùng đầu và mặt), Tứ Chi — nói về phần đầu mặt: cái này (cung Mùi) chủ về cái đầu. Các vị xem cái đầu này có Linh Tinh, Hỏa Tinh và Địa Kiếp — tai họa ở đầu tương đối nhiều. Có những bệnh như trúng phong, đó chính là tai họa của đầu. Còn có Thận tạng — về Hậu Thiên mà nói, tai họa ở Thận tương đối nhiều. Đây là điểm chí mạng của cô ấy.",
+   "conditionsVi": "Áp dụng khi luận Đầu Diện, Tứ Chi và tạng phủ theo bản đồ thân thể của bài giảng: vị trí đầu do cung Mùi chủ; hai vị trí phía dưới ứng Bàng Quang (nam) hoặc Tử Cung, buồng trứng (nữ). Ca Linh Tinh, Hỏa Tinh, Địa Kiếp ở đầu kèm luận về trúng phong và Thận là ví dụ cá biệt của một nữ mệnh, không khái quát thành quy luật cho mọi lá số.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "肚脐这个是头的话这就是什么，右肩。左肩。左胸。右胸。这一块右胁，这是左胁。然后这是右足，这是左足。",
+      "t_hms": "00:50:12",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 141
+     },
+     {
+      "quoteCn": "下面这两个膀胱子宫，妇科的地方。这个子宫卵巢都在这里。这两个同样算。子宫在中间，这两个卵巢。这是妇人的。男子的膀胱妇人的子宫卵巢。",
+      "t_hms": "00:50:49",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 142
+     },
+     {
+      "quoteCn": "五官头面四肢头面来说的话，这个（未宫）是主的是头，你看这个头是铃星火跟地劫，头这灾比较多，那有些病比如说中风，那就是头的灾，还有肾脏，后天来说肾脏灾会比较多，这是她的致命伤",
+      "noteCn": "cleaned",
+      "t_hms": "00:09:51",
+      "bvid": "BV1KJsLekEfA",
+      "part": 17,
+      "sectionCn": "4",
+      "sourceLineNumber": 1063
+     }
+    ],
+    "combinedQuotesCn": "肚脐这个是头的话这就是什么，右肩。左肩。左胸。右胸。这一块右胁，这是左胁。然后这是右足，这是左足。\n下面这两个膀胱子宫，妇科的地方。这个子宫卵巢都在这里。这两个同样算。子宫在中间，这两个卵巢。这是妇人的。男子的膀胱妇人的子宫卵巢。\n五官头面四肢头面来说的话，这个（未宫）是主的是头，你看这个头是铃星火跟地劫，头这灾比较多，那有些病比如说中风，那就是头的灾，还有肾脏，后天来说肾脏灾会比较多，这是她的致命伤"
+   },
+   "priorityTier": 3,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "b68c82062c0fc72c",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-019",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-019",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "与中医结合 · 重要原则",
+     "h3Cn": "女命特别提醒:妇科"
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Kết hợp Trung y — Nguyên tắc trọng yếu: Lưu ý riêng cho nữ mệnh về phụ khoa",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:20:54–00:51:10",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     143,
+     537,
+     1473
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Hỏa Tinh",
+     "Địa Không"
+    ],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Lưu ý riêng cho nữ mệnh: theo bản đồ thân thể bài giảng, chỉ cần hai cung phía dưới (vùng phụ khoa — Tử Cung, buồng trứng) của một cô gái tương đối kém thì phần lớn phụ khoa đều kém. Ca trong nguồn: vùng phụ khoa của một nữ mệnh có Tử Vi ở bên trái, Hỏa Tinh và Địa Không ở bên phải, phía buồng trứng, thì kết luận phụ khoa nhất định không tốt. Nguồn cũng nói nam và nữ vốn cùng một cách luận như nhau, người nữ chỉ thêm một phần phụ khoa.",
+   "fullTranslationVi": "Chỉ cần anh thấy hai cung này của cô gái tương đối kém, thì phần lớn phụ khoa đều rất kém.\nCan (gan) — rồi đây lại là một cô gái: đầu, hai vai, ngực trái này, ngực phải này, rồi bụng trái, bụng phải, rồi hai chân. Đây là gì — là chỗ phụ khoa, chỗ Tử Cung; chỗ buồng trứng ở phía bên phải. Bên trái là Tử Vi, bên phải là Hỏa Tinh, Địa Không — có thấy không; phụ khoa nhất định không tốt. Đây là (luận về) thân thể.\nNam và nữ là cùng một cách, giống như Trung Y chúng ta xem bệnh vậy: bệnh của nam và nữ đều như nhau, chỉ có điều cô gái có thêm một phần phụ khoa so với anh ta.",
+   "conditionsVi": "Áp dụng riêng khi luận nữ mệnh: xét hai cung phía dưới trên bản đồ thân thể (ứng Tử Cung, buồng trứng); hai cung này kém thì luận phụ khoa kém. Việc xác định 'hai cung' này dựa vào mạch giảng liền trước về hai vị trí phía dưới của bản đồ thân thể. Ca Tử Vi, Hỏa Tinh, Địa Không là ví dụ cá biệt của một nữ mệnh, không phải quy luật chung. Đây là luận đoán mệnh lý của bài giảng, không phải chẩn đoán phụ khoa y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "你只要看到女孩子这两这个宫比较差，大部分都妇科都很差。",
+      "t_hms": "00:51:10",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 143
+     },
+     {
+      "quoteCn": "肝然后这又是个女孩子，头两个肩膀左胸这右胸，然后左腹右腹然后两个脚这是什么，妇科子宫那地方右边卵巢的地方，左边是紫微右边是火星地空有没有，妇科一定不好这是身体",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:43",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "8",
+      "sourceLineNumber": 537
+     },
+     {
+      "quoteCn": "男女是同格啊，就好像我们中医在看病一样，男女的病都是一样的，只有个多女孩子比他多了个妇科",
+      "t_hms": "00:20:54",
+      "bvid": "BV1KJsLekEfA",
+      "part": 23,
+      "sectionCn": "7",
+      "sourceLineNumber": 1473
+     }
+    ],
+    "combinedQuotesCn": "你只要看到女孩子这两这个宫比较差，大部分都妇科都很差。\n肝然后这又是个女孩子，头两个肩膀左胸这右胸，然后左腹右腹然后两个脚这是什么，妇科子宫那地方右边卵巢的地方，左边是紫微右边是火星地空有没有，妇科一定不好这是身体\n男女是同格啊，就好像我们中医在看病一样，男女的病都是一样的，只有个多女孩子比他多了个妇科"
+   },
+   "priorityTier": 3,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "2cdd684aa2d0d473",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-020",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-020",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "化忌入疾厄 / 化忌冲疾厄",
+     "h3Cn": ""
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Hóa Kỵ nhập cung Tật Ách / Hóa Kỵ xung cung Tật Ách",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:26:01–00:51:30",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     144,
+     533,
+     721
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tật Ách"
+    ],
+    "branchesVi": [
+     "Thìn",
+     "Dậu"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Về Hóa Kỵ liên quan cung Tật Ách: Hóa Kỵ bản thân là một Sát Tinh và là xấu nhất, bất kể sao nào hóa thành Kỵ. Ca trong nguồn: một nữ mệnh có Hóa Kỵ ở cung Thìn; một ca khác luận đến Thận vì Hóa Kỵ đóng ở cung Dậu (cung đối ứng Thận). Khi cấu hình Nhật Nguyệt phản bối rơi vào cung Tật Ách, nguồn luận theo tượng: không tốt cho mắt, gắn với thanh quang nhãn và việc con mắt không còn nhìn thấy được.",
+   "fullTranslationVi": "Cô ấy là Hóa Kỵ ở cung Thìn. Cái Kỵ này là một Sát Tinh.\nCác vị xem cung Tật Ách của cô ấy — cung Tật Ách này các vị nhất định phải xem thật kỹ. Các vị có thấy không: thứ nhất là Thận. Vì sao là Thận? Vì Hóa Kỵ ở cung Dậu. Các vị đừng quan tâm là cái gì hóa thành Kỵ; Hóa Kỵ chính là xấu nhất rồi.\nVậy nếu cái này ở cung Tật Ách, thì dùng tượng mà phê — dùng tượng để phê cung Tật Ách: đương nhiên là chân trái, chúng ta đều biết, biết rồi thì không cần nói nữa. Dùng tượng mà phê thì không tốt cho mắt: sao anh lại nhìn mặt trăng ban đêm thành mặt trời? Mắt anh là bệnh gì — thanh quang nhãn à? Được rồi, con mắt này không nhìn thấy nữa — Nhật Nguyệt phản bối, đúng, Nhật Nguyệt phản bối.",
+   "conditionsVi": "Áp dụng khi luận Hóa Kỵ liên quan cung Tật Ách: Hóa Kỵ ở cung nào thì xét tạng phủ đối ứng cung đó (cung Dậu đối ứng Thận); Nhật Nguyệt phản bối vào cung Tật Ách thì luận đến mắt theo tượng như nguồn nêu. Các ca Hóa Kỵ ở cung Thìn, Hóa Kỵ ở cung Dậu và ca về mắt đều là ví dụ cá biệt của từng nữ mệnh trong bài giảng. Đây là luận đoán mệnh lý, không phải chẩn đoán nhãn khoa hay y khoa.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "她是辰宫化忌。这忌是一个杀星。",
+      "t_hms": "00:51:30",
+      "bvid": "BV1KJsLekEfA",
+      "part": 3,
+      "sectionCn": "11",
+      "sourceLineNumber": 144
+     },
+     {
+      "quoteCn": "诸位看她的这个疾厄宫，这个疾厄宫诸位一定很强的，看诸位有没有看到第一个肾脏，为什么肾脏，因为酉宫化忌，你不要管它什么东西化忌，化忌就是就是最不好了",
+      "noteCn": "cleaned",
+      "t_hms": "00:26:01",
+      "bvid": "BV1KJsLekEfA",
+      "part": 9,
+      "sectionCn": "7",
+      "sourceLineNumber": 533
+     },
+     {
+      "quoteCn": "那如果这个在疾厄宫呢用象批哈，用象来批疾厄宫，当然是左脚子我们都知道，知道我们不用讲了，用象批对眼睛不好，你怎么把晚上的月亮看成太阳啊，你什么眼青光眼啊，很好这只眼睛都看不到了嘛日月反背，对日月反背",
+      "noteCn": "cleaned",
+      "t_hms": "00:49:26",
+      "bvid": "BV1KJsLekEfA",
+      "part": 11,
+      "sectionCn": "5",
+      "sourceLineNumber": 721
+     }
+    ],
+    "combinedQuotesCn": "她是辰宫化忌。这忌是一个杀星。\n诸位看她的这个疾厄宫，这个疾厄宫诸位一定很强的，看诸位有没有看到第一个肾脏，为什么肾脏，因为酉宫化忌，你不要管它什么东西化忌，化忌就是就是最不好了\n那如果这个在疾厄宫呢用象批哈，用象来批疾厄宫，当然是左脚子我们都知道，知道我们不用讲了，用象批对眼睛不好，你怎么把晚上的月亮看成太阳啊，你什么眼青光眼啊，很好这只眼睛都看不到了嘛日月反背，对日月反背"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "bc83814406b6293d",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  },
+  {
+   "id": "NH-ILL-021",
+   "corpusType": "nihai_entry",
+   "scopeTier": "tier2_extended",
+   "category": "05-illness",
+   "sourceRef": {
+    "citationId": "NH-ILL-021",
+    "tradition": "ni_haixia_tianji",
+    "sourceLicense": "CC-BY-NC-SA-4.0",
+    "groupKey": {
+     "book": "05-illness",
+     "h2Cn": "望死色 / 枯萎色",
+     "h3Cn": ""
+    },
+    "workTitleVi": "Thiên Kỷ — Quyển Bệnh Tật (05-illness)",
+    "groupTitleVi": "Vọng Tử Sắc / Khô Héo Sắc (sắc chết, sắc tàn héo)",
+    "bvids": [
+     "BV1KJsLekEfA"
+    ],
+    "timeRangeHms": "00:09:45–00:54:33",
+    "sourceFilePath": "knowledge-source/entries.jsonl",
+    "sourceLineNumbers": [
+     245,
+     246,
+     247,
+     433,
+     935,
+     936,
+     982,
+     1011,
+     1016,
+     1018,
+     1021,
+     1023,
+     1566,
+     1638
+    ]
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp",
+     "Liêm Trinh",
+     "Tham Lang",
+     "Thái Dương"
+    ],
+    "palacesVi": [
+     "Tật Ách",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "suc-khoe"
+    ],
+    "targetDossierSections": [
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Vọng Tử Sắc (xem sắc chết): người sắp chết — không nhất thiết chết vì bệnh, cũng có thể vì hung sát, té ngã, tai nạn hay uống nhầm thuốc trừ sâu — thì hai tuần trước đã hiện Khí Sắc trên mặt. Dấu hiệu chính: sắc khô héo, màu xanh lam — da mất dầu, khô khốc không phản quang, tóc dựng bung, mặt mày khô héo. Ấn Đường trắng khô bạch (khác nhuận bạch) là dấu mang tang hoặc đã chết; 'sa bạc yên trạo' — mặt đỏ mà lỗ chân lông xanh — là dấu tử thần đến gần, đã bám thân thì không cứu được. Phối hợp lá số: đối diện có Sát Tinh hội, mười năm tới không đại vận, Lưu Niên tụ lục sát, Sát Tinh Lạc Hãm vào Thiên La Địa Võng, thêm mặt khô héo thì thầy kết luận chết chắc. Nốt ruồi đen, đốm đen trên mặt là Lưu Niên bất lợi; đến Đại Hạn điểm đen chuyển xanh sẫm và chìm dưới da.",
+   "fullTranslationVi": "Nhân tiện giới thiệu đến Vọng Tử Sắc (xem sắc chết). Khi một người sắp chết, lúc sắp chết, chúng ta có thể nhìn thấy Khí Sắc. Vì lúc chết, có khi không nhất thiết là chết vì bệnh.\nSắc khô héo, sắc khô héo. Sắc khô héo, màu xanh lam.\nCó dầu thì còn được, không có dầu thì chết. Dầu đột nhiên hết, rồi khô khốc cằn cỗi, toàn bộ tóc dựng bung lên. Rồi trên mặt — anh xem mặt anh ta, mặt không phản quang; da đều không phản quang.\nNếu anh thấy một người — ví dụ, lấy ngày 25 tháng 12 của anh ta là lập đông, đây là ví dụ thôi nhé — anh vừa đúng vào ngày 17 thấy người này đã mặt mày khô héo, rồi xem Lưu Niên năm nay của anh ta: vừa đúng tứ sát, không chỉ tứ sát mà còn lục sát — Kình Dương, Đà La, Hỏa Tinh, Linh Tinh, Địa Không, Địa Kiếp tất cả đều đến, tất cả sao xấu đều ở trong đó chờ anh; rồi lại thấy chủ tinh tiến vào — Liêm Trinh, Tham Lang, những Sát Tinh này — tiến vào mà còn Lạc Hãm (Sát Tinh Nhập Miếu thì còn đỡ, miếu thì tương đối tốt hơn), Lạc Hãm thì toàn là sát; ở trong Thiên La Địa Võng — Thiên La là tinh quân trên trời, còn Địa Võng là tuệ đao — lại nhìn thêm mặt mày đã khô héo: xem tướng, xem toán mệnh, anh ta 100% chết chắc.\nLúc bước vào, tôi còn chưa xem Bát Tự, tôi nhìn mặt cô ấy — đương nhiên không phải chính người đó đến, mà là người vợ đến — Ấn Đường của cô ấy là màu trắng. Cái trắng này không phải nhuận bạch đâu; các vị đừng cứ thấy cô gái sắc mặt trắng là cho là xong đời; không phải nhuận bạch, mà là khô bạch. Thế nào gọi là khô bạch?\nTrắng ảm đạm, không có ánh sáng; cái màu ấy giống như kem đánh răng — kem đánh răng còn bóng bóng; anh bóp kem đánh răng ra để lâu, phần bóng mất đi, thành trắng trắng; giống như — nói sao nhỉ — anh trộn kem đánh răng với bùn đất hòa vào nhau để ở đó, cái màu ấy, pha thêm chút tạp chất vào; toàn bộ sắc mặt trắng, tối sầm, thảm đạm. Chúng ta liền biết người này đang mang tang. Cô ấy ngồi trước mặt anh, mặc bộ quần áo, che mất cái dấu 'hiếu' đang đeo nên không nhìn thấy; nhìn thấy thì như viết sẵn 'tôi đang mang tang' — cho nên anh không cần che giấu ngoại hình, vừa nhìn là trong lòng tôi đã rõ.\nThứ nhất, phía đối diện có Sát Tinh đến hội; thứ nhất, phía đối diện có Sát Tinh đến hội; mười năm tới lại không có đại vận; bản cung năm nay thì sao — Thái Dương bị xem thành mặt trăng: anh vừa ra ngoài, đem mặt trời ban ngày nhìn thành mặt trăng, nhất định là như vậy. Chỉ một lần, mắt anh nhắm lại, thì không nhìn thấy Nhật Nguyệt nữa — gọi là 'mục bất kiến Nhật Nguyệt' (mắt không thấy mặt trời, mặt trăng). Anh chết đi, đương nhiên không nhìn thấy Nhật Nguyệt.\nCòn cái này là đã chết: trên Ấn Đường cũng sẽ thấy màu trắng — đây là màu trắng của người đã chết.\nTrước khi người ta chết hai tuần sẽ có Khí Sắc, vì lúc chết không nhất thiết là bệnh: có khi là hung sát, có khi bất cẩn ngã từ trên lầu xuống, có khi chơi gôn bất cẩn vẹo cổ đến gãy cổ, có khi — nguyên nhân cái chết rất nhiều — còn có người uống nhầm thuốc trừ sâu, tưởng là nước ngọt mà uống, kết quả uống phải 'Ba Lạp Tùng' cũng là uống nhầm. Trước hai tuần đều có thể nhìn thấy Khí Sắc trước khi chết.\nTrên lâm sàng các vị sẽ thường phát hiện: nếu có bà con bạn bè, hay hàng xóm láng giềng xung quanh qua đời, sau khi họ qua đời, buổi tối các vị đến thăm viếng, mọi người ngồi đây trò chuyện, rồi nghe người nhà của họ kể: 'Thật ra trước khi người ấy qua đời, tôi đã phát hiện rồi — chẳng phải là không có điềm báo đâu' — tức là đều có những điềm báo này.\nChúng ta có thể nhìn trên mặt, gọi là 'sa bạc yên trạo': tức là mặt chúng ta trở thành màu đỏ, nhưng từng lỗ chân lông đều trở thành màu xanh — lỗ chân lông, anh nhìn qua đầu và mặt như vậy, mặt rất đỏ, nhưng lỗ chân lông đều thành màu xanh — thì đại diện cho ngưu quỷ xà thần đã tiến vào, ý là tử thần đã đến gần anh.\nĐã bám lên thân rồi — đã nhập vào thân rồi — mà có loại Khí Sắc này, thì có thể nói là không cách nào cứu lại được nữa.\nCác vị ạ, trước khi con người chết, bất kể thân thể khỏe hay không khỏe, khi vận rủi đến đầu, hai tuần trước là nhìn thấy Khí Sắc. Tôi đã nói đi nói lại với các vị: anh thấy cung Thiên Di đen đen, xanh xanh, là sắp chết. Vậy ở sân bay, anh thấy từ ba người trở lên như thế, thì anh có thể đi bộ được rồi; anh tự soi gương xem, biết đâu anh cũng đang vận rủi đến đầu.\nCòn trên mặt chúng ta có nốt ruồi đen, đốm đen, đó là Lưu Niên bất lợi: người làm quan sẽ bị hạ bệ, người làm ăn sẽ phá sản — ở ngay điểm đen đó. Khi Đại Hạn đến, điểm đen đó sẽ biến thành cái gì — màu xanh, tức là màu đen sẫm, rồi ẩn xuống dưới da.",
+   "conditionsVi": "Áp dụng khi xem Khí Sắc trên mặt theo phép Vọng Tử Sắc của bài giảng: các dấu sắc khô héo, trắng khô bạch ở Ấn Đường, 'sa bạc yên trạo' xuất hiện trong khoảng hai tuần trước khi chết; khi phối hợp thêm với lá số (Sát Tinh hội ở phía đối diện, lục sát tụ ở Lưu Niên, Sát Tinh Lạc Hãm, Thiên La Địa Võng, mười năm tới không có đại vận nâng đỡ) thì nguồn kết luận rất nặng. Đây là luận đoán tướng – mệnh trong hệ thống của bài giảng, giữ đúng mức khẳng định tuyệt đối của riêng thầy trong nguồn, không phải dấu hiệu lâm sàng hay chẩn đoán y khoa. Ví dụ ngày 25 tháng 12 là lập đông và các ca kể lại (người vợ mang tang, hàng xóm qua đời) là ví dụ cá biệt minh họa, không phải quy luật y học.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "顺便介绍到望死色。这个人要死的时候，将死的时候，我们可以看到的气色。因为死的时候有时候不见得是因为生病而死的。",
+      "t_hms": "00:20:25",
+      "bvid": "BV1KJsLekEfA",
+      "part": 5,
+      "sectionCn": "3",
+      "sourceLineNumber": 245
+     },
+     {
+      "quoteCn": "枯萎色，枯萎色。枯萎色，青蓝色。",
+      "noteCn": "已按裁决改正：桔萎色→枯萎色",
+      "t_hms": "00:20:53",
+      "bvid": "BV1KJsLekEfA",
+      "part": 5,
+      "sectionCn": "3",
+      "sourceLineNumber": 246
+     },
+     {
+      "quoteCn": "有油你要没有油就死掉了。油突然没了，然后干干枯枯整个头发蓬起来。然后脸上你看他脸上他不反光。皮肤都不会反光。",
+      "t_hms": "00:21:16",
+      "bvid": "BV1KJsLekEfA",
+      "part": 5,
+      "sectionCn": "3",
+      "sourceLineNumber": 247
+     },
+     {
+      "quoteCn": "如果你看到一个人，他举例比如说他12月25号是立冬，比如说哦12月25号是立冬，这是举例啊，你刚好在17号的时候，看到这个人已经面目枯槁，然后看他今年的流年，刚好四杀还不止还六杀，羊陀火铃空劫通通来了，所有的坏星通通在里面等到你了，然后再看到主星进来的时候，廉贞贪狼这些杀星呢，进来的时候还落陷，杀星入庙还好对不对，庙还比较好，那个落陷通通是杀，那个在天罗地网，天罗就是天上的星君，然后地网的慧刀，再一看这个面容枯槁了，看相看算命他是100%死定了",
+      "t_hms": "00:44:17",
+      "bvid": "BV1KJsLekEfA",
+      "part": 7,
+      "sectionCn": "12",
+      "sourceLineNumber": 433
+     },
+     {
+      "quoteCn": "进来的时候我还没有看八字哦，我一看她的脸，他当然不是他本人来啊太太来啊，脸印堂是白色的，这个白不是润白啊，你不要女孩子脸色白就完蛋了，不是润白而是枯白，什么叫做枯白",
+      "noteCn": "cleaned〕〔字幕疑误：润自→润白；枯自→枯白",
+      "t_hms": "00:17:11",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "5",
+      "sourceLineNumber": 935
+     },
+     {
+      "quoteCn": "那白黯淡无光，那颜色好像牙膏一样，整个那牙膏还有亮亮的，你把牙膏挤出来放很久，那亮的没了变成白白的，就好像怎么讲，你把牙膏跟那个泥巴，和一和放在那里的颜色，掺着一点杂质下去，整个面色白色暗惨暗惨暗的，我们就知道这个人带丧，坐在你面前她穿个衣服，把那个戴“孝”的遮起来看不到，看见就写了我在带丧，所以你不用去遮外形，一看我心里面就已经有数了",
+      "t_hms": "00:17:31",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "5",
+      "sourceLineNumber": 936
+     },
+     {
+      "quoteCn": "第一个对面有杀星来会，第一个对面有杀星来会，未来十年又没有大运，那本宫今年呢，太阳把它看成月亮，你一出去把白天的太阳，看成月亮一定是这样，只有一次你眼睛闭到了，才看不到日月啊，叫做目不见日月，你死掉当然看不到日月啊",
+      "noteCn": "cleaned",
+      "t_hms": "00:36:42",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "9",
+      "sourceLineNumber": 982
+     },
+     {
+      "quoteCn": "那这个是已死，在印堂上也会看到白色的这是已死白色",
+      "noteCn": "cleaned",
+      "t_hms": "00:50:53",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "14",
+      "sourceLineNumber": 1011
+     },
+     {
+      "quoteCn": "人死之前两个礼拜会有气色，因为死的时候不见得是病，有的时候凶杀，有时从楼上不小心摔下去，有时候打高尔夫球不小心心脖子扭断掉，有的时候这个是很多死亡的原因啊亿，还有人误食农药，把它当汽水喝，结果喝到巴拉松都误食啊，在两个礼拜以前少客，在两个礼拜以前归写，死之前都可以看到气色",
+      "t_hms": "00:52:09",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "14",
+      "sourceLineNumber": 1016
+     },
+     {
+      "quoteCn": "临床上你们会常常发现到，如果你们的有个亲朋好友，或者是左右街坊邻居过世了以后，在过世晚上你们去拜访他，大家这边聊天，然后你就听他们家人在讲，哎其实我过世前就发现，都没有预兆对不对，就是都有这些预兆",
+      "noteCn": "cleaned",
+      "t_hms": "00:52:38",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "14",
+      "sourceLineNumber": 1018
+     },
+     {
+      "quoteCn": "我们能看脸上，叫做纱薄烟罩，就是我们脸上变成红色，但是一个个毛孔都变成青色的，毛孔啊头脸上你这样看过去脸上很红，但是毛孔都会变成青色的，就代表牛鬼蛇神进来了，意思就是死神接近你了",
+      "t_hms": "00:53:50",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "14",
+      "sourceLineNumber": 1021
+     },
+     {
+      "quoteCn": "已经附上身的话，已经上身了，有这种气色的话，可以说没有办法救回来了",
+      "t_hms": "00:54:33",
+      "bvid": "BV1KJsLekEfA",
+      "part": 15,
+      "sectionCn": "14",
+      "sourceLineNumber": 1023
+     },
+     {
+      "quoteCn": "诸位啊人人死之前呐，不管你身体健不健康，霉运当头的时候，两个礼拜就看到气色了，我一再跟诸位讲了嘛，你看到迁移宫黑黑的青青的要死，那你在机场看三个以上，你可以走路了，你自己照照搞不好你也晦运当头",
+      "noteCn": "已按裁决改正：迁移官→迁移宫",
+      "t_hms": "00:21:26",
+      "bvid": "BV1KJsLekEfA",
+      "part": 25,
+      "sectionCn": "6",
+      "sourceLineNumber": 1566
+     },
+     {
+      "quoteCn": "那我们脸上有黑痣黑斑的话，是流年不利，当官的会下台，做生意的会破财，在那个黑点上，那大限到了时候大，那个黑点会变成什么呀，青色就是暗黑色，然后再隐在皮肤下面",
+      "noteCn": "cleaned",
+      "t_hms": "00:09:45",
+      "bvid": "BV1KJsLekEfA",
+      "part": 27,
+      "sectionCn": "5",
+      "sourceLineNumber": 1638
+     }
+    ],
+    "combinedQuotesCn": "顺便介绍到望死色。这个人要死的时候，将死的时候，我们可以看到的气色。因为死的时候有时候不见得是因为生病而死的。\n枯萎色，枯萎色。枯萎色，青蓝色。\n有油你要没有油就死掉了。油突然没了，然后干干枯枯整个头发蓬起来。然后脸上你看他脸上他不反光。皮肤都不会反光。\n如果你看到一个人，他举例比如说他12月25号是立冬，比如说哦12月25号是立冬，这是举例啊，你刚好在17号的时候，看到这个人已经面目枯槁，然后看他今年的流年，刚好四杀还不止还六杀，羊陀火铃空劫通通来了，所有的坏星通通在里面等到你了，然后再看到主星进来的时候，廉贞贪狼这些杀星呢，进来的时候还落陷，杀星入庙还好对不对，庙还比较好，那个落陷通通是杀，那个在天罗地网，天罗就是天上的星君，然后地网的慧刀，再一看这个面容枯槁了，看相看算命他是100%死定了\n进来的时候我还没有看八字哦，我一看她的脸，他当然不是他本人来啊太太来啊，脸印堂是白色的，这个白不是润白啊，你不要女孩子脸色白就完蛋了，不是润白而是枯白，什么叫做枯白\n那白黯淡无光，那颜色好像牙膏一样，整个那牙膏还有亮亮的，你把牙膏挤出来放很久，那亮的没了变成白白的，就好像怎么讲，你把牙膏跟那个泥巴，和一和放在那里的颜色，掺着一点杂质下去，整个面色白色暗惨暗惨暗的，我们就知道这个人带丧，坐在你面前她穿个衣服，把那个戴“孝”的遮起来看不到，看见就写了我在带丧，所以你不用去遮外形，一看我心里面就已经有数了\n第一个对面有杀星来会，第一个对面有杀星来会，未来十年又没有大运，那本宫今年呢，太阳把它看成月亮，你一出去把白天的太阳，看成月亮一定是这样，只有一次你眼睛闭到了，才看不到日月啊，叫做目不见日月，你死掉当然看不到日月啊\n那这个是已死，在印堂上也会看到白色的这是已死白色\n人死之前两个礼拜会有气色，因为死的时候不见得是病，有的时候凶杀，有时从楼上不小心摔下去，有时候打高尔夫球不小心心脖子扭断掉，有的时候这个是很多死亡的原因啊亿，还有人误食农药，把它当汽水喝，结果喝到巴拉松都误食啊，在两个礼拜以前少客，在两个礼拜以前归写，死之前都可以看到气色\n临床上你们会常常发现到，如果你们的有个亲朋好友，或者是左右街坊邻居过世了以后，在过世晚上你们去拜访他，大家这边聊天，然后你就听他们家人在讲，哎其实我过世前就发现，都没有预兆对不对，就是都有这些预兆\n我们能看脸上，叫做纱薄烟罩，就是我们脸上变成红色，但是一个个毛孔都变成青色的，毛孔啊头脸上你这样看过去脸上很红，但是毛孔都会变成青色的，就代表牛鬼蛇神进来了，意思就是死神接近你了\n已经附上身的话，已经上身了，有这种气色的话，可以说没有办法救回来了\n诸位啊人人死之前呐，不管你身体健不健康，霉运当头的时候，两个礼拜就看到气色了，我一再跟诸位讲了嘛，你看到迁移宫黑黑的青青的要死，那你在机场看三个以上，你可以走路了，你自己照照搞不好你也晦运当头\n那我们脸上有黑痣黑斑的话，是流年不利，当官的会下台，做生意的会破财，在那个黑点上，那大限到了时候大，那个黑点会变成什么呀，青色就是暗黑色，然后再隐在皮肤下面"
+   },
+   "priorityTier": 3,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-20T21:28:25+07:00",
+    "modelUsed": "claude-kb-distill-v2",
+    "sourceHash": "619181b5085c0003",
+    "glossaryCheckPassed": true,
+    "auditStatus": "DAT",
+    "candidateModelsProbed": []
+   }
+  }
+ ]
+}

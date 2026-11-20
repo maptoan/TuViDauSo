@@ -19,6 +19,7 @@ import {
 import {
   enforceCanonicalPalaceGroupHeadings,
   sanitizeAiVietnameseOutput,
+  scrubInvalidCitationTags,
   verifyAndEnsureCompletePeriodSiHua,
 } from './ziwei/text-sanitizer';
 import {
@@ -171,10 +172,13 @@ export function sanitizeDossierChapterText(
   text: string | undefined,
   chapterId: DossierChapterId,
   chart?: ZiweiChart,
-  options?: { skipPeriodSiHuaCheck?: boolean },
+  options?: { skipPeriodSiHuaCheck?: boolean; invalidCitationIds?: readonly string[] },
 ): string | undefined {
   if (typeof text !== 'string') return text;
   let cleaned = sanitizeAiVietnameseOutput(text);
+  if (options?.invalidCitationIds && options.invalidCitationIds.length > 0) {
+    cleaned = scrubInvalidCitationTags(cleaned, { invalidIds: options.invalidCitationIds });
+  }
   if (
     !options?.skipPeriodSiHuaCheck &&
     chart &&
@@ -225,18 +229,39 @@ export function stripInternalExportMetaLines(text: string | undefined): string |
 }
 
 /**
- * QĐ-G2/T2: Tự động làm sạch cache cũ khi đọc hồ sơ từ sessionStorage (0 tốn quota, giữ nguyên khóa cache).
+ * ĐC-3 (Cổng Nguồn Sự Thật Duy Nhất - SSOT):
+ * - Kho lưu trữ bền vững IndexedDB + gương RAM (do chart-library.ts quản lý) là NGUỒN SỰ THẬT DUY NHẤT (SSOT).
+ * - Khóa sessionStorage ('ziwei_dossier_v1::*') chỉ là gương ghi-thông (write-through mirror) cho phiên hiện tại.
+ * - Khi đọc hồ sơ, nếu có bản ghi từ IndexedDB/gương RAM thì bản ghi đó LUÔN THẮNG khi lệch với sessionStorage.
  */
-export function readDossierCacheEntry(
-  storage: StorageLike | null,
-  dossierStorageKey: string,
+export interface AuthoritativeDossierBridge {
+  readAuthoritativeDossier(chartIdentityKey: string): StoredDossierRecord | null;
+  writeThroughDossierSection(
+    chart: ZiweiChart,
+    chapterId: DossierChapterId,
+    chapterState: DossierChapterState,
+  ): void;
+}
+
+let authoritativeDossierBridge: AuthoritativeDossierBridge | null = null;
+
+export function registerAuthoritativeDossierBridge(
+  bridge: AuthoritativeDossierBridge | null,
+): void {
+  authoritativeDossierBridge = bridge;
+}
+
+function extractChartIdentityKeyFromStorageKey(dossierStorageKey: string): string {
+  const prefix = 'ziwei_dossier_v1::';
+  return dossierStorageKey.startsWith(prefix)
+    ? dossierStorageKey.slice(prefix.length)
+    : dossierStorageKey;
+}
+
+function sanitizeStoredDossierRecord(
+  stored: StoredDossierRecord | null,
   chart?: ZiweiChart,
 ): StoredDossierRecord | null {
-  const stored = readLruSessionEntry<StoredDossierRecord>(
-    storage,
-    DOSSIER_LRU_INDEX_KEY,
-    dossierStorageKey,
-  );
   if (!stored || !stored.sections) return stored;
 
   const cleanedSections: StoredDossierRecord['sections'] = {};
@@ -259,7 +284,46 @@ export function readDossierCacheEntry(
 }
 
 /**
- * QĐ-H1 (F-04): Lưu 1 chương hoàn tất (kể cả Lưu Niên 2026/2027) vào sessionStorage LRU hồ sơ.
+ * QĐ-G2/T2 + ĐC-3: Tự động làm sạch cache cũ khi đọc hồ sơ (0 tốn quota).
+ * Ưu tiên đọc từ IndexedDB + gương RAM (SSOT) trước; chỉ fallback sang sessionStorage nếu SSOT chưa có.
+ */
+export function readDossierCacheEntry(
+  storage: StorageLike | null,
+  dossierStorageKey: string,
+  chart?: ZiweiChart,
+): StoredDossierRecord | null {
+  const chartIdentityKey = chart
+    ? buildChartIdentityKey(chart)
+    : extractChartIdentityKeyFromStorageKey(dossierStorageKey);
+  const fromAuthoritative =
+    authoritativeDossierBridge?.readAuthoritativeDossier(chartIdentityKey) ?? null;
+
+  if (fromAuthoritative && fromAuthoritative.sections) {
+    // LK-10: Từ chối bản ghi lệch khóa định danh lá số
+    if (
+      fromAuthoritative.chartIdentityKey &&
+      fromAuthoritative.chartIdentityKey !== chartIdentityKey
+    ) {
+      return null;
+    }
+    return sanitizeStoredDossierRecord(fromAuthoritative, chart);
+  }
+
+  const stored = readLruSessionEntry<StoredDossierRecord>(
+    storage,
+    DOSSIER_LRU_INDEX_KEY,
+    dossierStorageKey,
+  );
+  // LK-10: Từ chối bản ghi sessionStorage có chartIdentityKey nội bộ lệch khóa
+  if (stored && stored.chartIdentityKey && stored.chartIdentityKey !== chartIdentityKey) {
+    return null;
+  }
+  return sanitizeStoredDossierRecord(stored, chart);
+}
+
+/**
+ * QĐ-H1 (F-04) + ĐC-3: Lưu 1 chương (hoàn tất hoặc dở dang) vào gương ghi-thông sessionStorage
+ * ĐỒNG THỜI ghi thẳng vào Nguồn Sự Thật Duy Nhất (IndexedDB + gương RAM + hot cache qua bridge).
  */
 export function saveDossierSectionToCache(
   storage: StorageLike | null,
@@ -267,26 +331,52 @@ export function saveDossierSectionToCache(
   chapterId: DossierChapterId,
   chapterState: DossierChapterState,
 ): boolean {
-  if (!storage || chapterState.status !== 'completed' || !chapterState.text?.trim()) {
+  const isCompleted = chapterState.status === 'completed' && Boolean(chapterState.text?.trim());
+  const isIncomplete =
+    chapterState.status === 'incomplete' && Boolean(chapterState.incompleteText?.trim());
+  if (!isCompleted && !isIncomplete) {
     return false;
   }
+
   const chartIdentityKey = buildChartIdentityKey(chart);
   const dossierStorageKey = buildDossierStorageKey(chartIdentityKey);
+  const sanitizedText = isCompleted
+    ? sanitizeDossierChapterText(chapterState.text, chapterId, chart) ?? chapterState.text
+    : undefined;
+  const sanitizedIncomplete = isIncomplete
+    ? sanitizeDossierChapterText(chapterState.incompleteText, chapterId, chart, {
+        skipPeriodSiHuaCheck: true,
+      }) ?? chapterState.incompleteText
+    : undefined;
+
+  const normalizedChapterState: DossierChapterState = {
+    ...chapterState,
+    chapterId,
+    text: sanitizedText,
+    incompleteText: sanitizedIncomplete,
+    updatedAt: chapterState.updatedAt ?? Date.now(),
+  };
+
+  // ĐC-3: Ghi vào SSOT (IndexedDB + gương RAM) qua cầu nối nếu có
+  authoritativeDossierBridge?.writeThroughDossierSection(
+    chart,
+    chapterId,
+    normalizedChapterState,
+  );
+
+  // Ghi-thông (write-through) vào gương sessionStorage cho các chương hoàn tất
+  if (!storage || !isCompleted) {
+    return Boolean(authoritativeDossierBridge);
+  }
+
   const existing = readLruSessionEntry<StoredDossierRecord>(
     storage,
     DOSSIER_LRU_INDEX_KEY,
     dossierStorageKey,
   );
-  const sanitizedText =
-    sanitizeDossierChapterText(chapterState.text, chapterId, chart) ?? chapterState.text;
   const nextSections: StoredDossierRecord['sections'] = {
     ...(existing?.sections ?? {}),
-    [chapterId]: {
-      ...chapterState,
-      chapterId,
-      text: sanitizedText,
-      sourceBadge: chapterState.sourceBadge,
-    },
+    [chapterId]: normalizedChapterState,
   };
   const record: StoredDossierRecord = {
     chartIdentityKey,
@@ -793,14 +883,17 @@ export function resolveDossierChapterFromCaches(
 ): DossierChapterState {
   const chartIdentityKey = buildChartIdentityKey(chart);
   const sectionCacheKey = buildDossierChapterCacheKey(chartIdentityKey, spec.id);
+  const rawLocal = localChapters[spec.id];
+  // Chốt chặn rò dữ liệu chéo (Mục vá 2): Bỏ qua hoàn toàn mọi mục trong localChapters không khớp sectionCacheKey của lá số hiện tại
+  const matchingLocal =
+    rawLocal && rawLocal.sectionCacheKey === sectionCacheKey ? rawLocal : undefined;
 
   if (spec.mode === 'period' && typeof spec.year === 'number') {
     const pKey = buildPeriodCacheKeyForYear(chart, spec.year);
     const periodEntry = aiPeriodCache[pKey];
-    const localExisting = localChapters[spec.id];
 
-    if (localExisting?.status === 'loading') {
-      return localExisting;
+    if (matchingLocal?.status === 'loading') {
+      return matchingLocal;
     }
     if (periodEntry && hasValidCachedPeriodEntry(periodEntry)) {
       return {
@@ -810,7 +903,7 @@ export function resolveDossierChapterFromCaches(
         text: sanitizeDossierChapterText(periodEntry.text, spec.id, chart),
         meta: periodEntry.meta,
         sourceBadge:
-          localExisting?.sourceBadge ?? formatDossierSourceBadge('cache'),
+          matchingLocal?.sourceBadge ?? formatDossierSourceBadge('cache'),
       };
     }
     if (periodEntry?.incomplete) {
@@ -824,7 +917,7 @@ export function resolveDossierChapterFromCaches(
         interruptedReason: periodEntry.interruptedReason || periodEntry.error,
         error: periodEntry.error,
         meta: periodEntry.meta,
-        sourceBadge: localExisting?.sourceBadge,
+        sourceBadge: matchingLocal?.sourceBadge,
       };
     }
     if (periodEntry?.error) {
@@ -839,12 +932,11 @@ export function resolveDossierChapterFromCaches(
     }
   }
 
-  const stored = localChapters[spec.id];
-  if (stored) {
+  if (matchingLocal) {
     return {
-      ...stored,
-      text: sanitizeDossierChapterText(stored.text, spec.id, chart),
-      incompleteText: sanitizeDossierChapterText(stored.incompleteText, spec.id, chart, {
+      ...matchingLocal,
+      text: sanitizeDossierChapterText(matchingLocal.text, spec.id, chart),
+      incompleteText: sanitizeDossierChapterText(matchingLocal.incompleteText, spec.id, chart, {
         skipPeriodSiHuaCheck: true,
       }),
     };

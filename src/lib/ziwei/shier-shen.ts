@@ -35,7 +35,7 @@
  * 博士十二神（2026-08-14 金标准盘核对）：从生年禄存起，阳男阴女顺、阴男阳女逆；不跟随运限。
  */
 
-import { LUCUN_TABLE } from './constants';
+import { LUCUN_TABLE } from './constants.ts';
 
 /** 将前十二神，自将星起顺行。索引 0-11 = 神序。 */
 export const JIANG_QIAN_SHEN = [

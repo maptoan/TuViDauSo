@@ -15,6 +15,7 @@ import {
 } from '../lib/ziwei/yunxian-context';
 import {
   sanitizeAiVietnameseOutput,
+  scrubInvalidCitationTags,
   verifyAndEnsureCompletePeriodSiHua,
 } from '../lib/ziwei/text-sanitizer';
 import {
@@ -207,6 +208,7 @@ export default function InsightPanel({
         let streamError: string | null = null;
         let wasInterrupted = false;
         let interruptedMsg = '';
+        let scrubbedInvalidIds: string[] = [];
 
         const processLine = (line: string) => {
           if (!line.startsWith('data: ')) return false;
@@ -223,6 +225,12 @@ export default function InsightPanel({
                   meta: receivedMeta,
                 },
               }));
+              return false;
+            }
+            if (Array.isArray(parsed?.citationAudit?.scrubbedInvalidIds)) {
+              scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+                (id: unknown): id is string => typeof id === 'string',
+              );
               return false;
             }
             if (parsed?.interrupted) {
@@ -270,8 +278,13 @@ export default function InsightPanel({
           processLine(sseBuffer.trim());
         }
 
-        // Chốt lớp 2 (idempotent): sanitizeAiVietnameseOutput -> verifyAndEnsureCompletePeriodSiHua trước khi ghi cache/state
+        // Chốt lớp 2 (idempotent): sanitizeAiVietnameseOutput -> scrubInvalidCitationTags -> verifyAndEnsureCompletePeriodSiHua trước khi ghi cache/state
         accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (scrubbedInvalidIds.length > 0 && accumulated) {
+          accumulated = scrubInvalidCitationTags(accumulated, {
+            invalidIds: scrubbedInvalidIds,
+          });
+        }
         if (!wasInterrupted && !streamError && accumulated.trim()) {
           accumulated = verifyAndEnsureCompletePeriodSiHua(
             accumulated,

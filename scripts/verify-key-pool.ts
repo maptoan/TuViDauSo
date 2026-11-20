@@ -1308,7 +1308,257 @@ async function runTests() {
       console.log('  -> Đạt: AbortError/FIRST_CHUNK_TIMEOUT xếp vào MODEL_UNAVAILABLE (0 phạt key) & khử sạch thông báo gián đoạn trùng lặp.');
     }
 
-    console.log('\n=== TẤT CẢ 18 BÀI KIỂM THỬ KHO KHÓA, BATCH PROBE, B2 & H4 (NV-01) ĐỀU ĐẠT ===');
+    // ── BÀI 19: Fast-Sweep (QĐ-F1..F4 & siết FS2-01..FS2-05) ───────────────────
+    {
+      console.log('\n[19/19] Kiểm thử Fast-Sweep (8 khóa quota=0, cả kho quota=0, FS2-01 UNKNOWN, FS2-02 đồng bộ project, FS2-04 chậm quá 35s)...');
+
+      // (19a) 8 khóa QUOTA_PROJECT_ZERO đứng trước 1 khóa sống #9 -> thành công từ khóa #9 ngay trong 1 request
+      {
+        const dir19a = fs.mkdtempSync(path.join(tmpDir, 'fs-19a-'));
+        const mgr19a = new KeyPoolManager(dir19a);
+        const zeroKeys = Array.from({ length: 8 }, (_, idx) =>
+          fakeKey(`FsZeroKey${String(idx + 1).padStart(26, '0')}`),
+        );
+        const liveKey = fakeKey('FsLiveKeyNine000000000000000009');
+        const prev19a = mgr19a.previewBatchImport([...zeroKeys, liveKey].join('\n'));
+        mgr19a.confirmBatchImport(prev19a.previewSessionId);
+
+        const callLog19a: string[] = [];
+        let out19a = '';
+        const meta19a = await mgr19a.executeStream({
+          prompt: 'Fast-Sweep 8 zero keys + 1 live key',
+          onChunk: (t) => {
+            out19a += t;
+          },
+          clientFactory: (rawKey) => ({
+            models: {
+              async generateContentStream() {
+                callLog19a.push(rawKey);
+                const zeroIdx = zeroKeys.indexOf(rawKey);
+                if (zeroIdx !== -1) {
+                  const proj = `76510398407${zeroIdx}`;
+                  throw Object.assign(
+                    new Error(`429 RESOURCE_EXHAUSTED projects/${proj} quota_limit_value: "0"`),
+                    { status: 429 },
+                  );
+                }
+                async function* gen() {
+                  yield { text: 'Thành công từ khóa thứ 9!' };
+                }
+                return gen();
+              },
+              async generateContent() {
+                return { text: 'OK' };
+              },
+            },
+          }),
+          disableJitter: true,
+        });
+
+        assert.strictEqual(callLog19a.length, 9, 'Phải quét đủ 8 khóa quota=0 và gọi khóa sống #9 trong 1 request');
+        assert.strictEqual(out19a, 'Thành công từ khóa thứ 9!');
+        assert.strictEqual(meta19a.maskedKey, maskApiKey(liveKey));
+        const snap19a = mgr19a.getPublicSnapshot({
+          isReadOnly: false,
+          isSharedOrigin: false,
+          adminPinRequired: false,
+          hasAdminPinConfigured: false,
+        });
+        assert.strictEqual(snap19a.summary.cooldown, 8, 'Cả 8 khóa quota=0 phải vào cooldown 6h');
+        assert.strictEqual(snap19a.summary.ready, 1, 'Chỉ còn 1 khóa sống ready');
+        const cdKeys = snap19a.keys.filter((k) => k.status === 'cooldown');
+        assert.ok(
+          cdKeys.every((k) => k.cooldownReason === 'QUOTA_PROJECT_ZERO' && k.remainingCooldownSec >= 21500),
+          'Mỗi khóa quota=0 phải có cooldown 6h',
+        );
+      }
+
+      // (19b) Cả kho 8 khóa đều QUOTA_PROJECT_ZERO -> PoolExhaustedError ngay trong 1 request
+      {
+        const dir19b = fs.mkdtempSync(path.join(tmpDir, 'fs-19b-'));
+        const mgr19b = new KeyPoolManager(dir19b);
+        const allZero = Array.from({ length: 8 }, (_, idx) =>
+          fakeKey(`FsAllZero${String(idx + 1).padStart(26, '0')}`),
+        );
+        const prev19b = mgr19b.previewBatchImport(allZero.join('\n'));
+        mgr19b.confirmBatchImport(prev19b.previewSessionId);
+
+        let err19b: unknown = null;
+        let calls19b = 0;
+        try {
+          await mgr19b.executeStream({
+            prompt: 'All 8 keys quota=0',
+            onChunk: () => {},
+            clientFactory: (rawKey) => ({
+              models: {
+                async generateContentStream() {
+                  calls19b += 1;
+                  const idx = allZero.indexOf(rawKey);
+                  throw Object.assign(
+                    new Error(`429 RESOURCE_EXHAUSTED projects/88800010${idx} quota_limit_value: "0"`),
+                    { status: 429 },
+                  );
+                },
+                async generateContent() {
+                  return { text: 'OK' };
+                },
+              },
+            }),
+            disableJitter: true,
+          });
+        } catch (e) {
+          err19b = e;
+        }
+        assert.strictEqual(calls19b, 8, 'Phải quét sạch cả 8 khóa quota=0 ngay trong 1 request');
+        assert.ok(err19b instanceof PoolExhaustedError, 'Phải ném PoolExhaustedError ngay trong 1 request');
+        const pe19b = err19b as PoolExhaustedError;
+        assert.strictEqual(pe19b.code, 'AI_POOL_EXHAUSTED');
+        assert.ok(pe19b.minRemainingCooldownSec !== null && pe19b.minRemainingCooldownSec > 21000);
+        // Kiểm tra collectErrorText không tạo chuỗi lặp Error: ... | Error: ...
+        const sanitizedErrText = sanitizeSecretText(pe19b, []);
+        const errPrefixCount = (sanitizedErrText.match(/PoolExhaustedError:/g) ?? []).length;
+        assert.strictEqual(errPrefixCount, 1, 'collectErrorText không được nhân đôi dòng đầu Error: ... | Error: ...');
+      }
+
+      // (19c) FS2-01: 7 khóa đều gặp lỗi UNKNOWN (dạng 400 INVALID_ARGUMENT) -> dừng ở 5 lượt, giữ Error thường (KHÔNG ép PoolExhaustedError)
+      {
+        const dir19c = fs.mkdtempSync(path.join(tmpDir, 'fs-19c-'));
+        const mgr19c = new KeyPoolManager(dir19c);
+        const sevenKeys = Array.from({ length: 7 }, (_, idx) =>
+          fakeKey(`FsUnknown${String(idx + 1).padStart(26, '0')}`),
+        );
+        const prev19c = mgr19c.previewBatchImport(sevenKeys.join('\n'));
+        mgr19c.confirmBatchImport(prev19c.previewSessionId);
+
+        let err19c: unknown = null;
+        let calls19c = 0;
+        try {
+          await mgr19c.executeStream({
+            prompt: '400 INVALID_ARGUMENT unknown error',
+            onChunk: () => {},
+            clientFactory: () => ({
+              models: {
+                async generateContentStream() {
+                  calls19c += 1;
+                  throw Object.assign(new Error('400 INVALID_ARGUMENT: prompt exceeds limit'), {
+                    status: 400,
+                  });
+                },
+                async generateContent() {
+                  return { text: 'OK' };
+                },
+              },
+            }),
+            disableJitter: true,
+          });
+        } catch (e) {
+          err19c = e;
+        }
+        assert.strictEqual(calls19c, 5, 'Lỗi UNKNOWN không được Fast-Sweep quá MAX_KEY_ATTEMPTS=5');
+        assert.ok(err19c instanceof Error, 'Phải ném Error');
+        assert.ok(!(err19c instanceof PoolExhaustedError), 'FS2-01: Lỗi UNKNOWN khi kho còn khóa ready KHÔNG được ép thành PoolExhaustedError');
+      }
+
+      // (19d) FS2-02: 2 khóa cùng project đã biết project_number đứng trước khóa sống -> chỉ 1 lượt gọi dọn cả 2
+      {
+        const dir19d = fs.mkdtempSync(path.join(tmpDir, 'fs-19d-'));
+        const mgr19d = new KeyPoolManager(dir19d);
+        const kProjA = fakeKey('FsSameProjA00000000000000000001');
+        const kProjB = fakeKey('FsSameProjB00000000000000000002');
+        const kHealthy = fakeKey('FsSameProjLive00000000000000003');
+        const prev19d = mgr19d.previewBatchImport(`${kProjA}\n${kProjB}\n${kHealthy}`);
+        mgr19d.confirmBatchImport(prev19d.previewSessionId);
+
+        const [idProjA, idProjB] = mgr19d._getRawKeyIdsForVerification();
+        mgr19d._findKeyRecord(idProjA)!.detectedProjectNumber = '777888999';
+        mgr19d._findKeyRecord(idProjB)!.detectedProjectNumber = '777888999';
+
+        const called19d: string[] = [];
+        let out19d = '';
+        const meta19d = await mgr19d.executeStream({
+          prompt: 'Same project FS2-02',
+          onChunk: (t) => {
+            out19d += t;
+          },
+          clientFactory: (rawKey) => ({
+            models: {
+              async generateContentStream() {
+                called19d.push(rawKey);
+                if (rawKey === kProjA || rawKey === kProjB) {
+                  throw Object.assign(
+                    new Error('429 RESOURCE_EXHAUSTED projects/777888999 quota_limit_value: "0"'),
+                    { status: 429 },
+                  );
+                }
+                async function* gen() {
+                  yield { text: 'OK sau 1 lượt dọn cả 2 khóa cùng project.' };
+                }
+                return gen();
+              },
+              async generateContent() {
+                return { text: 'OK' };
+              },
+            },
+          }),
+          disableJitter: true,
+        });
+
+        assert.strictEqual(called19d.length, 2, 'FS2-02: Chỉ tốn đúng 1 lượt gọi cho cặp khóa cùng project + 1 lượt cho khóa sống');
+        assert.strictEqual(out19d, 'OK sau 1 lượt dọn cả 2 khóa cùng project.');
+        assert.strictEqual(meta19d.maskedKey, maskApiKey(kHealthy));
+        assert.strictEqual(mgr19d._findKeyRecord(idProjA)!.status, 'cooldown');
+        assert.strictEqual(mgr19d._findKeyRecord(idProjB)!.status, 'cooldown');
+      }
+
+      // (19e) FS2-04: Khóa chết phản hồi chậm -> trần ngân sách 35s thắng trần 50 khóa & vẫn trả PoolExhaustedError sạch
+      {
+        const dir19e = fs.mkdtempSync(path.join(tmpDir, 'fs-19e-'));
+        const mgr19e = new KeyPoolManager(dir19e);
+        const slowKeys = Array.from({ length: 10 }, (_, idx) =>
+          fakeKey(`FsSlowDead${String(idx + 1).padStart(25, '0')}`),
+        );
+        const prev19e = mgr19e.previewBatchImport(slowKeys.join('\n'));
+        mgr19e.confirmBatchImport(prev19e.previewSessionId);
+
+        let simNow = 1_800_000_000_000;
+        let slowCalls = 0;
+        let err19e: unknown = null;
+        try {
+          await mgr19e.executeStream({
+            prompt: 'Slow dead keys exceed 35s budget',
+            nowFn: () => simNow,
+            onChunk: () => {},
+            clientFactory: (rawKey) => ({
+              models: {
+                async generateContentStream() {
+                  slowCalls += 1;
+                  simNow += 12_000; // mỗi lượt tốn 12 giây -> sau 3 lượt là 36s > 35s
+                  const idx = slowKeys.indexOf(rawKey);
+                  throw Object.assign(
+                    new Error(`429 RESOURCE_EXHAUSTED projects/99900010${idx} quota_limit_value: "0"`),
+                    { status: 429 },
+                  );
+                },
+                async generateContent() {
+                  return { text: 'OK' };
+                },
+              },
+            }),
+            disableJitter: true,
+          });
+        } catch (e) {
+          err19e = e;
+        }
+
+        assert.strictEqual(slowCalls, 3, 'FS2-04: Phải dừng đúng ở 3 lượt (36s >= 35s), không chạy hết 10/50 khóa');
+        assert.ok(err19e instanceof PoolExhaustedError, 'FS2-04: Khi cạn ngân sách 35s phải trả PoolExhaustedError sạch');
+        assert.strictEqual((err19e as PoolExhaustedError).code, 'AI_POOL_EXHAUSTED');
+      }
+
+      console.log('  -> Đạt: Fast-Sweep 19a–19e đạt (8 khóa quota=0 -> #9, cả kho hết -> 503, FS2-01 UNKNOWN giữ Error thường, FS2-02 1 lượt dọn cùng project, FS2-04 trần 35s thắng).');
+    }
+
+    console.log('\n=== TẤT CẢ 19 BÀI KIỂM THỬ KHO KHÓA, BATCH PROBE, B2, H4 & FAST-SWEEP ĐỀU ĐẠT ===');
   } finally {
     if (origEnvKey !== undefined) process.env.GEMINI_API_KEY = origEnvKey;
     if (origEnvKeys !== undefined) process.env.GEMINI_API_KEYS = origEnvKeys;

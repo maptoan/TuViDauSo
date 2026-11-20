@@ -1,15 +1,15 @@
 import crypto from 'crypto';
 import {
   DEFAULT_SUPPORTED_MODELS,
-  GeminiKeyPublicView,
-  KeyPoolPublicSnapshot,
-  KeyPoolState,
+  type GeminiKeyPublicView,
+  type KeyPoolPublicSnapshot,
+  type KeyPoolState,
   MAX_KEYS_IN_POOL,
   MAX_PREVIEW_SESSIONS,
   PREVIEW_SESSION_TTL_MS,
-  PreviewResult,
-  PreviewSessionEntry,
-  StreamExecutionMeta,
+  type PreviewResult,
+  type PreviewSessionEntry,
+  type StreamExecutionMeta,
   TEST_KEY_DEBOUNCE_MS,
   TEST_KEY_TIMEOUT_MS,
 } from './types.ts';
@@ -22,9 +22,9 @@ import {
   sanitizeSecretText,
 } from './allocator.ts';
 import {
-  AiClientFactory,
+  type AiClientFactory,
   defaultAiClientFactory,
-  ExecuteStreamOptions,
+  type ExecuteStreamOptions,
   GeminiStreamExecutor,
 } from './executor.ts';
 

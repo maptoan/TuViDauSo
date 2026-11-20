@@ -9,9 +9,9 @@
  */
 
 import { Lunar } from 'lunar-javascript';
-import type { ZiweiChart, Palace, SiHua } from './types';
-import { SI_HUA_TABLE, STEMS } from './constants';
-import { CHILDHOOD_DAXIAN_INDEX, getChildhoodDaXianPalace } from './yunxian-context';
+import type { ZiweiChart, Palace, SiHua } from './types.ts';
+import { SI_HUA_TABLE, STEMS } from './constants.ts';
+import { CHILDHOOD_DAXIAN_INDEX, getChildhoodDaXianPalace } from './yunxian-context.ts';
 
 // ─── 1) 由天干索引取四化四星 ───────────────────────────────────
 /** 天干索引 0-9 → { 禄, 权, 科, 忌 } 对应星名 */

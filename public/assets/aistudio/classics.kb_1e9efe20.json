@@ -1,0 +1,5384 @@
+{
+ "schemaVersion": "1.0.0",
+ "generatedAtIso": "2026-11-19T23:17:46+07:00",
+ "category": "classics-fu",
+ "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+ "isSampleData": false,
+ "entries": [
+  {
+   "id": "CL-CTP-001",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-001",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "总论篇",
+     "subGroupKey": "gsf-1-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Chủ Tể Các Tinh Diệu",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Thiên Phủ",
+     "Tả Phù",
+     "Hữu Bật"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     }
+    ],
+    "topicTags": [
+     "tong-quan",
+     "tinh-dieu",
+     "tu-vi",
+     "thien-phu"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Tinh diệu Thái Cực là cội nguồn sinh hóa muôn sao. Tử Vi đế tọa là bậc tôn quý trong chư tinh. Thiên Phủ là lệnh tinh, cùng với Nam Bắc Đẩu hóa Lộc hóa Quyền làm lệnh tinh; Tả Phù Hữu Bật là những ngôi sao chủ việc tế tự.",
+   "fullTranslationVi": "Tinh diệu Thái Cực là chủ tể của muôn sao. Tử Vi đế tọa là bậc tôn quý của muôn sao. Thiên Phủ là lệnh tinh, cùng với các sao hóa Lộc, hóa Quyền của Nam Bắc Đẩu làm lệnh tinh; Tả Phù và Hữu Bật là các sao chủ về việc tế tự.",
+   "conditionsVi": "Áp dụng khi luận giải về vai trò tối cao, chức năng chủ tể của các đại tinh như Thái Cực, Tử Vi, Thiên Phủ và sự phò tá của Tả Phù, Hữu Bật cùng các sao Hóa Lộc, Hóa Quyền.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "太极星曜，乃群星之主。紫微帝座，为众星之尊。天府令星，南北斗化禄、化权、令星；左辅右弼，主祭祀之星。"
+     }
+    ],
+    "combinedQuotesCn": "太极星曜，乃群星之主。紫微帝座，为众星之尊。天府令星，南北斗化禄、化权、令星；左辅右弼，主祭祀之星。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T13:59:55+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "d83cecb712ea3dbb",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-002",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-002",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "总论篇",
+     "subGroupKey": "gsf-1-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Tính Chất Cát Hung Của Các Chính Tinh",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tả Phù",
+     "Hữu Bật",
+     "Thiên Phủ",
+     "Lộc Tồn",
+     "Thiên Cơ",
+     "Thiên Lương",
+     "Liêm Trinh",
+     "Phá Quân"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "cach-cuc",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú trong Cốt Tủy Phú định tính chất cơ bản của các chính tinh: Tử Vi làm vua cần Tả Phù Hữu Bật làm tướng, Thiên Phủ làm thần cần Lộc Tồn làm kho lược, Thiên Cơ chủ sự thiện, Thiên Lương chủ sự che chở nên gặp thì cát; trong khi Liêm Trinh chủ sự tù, Phá Quân chủ sự hao tổn nên gặp thì hung.",
+   "fullTranslationVi": "Tử Vi là vua, lấy Tả Phù Hữu Bật làm tướng. Thiên Phủ là tôi, lấy Lộc Tồn làm kho lược. Thiên Cơ là điều thiện, Thiên Lương là sự che chở, gặp được thì cát; Liêm Trinh là tù, Phá Quân là hao tổn, gặp phải thì hung.",
+   "conditionsVi": "Các chính tinh đi kèm với các phụ tinh phò tá hoặc đặc tính cát hung tương ứng như Tử Vi đi với Tả Phù, Hữu Bật; Thiên Phủ đi với Lộc Tồn; Thiên Cơ, Thiên Lương gặp thì cát; Liêm Trinh, Phá Quân gặp thì hung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微为君，以左辅右弼为相。天府为臣，以禄存为府库。天机为善，天梁为荫，遇之则吉；廉贞为囚，破军为耗，逢之则凶。"
+     }
+    ],
+    "combinedQuotesCn": "紫微为君，以左辅右弼为相。天府为臣，以禄存为府库。天机为善，天梁为荫，遇之则吉；廉贞为囚，破军为耗，逢之则凶。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:11:31+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "4730ce6544360065",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-003",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-003",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "总论篇",
+     "subGroupKey": "gsf-1-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Phương pháp xem mệnh từ Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thân Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "phuong-phap",
+     "menh-cung",
+     "than-cung",
+     "dai-han-luu-nien"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "horizon_10y",
+     "year_2026"
+    ]
+   },
+   "summaryVi": "Luận về yếu lý xem mệnh, bắt đầu từ việc quan sát Mệnh Cung để xác định cách cục, kết hợp tam phương tứ chính để biết chỗ dụng võ. Tiếp theo xem Thân Cung để định cảnh ngộ hậu vận và chỗ nương tựa, rồi mới xét đến đại hạn và lưu niên nhằm định rõ sự tiến lùi trong một đời.",
+   "fullTranslationVi": "Yếu lý xem mệnh, trước tiên hãy xem Mệnh Cung. Chủ tinh của Mệnh Cung định rõ cách cục của đương số, tam phương tứ chính quyết định sở trường và chỗ dụng võ. Kế tiếp xem Thân Cung, Thân Cung định rõ cảnh ngộ lúc về già và chỗ nương tựa. Lại xem đại hạn và lưu niên, định rõ tiết tấu tiến lùi trong suốt một đời người.",
+   "conditionsVi": "Khi xem mệnh phải theo thứ tự từ Mệnh Cung, tam phương tứ chính, đến Thân Cung, rồi mới xét đến đại hạn và lưu niên.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "看命之要，先看命宫。命宫主星定其格局，三方四正定其用武。次看身宫，身宫定其晚景与依归。再看大限流年，定其一生进退之节。"
+     }
+    ],
+    "combinedQuotesCn": "看命之要，先看命宫。命宫主星定其格局，三方四正定其用武。次看身宫，身宫定其晚景与依归。再看大限流年，定其一生进退之节。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:11:45+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "b8d0789278497313",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-004",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-004",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "紫微星论",
+     "subGroupKey": "gsf-2-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Sao Tử Vi",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tu-vi",
+     "cach-cuc",
+     "cat-tinh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Tử Vi là sao Đế Tọa, đắc Tả Phù Hữu Bật thì sang trọng, đắc Văn Xương Văn Khúc thì tao nhã, đắc Thiên Khôi Thiên Việt thì được quý nhân phò trợ. Nếu Tử Vi độc tọa mà không có phụ tinh phò trợ thì dẫu sang trọng cũng chẳng dài lâu; phải được các cát tinh ở tam phương tứ chính hội chiếu mới thành chính tông đại cách.",
+   "fullTranslationVi": "Tử Vi là sao Đế Tọa, đắc Tả Phù Hữu Bật thì sang trọng, đắc Văn Xương Văn Khúc thì tao nhã, đắc Thiên Khôi Thiên Việt thì được quý nhân phò trợ. Tử Vi độc tọa không có phụ tinh, dẫu sang trọng cũng chẳng dài lâu; được các cát tinh ở tam phương tứ chính hội chiếu, mới là chính tông đại cách.",
+   "conditionsVi": "Tử Vi độc tọa không có phụ tinh phò trợ thì quý không lâu; cần được các cát tinh ở tam phương tứ chính hội chiếu mới thành đại cách, hoặc đắc Tả Phù Hữu Bật, Văn Xương Văn Khúc, Thiên Khôi Thiên Việt.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微为帝座之星，得辅弼则贵，得昌曲则秀，得魁钺则贵人扶持。紫微独坐无辅，纵贵不久；得三方四正之吉星会照，方为正宗大格。"
+     }
+    ],
+    "combinedQuotesCn": "紫微为帝座之星，得辅弼则贵，得昌曲则秀，得魁钺则贵人扶持。紫微独坐无辅，纵贵不久；得三方四正之吉星会照，方为正宗大格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:11:51+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "7714fb29440aa9bf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-005",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-005",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "紫微星论",
+     "subGroupKey": "gsf-2-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Luận về sao Tử Vi trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Phá Quân",
+     "Thiên Phủ"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [
+     "Tý",
+     "Sửu",
+     "Dần",
+     "Ngọ",
+     "Mùi",
+     "Thân"
+    ],
+    "patternsVi": [
+     "Tử Phủ Đồng Cung"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "phu-quy",
+     "tu-vi"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Tử Vi ở cung Tý hoặc cung Ngọ tạo thành cách cục mặt nam lưng bắc, chủ về đại phú đại quý. Tử Vi ở cung Sửu hoặc cung Mùi đồng cung với sao Phá Quân, chủ về tính tình cương nghị và quyết đoán. Tử Vi ở cung Dần hoặc cung Thân đồng cung với sao Thiên Phủ, gọi là cách cục Tử Phủ đồng cung, chủ về phẩm chất đoan trang và đời sống sung túc.",
+   "fullTranslationVi": "Sao Tử Vi ở cung Tý hoặc cung Ngọ gọi là mặt nam lưng bắc, chủ đại phú đại quý. Sao Tử Vi ở cung Sửu hoặc cung Mùi đồng cung với Phá Quân, chủ cương nghị quyết đoán. Sao Tử Vi ở cung Dần hoặc cung Thân đồng cung với Thiên Phủ, gọi là cách cục Tử Phủ đồng cung, chủ phẩm đoan và áo cơm sung túc.",
+   "conditionsVi": "Sao Tử Vi đóng tại các cung Tý, Ngọ, Sửu, Mùi, Dần, Thân và có các trạng thái đồng cung với sao Phá Quân hoặc sao Thiên Phủ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微在子午为「面南背北」之贵，主大富大贵；紫微在丑未与破军同宫，主刚毅果决；紫微在寅申与天府同宫，称「紫府同宫」格，主品端衣食丰足。"
+     }
+    ],
+    "combinedQuotesCn": "紫微在子午为「面南背北」之贵，主大富大贵；紫微在丑未与破军同宫，主刚毅果决；紫微在寅申与天府同宫，称「紫府同宫」格，主品端衣食丰足。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:12:03+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9449f72732bc2d41",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-006",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-006",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "紫微星论",
+     "subGroupKey": "gsf-2-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Tử Vi Ở Các Cung Quan Lộc, Điền Trạch Và Phu Thê",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi"
+    ],
+    "palacesVi": [
+     "Quan Lộc",
+     "Điền Trạch",
+     "Phu Thê"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "su-nghiep",
+     "dien-trach",
+     "hon-nhan",
+     "sao-tu-vi"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Luận về sao Tử Vi tọa thủ tại các cung. Tử Vi ở Quan Lộc không có sát tinh xung phá ắt làm quan lớn; ở Điền Trạch chủ có sản nghiệp tổ tiên và tự tạo lập được; ở Phu Thê chủ phối hợp với người đoan trang, khí chất phi thường, nhưng nên kết hôn muộn.",
+   "fullTranslationVi": "Tử Vi cư Quan Lộc, vô sát xung phá, tất vi cao quan; Tử Vi cư Điền Trạch, chủ hữu tổ nghiệp, hựu năng tự trí; Tử Vi cư Phu Thê, chủ phối ngẫu đoan trang, khí chất bất phàm, đãn nghi trì hôn bất nghi tảo.",
+   "conditionsVi": "Cung Quan Lộc có sao Tử Vi tọa thủ nhưng không có sát tinh xung phá. Cung Điền Trạch và cung Phu Thê có sao Tử Vi tọa thủ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微居官禄，无煞冲破，必为高官；紫微居田宅，主有祖业，又能自置；紫微居夫妻，主配偶端庄，气质不凡，但宜迟婚不宜早。"
+     }
+    ],
+    "combinedQuotesCn": "紫微居官禄，无煞冲破，必为高官；紫微居田宅，主有祖业，又能自置；紫微居夫妻，主配偶端庄，气质不凡，但宜迟婚不宜早。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:12:25+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "0bd9722bca41a263",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-007",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-007",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "紫微星论",
+     "subGroupKey": "gsf-2-4"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Luận bàn về sao Tử Vi và Tứ Hóa trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Quyền",
+      "starVi": "Tử Vi"
+     },
+     {
+      "mutagenVi": "Hóa Khoa",
+      "starVi": "Tử Vi"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ",
+      "starVi": "Tử Vi"
+     }
+    ],
+    "topicTags": [
+     "tu-vi",
+     "tu-hoa",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Luận giải về sao Tử Vi khi gặp các sao Địa Không, Địa Kiếp thì chủ về có tước vị mà không có bổng lộc; gặp cảnh cô quân thiếu sự phò tá thì như ngọn núi cao trơ trọi, khó thành đại sự. Đồng thời, sao Tử Vi hóa Quyền chủ về độc đoán, hóa Khoa chủ về danh tiếng, còn hóa Kỵ chủ về việc bị người khác kiềm chế.",
+   "fullTranslationVi": "Sao Tử Vi gặp Địa Không, Địa Kiếp, chủ về có địa vị nhưng không có bổng lộc. Sao Tử Vi thiếu sự phò tá của các sao phụ tá, chủ về cảnh cô độc trơ trọi một mình, khó thành đại sự. Sao Tử Vi hóa Quyền chủ về sự độc đoán, sao Tử Vi hóa Khoa chủ về danh tiếng, sao Tử Vi hóa Kỵ chủ về việc bị kìm hãm, chi phối bởi người khác.",
+   "conditionsVi": "Áp dụng khi sao Tử Vi hội chiếu với Địa Không và Địa Kiếp, hoặc khi Tử Vi độc tọa thiếu các sao phụ tá phò tá, và khi Tử Vi gặp các trạng thái Hóa Quyền, Hóa Khoa, Hóa Kỵ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微忌空劫，主有位无禄。紫微忌孤君无辅，主孤峰独峙，难成大事。紫微化权主独断，紫微化科主名声，紫微化忌主受制于人。"
+     }
+    ],
+    "combinedQuotesCn": "紫微忌空劫，主有位无禄。紫微忌孤君无辅，主孤峰独峙，难成大事。紫微化权主独断，紫微化科主名声，紫微化忌主受制于人。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:12:43+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "12beeaeebf81ddc8",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-008",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-008",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "七杀星论",
+     "subGroupKey": "gsf-3-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Thất Sát Tướng Tinh - Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "su-nghiep",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Thất Sát là tướng tinh, mang bản tính cương nghị và quyết đoán. Khi Thất Sát thủ Mệnh cung, sao này không ưa đồng cung với các sao cát tinh khác mà phải độc hành theo con đường riêng mới đúng cách cục. Nếu Thất Sát gặp Địa Không hoặc Địa Kiếp, chủ về cô độc, phiêu bạt và sự nghiệp khó thành.",
+   "fullTranslationVi": "Thất Sát là tướng tinh, tính tình cương nghị quyết đoán. Thất Sát thủ Mệnh, không thích cùng các sao cát đồng cung, đi một mình theo con đường của mình mới là chính cách. Thất Sát gặp Địa Không Địa Kiếp, chủ về cô độc phiêu bạt, sự nghiệp khó thành.",
+   "conditionsVi": "Thất Sát thủ Mệnh cung không đồng cung với các cát tinh và hội họp với Địa Không, Địa Kiếp.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "七杀为将星，性刚毅果决。七杀守命，不喜与诸吉同宫，独行其道方为本格。七杀逢空劫，主孤独漂泊，事业难成。"
+     }
+    ],
+    "combinedQuotesCn": "七杀为将星，性刚毅果决。七杀守命，不喜与诸吉同宫，独行其道方为本格。七杀逢空劫，主孤独漂泊，事业难成。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:12:49+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "73fe831b4e60835b",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-009",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-009",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "七杀星论",
+     "subGroupKey": "gsf-3-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Thất Sát Tinh Luận: Cách Cục Thất Sát Triều Đẩu",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Tử Vi",
+     "Thiên Phủ",
+     "Thiên Tướng"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di"
+    ],
+    "branchesVi": [
+     "Tý",
+     "Dần",
+     "Ngọ",
+     "Thân"
+    ],
+    "patternsVi": [
+     "Thất Sát Triều Đẩu"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "tai-loc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Thất Sát Triều Đẩu khi Thất Sát tọa thủ tại các cung Tý, Ngọ, Dần, Thân, có các sao Tử Vi, Thiên Phủ, Thiên Tướng từ cung đối chiếu rọi về, chủ về công danh tài lộc rực rỡ, rất thích hợp với binh nghiệp và công an, mở mang bờ cõi. Quý khí trọn đời khó cản, nhưng bản mệnh phải qua tôi luyện gian khổ mới thành đại sự.",
+   "fullTranslationVi": "Cách cục Thất Sát Triều Đẩu: Thất Sát cư các cung Tý, Ngọ, Dần, Thân, cung đối chiếu có các sao Tử Vi, Thiên Phủ, Thiên Tướng chiếu rọi, chủ về tước lộc vinh hiển, tươi sáng. Rất thích hợp làm quân đội, cảnh sát, võ chức, mở mang bờ cõi, đất đai. Quý khí cả đời khó cản, nhưng cần phải trải qua tôi luyện thì mới thành đại khí.",
+   "conditionsVi": "Thất Sát tọa thủ tại các cung Tý, Ngọ, Dần, Thân, với đối cung có Tử Vi, Thiên Phủ, Thiên Tướng chiếu về. Bản mệnh cần phải qua tôi luyện gian khổ mới thành đại khí.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "七杀朝斗格：七杀居子午、寅申，对宫紫微天府相照，主爵禄荣昌。最宜军警武职、开疆拓土。一生贵气难挡，但需经磨炼方成大器。"
+     }
+    ],
+    "combinedQuotesCn": "七杀朝斗格：七杀居子午、寅申，对宫紫微天府相照，主爵禄荣昌。最宜军警武职、开疆拓土。一生贵气难挡，但需经磨炼方成大器。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:12:56+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "6a271689a4079b26",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-010",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-010",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "七杀星论",
+     "subGroupKey": "gsf-3-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Thất Sát Tinh Cùng Tứ Sát Hóa",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc",
+      "starVi": "Thất Sát"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ",
+      "starVi": "Thất Sát"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "tu-hoa",
+     "su-nghiep"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Luận giải về sao Thất Sát khi gặp các sao Kình Dương, Đà La chủ về hình thương huyết quang; gặp Hỏa Tinh, Linh Tinh chủ về uy vũ cương liệt; gặp Hóa Lộc chủ về một thân võ quý; còn gặp Hóa Kỵ thì trái lại chủ về tiêu trầm, sự nghiệp gặp nhiều thất bại.",
+   "fullTranslationVi": "Thất Sát gặp Kình Dương, Đà La, chủ về hình thương huyết quang; Thất Sát gặp Hỏa Tinh, Linh Tinh, chủ về uy vũ cương liệt; Thất Sát gặp Hóa Lộc, chủ về một thân võ quý; Thất Sát gặp Hóa Kỵ, trái lại chủ về tiêu trầm, sự nghiệp nhiều thất bại.",
+   "conditionsVi": "Khi sao Thất Sát hội hợp với các sao Kình Dương, Đà La, Hỏa Tinh, Linh Tinh hoặc gặp các hóa tinh như Hóa Lộc, Hóa Kỵ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "七杀逢羊陀，主刑伤血光；七杀逢火铃，主威武刚烈；七杀逢化禄，主一身武贵；七杀逢化忌，反主消沉，事业多败。"
+     }
+    ],
+    "combinedQuotesCn": "七杀逢羊陀，主刑伤血光；七杀逢火铃，主威武刚烈；七杀逢化禄，主一身武贵；七杀逢化忌，反主消沉，事业多败。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:13:02+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "14a5f065b59c1b23",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-011",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-011",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "杀破狼格",
+     "subGroupKey": "gsf-4-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Cách cục Sát Phá Lang",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Phá Quân",
+     "Tham Lang"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di",
+     "Tài Bạch",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Sát Phá Lang Cách"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "bien-dong"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Bộ ba sao Thất Sát, Phá Quân và Tham Lang hội tụ tại các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc cấu thành Sát Phá Lang Cách, chủ về cả đời biến động nhiều, không cam chịu bình thường, thích hợp lập nghiệp, làm quân cảnh hoặc kinh doanh. Thời trẻ dễ xung động dẫn đến thất lợi, từ trung niên trở về sau mới có thể ổn định giữ gìn thành quả.",
+   "fullTranslationVi": "Các sao Thất Sát, Phá Quân, Tham Lang hội tụ ở các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc, gọi là Sát Phá Lang Cách. Chủ về một đời biến động nhiều, không cam lòng bình thường, thích hợp khởi nghiệp, binh nghiệp, cảnh sát, kinh doanh. Tuổi trẻ dễ bốc đồng thất lợi, sau tuổi trung niên mới có thể ổn định giữ gìn cơ nghiệp.",
+   "conditionsVi": "Các sao Thất Sát, Phá Quân và Tham Lang hội tụ tại các cung Mệnh, Thiên Di, Tài Bạch hoặc Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "七杀、破军、贪狼三星会命迁财官，称「杀破狼格」。主一生变动多、不甘平凡，宜创业、军警、业务。年轻易冲动失利，中年后方能稳定守成。"
+     }
+    ],
+    "combinedQuotesCn": "七杀、破军、贪狼三星会命迁财官，称「杀破狼格」。主一生变动多、不甘平凡，宜创业、军警、业务。年轻易冲动失利，中年后方能稳定守成。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:14:07+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9ba190c08da22b21",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-012",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-012",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "杀破狼格",
+     "subGroupKey": "gsf-4-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cách cục Sát Phá Lang trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Phá Quân",
+     "Tham Lang",
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [
+     "Sát Phá Lang Cách"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "tu-hoa",
+     "sat-tinh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận giải về cách cục Sát Phá Lang khi có sao Hóa Lộc hoặc Hóa Quyền hội chiếu ở tam phương thì chủ sự chủ động, hành động có lực, có thể làm nên đại sự; ngược lại, nếu tam phương gặp sát tinh quá nặng nề như Kình Dương, Đà La, Hỏa Tinh, Linh Tinh cùng chiếu thì chủ sự dù có biến động nhưng không thành công, nên tĩnh thủ.",
+   "fullTranslationVi": "Tam phương của Sát Phá Lang có Hóa Lộc hoặc Hóa Quyền, chủ động có lực, có thể thành đại sự; nếu tam phương sát tinh quá nặng (Kình Dương, Đà La, Hỏa Tinh, Linh Tinh cùng chiếu), chủ động mà không thành, nên tĩnh thủ.",
+   "conditionsVi": "Điều kiện thành công là tam phương có Hóa Lộc hoặc Hóa Quyền. Điều kiện phá cách là tam phương bị các sát tinh Kình Dương, Đà La, Hỏa Tinh, Linh Tinh cùng chiếu quá nặng nề.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "杀破狼三方有化禄或化权，主动得有力，可成大事；若三方煞星过重（羊陀火铃齐照），主动而无成，宜静守。"
+     }
+    ],
+    "combinedQuotesCn": "杀破狼三方有化禄或化权，主动得有力，可成大事；若三方煞星过重（羊陀火铃齐照），主动而无成，宜静守。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:14:14+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "51d81398d3fed31c",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-013",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-013",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "机月同梁",
+     "subGroupKey": "gsf-5-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cách Cơ Nguyệt Đồng Lương trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Thái Âm",
+     "Thiên Đồng",
+     "Thiên Lương"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di",
+     "Tài Bạch",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Cơ Nguyệt Đồng Lương"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Bộ tứ sao Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương cùng quy tụ tại các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc cấu thành cách Cơ Nguyệt Đồng Lương. Cách cục này chủ về con người văn chất bẩm sinh, thông tuệ và giỏi mưu lược, rất thích hợp với các ngành nghề ổn định như công chức, học thuật, văn nghệ, y tế, dịch vụ.",
+   "fullTranslationVi": "Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương bốn sao cùng vào các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc, gọi là cách Cơ Nguyệt Đồng Lương. Chủ về văn chất bẩm sinh, thông tuệ và giỏi mưu lược. Rất thích hợp cho các ngành nghề cần tích lũy ổn định như công chức, học thuật, văn nghệ, y tế, dịch vụ, không thích hợp mạo hiểm hay đầu cơ lớn.",
+   "conditionsVi": "Bốn sao Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương phải cùng quy tụ vào các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天机、太阴、天同、天梁四星齐入命迁财官，称「机月同梁格」。主文质彬彬、聪慧善谋。最适合公职、学术、文艺、医疗、服务等需稳定累积的行业，不宜大冒险大投机。"
+     }
+    ],
+    "combinedQuotesCn": "天机、太阴、天同、天梁四星齐入命迁财官，称「机月同梁格」。主文质彬彬、聪慧善谋。最适合公职、学术、文艺、医疗、服务等需稳定累积的行业，不宜大冒险大投机。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:16:54+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "96469db7916a46d5",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-014",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-014",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "机月同梁",
+     "subGroupKey": "gsf-5-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Cơ Nguyệt Đồng Lương Trợ Công Lịch",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Thái Âm",
+     "Thiên Đồng",
+     "Thiên Lương",
+     "Văn Xương",
+     "Văn Khúc"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [
+     "Cơ Nguyệt Đồng Lương"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Khoa",
+      "starVi": ""
+     }
+    ],
+    "topicTags": [
+     "su-nghiep",
+     "cach-cuc",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận giải về cách cục Cơ Nguyệt Đồng Lương làm quan chức, hành chính văn thư, giúp cuộc đời được an ổn. Nếu lại hội hợp với Văn Xương, Văn Khúc và Hóa Khoa thì chủ về danh tiếng lừng lẫy khắp nơi. Kỵ nhất là gặp quá nhiều sao sát tinh, sẽ khiến cho hoàn cảnh trở nên nhiều biến động và khó lòng an định.",
+   "fullTranslationVi": "Cơ Nguyệt Đồng Lương làm quan chức — cổ thư nói cách cục này rất hợp để đảm nhận công việc công chức, hành chính văn thư, cuộc đời an ổn. Lại gặp Văn Xương, Văn Khúc và Hóa Khoa, chủ về danh tiếng vang xa. Sợ nhất là có quá nhiều sao sát tinh, ngược lại sẽ chủ về nhiều biến động khó được an định.",
+   "conditionsVi": "Trường hợp hội hợp với Văn Xương, Văn Khúc và Hóa Khoa chủ về danh tiếng vươn xa; trường hợp kỵ nhất là có quá nhiều sát tinh thì chuyển thành nhiều biến động và khó an định.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "机月同梁作吏人——古云此格者宜担任公职、行政文书工作，安稳一生。再会昌曲化科，主名声远播。最忌煞星过多，则反主多变难安。"
+     }
+    ],
+    "combinedQuotesCn": "机月同梁作吏人——古云此格者宜担任公职、行政文书工作，安稳一生。再会昌曲化科，主名声远播。最忌煞星过多，则反主多变难安。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:17:29+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "d84ccf913b7f3b05",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-015",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-015",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "四化星论",
+     "subGroupKey": "gsf-6-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Ý nghĩa cơ bản của Tứ Hóa",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     },
+     {
+      "mutagenVi": "Hóa Khoa"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "phuong-phap",
+     "sao-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Đoạn phú giải thích ý nghĩa tổng quát của bốn sao hóa gồm Hóa Lộc chủ về tài lộc, duyên phận và khả năng biến hiện năng lực; Hóa Quyền chủ về quyền lực, sự quyết đoán và khả năng gánh vác độc lập; Hóa Khoa chủ về danh tiếng, quý nhân và văn thư; Hóa Kỵ chủ về bệnh tật, sát tinh và những bài học sâu sắc cần trải qua.",
+   "fullTranslationVi": "Hóa Lộc chủ tài, chủ duyên, chủ năng lực biến hiện; Hóa Quyền chủ quyền, chủ quyết đoán, chủ độc đương nhất diện; Hóa Khoa chủ danh, chủ quý nhân, chủ văn thư; Hóa Kỵ chủ bệnh, chủ sát, chủ thâm khắc công khóa.",
+   "conditionsVi": "Áp dụng khi luận giải ý nghĩa tổng quát của bốn trạng thái Hóa Lộc, Hóa Quyền, Hóa Khoa và Hóa Kỵ trong lá số Tử Vi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化禄主财、主缘、主能力变现；化权主权、主决断、主独当一面；化科主名、主贵人、主文书；化忌主病、主煞、主深刻功课。"
+     }
+    ],
+    "combinedQuotesCn": "化禄主财、主缘、主能力变现；化权主权、主决断、主独当一面；化科主名、主贵人、主文书；化忌主病、主煞、主深刻功课。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:17:38+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "76dd8ed93544ef1e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-016",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-016",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "四化星论",
+     "subGroupKey": "gsf-6-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Luận Cốt Tủy Phú - Tứ Hóa Nhập Mệnh",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     },
+     {
+      "mutagenVi": "Hóa Khoa"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "ban-menh",
+     "tai-loc",
+     "su-nghiep",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Luận giải về ý nghĩa cát hung của Tứ Hóa khi nhập Mệnh cung theo Cốt Tủy Phú. Khi Hóa Lộc nhập Mệnh thì nguồn tài lộc dồi dào, Hóa Quyền nhập Mệnh thì có khả năng đảm đương trọng trách lớn, Hóa Khoa nhập Mệnh thì danh tiếng vang xa, còn Hóa Kỵ nhập Mệnh thì phải trải qua nhiều tôi luyện, rèn giũa rồi mới thành tài.",
+   "fullTranslationVi": "Hóa Lộc nhập Mệnh, nguồn tài lộc dồi dào; Hóa Quyền nhập Mệnh, có thể đảm đương trọng trách lớn; Hóa Khoa nhập Mệnh, danh tiếng vang xa; Hóa Kỵ nhập Mệnh, phải trải qua tôi luyện mới có thể thành tài.",
+   "conditionsVi": "Các sao Hóa Lộc, Hóa Quyền, Hóa Khoa, hoặc Hóa Kỵ phải tọa thủ tại Mệnh cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化禄入命，财源广进；化权入命，能担大任；化科入命，名声远播；化忌入命，须经磨炼方能成器。"
+     }
+    ],
+    "combinedQuotesCn": "化禄入命，财源广进；化权入命，能担大任；化科入命，名声远播；化忌入命，须经磨炼方能成器。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:17:45+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "373c24479d7e4d06",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-017",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-017",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "四化星论",
+     "subGroupKey": "gsf-6-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Ý Nghĩa Hóa Kỵ Nhập Các Cung",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Tài Bạch",
+     "Quan Lộc",
+     "Phu Thê",
+     "Tử Nữ"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "tai-loc",
+     "su-nghiep",
+     "hon-nhan",
+     "gia-dinh"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "palaces_family",
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Luận giải về tác động của Hóa Kỵ khi nhập vào các cung Tài Bạch, Quan Lộc, Phu Thê và Tử Nữ. Cụ thể, hóa kỵ nhập Tài Bạch chủ tài lộc đến rồi đi; nhập Quan Lộc chủ sự nghiệp gặp trắc trở; nhập Phu Thê chủ hôn nhân nhiều trắc trở; nhập Tử Nữ chủ duyên phận với con cái mỏng manh hoặc hay xảy ra mâu thuẫn, xích mích giữa cha mẹ và con cái.",
+   "fullTranslationVi": "Hóa kỵ nhập Tài Bạch, chủ tài lộc đến rồi đi; hóa kỵ nhập Quan Lộc, chủ sự nghiệp chịu trắc trở; hóa kỵ nhập Phu Thê, chủ hôn nhân nhiều trắc trở; hóa kỵ nhập Tử Nữ, chủ duyên con cái mỏng manh hoặc có sự va chạm, xích mích giữa cha mẹ và con cái.",
+   "conditionsVi": "Áp dụng khi sao Hóa Kỵ nhập lần lượt vào các cung Tài Bạch, Quan Lộc, Phu Thê hoặc Tử Nữ trong lá số Tử Vi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化忌入财，主财来财去；化忌入官，主事业受挫；化忌入夫妻，主婚姻多波折；化忌入子女，主子女缘薄或亲子摩擦。"
+     }
+    ],
+    "combinedQuotesCn": "化忌入财，主财来财去；化忌入官，主事业受挫；化忌入夫妻，主婚姻多波折；化忌入子女，主子女缘薄或亲子摩擦。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:17:51+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "7f240bc05928931e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-018",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-018",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "四化星论",
+     "subGroupKey": "gsf-6-4"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Luận về Song Lộc Triều Viên và Khoa Quyền Song Hội trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Lộc Tồn"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Tài Bạch",
+     "Thiên Di",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Song Lộc Triều Viên",
+     "Khoa Quyền Song Hội"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     },
+     {
+      "mutagenVi": "Hóa Khoa"
+     }
+    ],
+    "topicTags": [
+     "tai-loc",
+     "danh-tieng",
+     "cach-cuc",
+     "tu-hoa",
+     "co-thu"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "horizon_5y"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận về hai cách cục tốt đẹp trong Tử Vi Đẩu Số. Khi Lộc Tồn và Hóa Lộc cùng hội chiếu về tam phương của mệnh cung, gọi là cách song lộc triều viên, chủ về sự giàu có sánh ngang Đào Chu. Khi Hóa Khoa và Hóa Quyền cùng hội chiếu, gọi là khoa quyền song hội, chủ về danh tiếng và quyền lực đều trọn vẹn, tốt đẹp.",
+   "fullTranslationVi": "Lộc Tồn cùng Hóa Lộc đồng hội mệnh tam phương, gọi là Song Lộc Triều Viên, chủ giàu có sánh ngang Đào Chu; Hóa Khoa cùng Hóa Quyền đồng hội, gọi là Khoa Quyền Song Hội, chủ danh quyền song mỹ.",
+   "conditionsVi": "Điều kiện để thành cách song lộc triều viên là Lộc Tồn và Hóa Lộc cùng hội về tam phương của mệnh cung. Điều kiện để thành cách khoa quyền song hội là Hóa Khoa và Hóa Quyền cùng hội chiếu.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "禄存与化禄同会命三方，称「双禄朝垣」，主富比陶朱；化科与化权同会，称「科权双会」，主名权双美。"
+     }
+    ],
+    "combinedQuotesCn": "禄存与化禄同会命三方，称「双禄朝垣」，主富比陶朱；化科与化权同会，称「科权双会」，主名权双美。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:17:57+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "c5f773b099667352",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-019",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-019",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "辅弼魁钺论",
+     "subGroupKey": "gsf-7-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Lục cát tinh chi quý trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "sao-cat-tinh",
+     "quy-nhan",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú giải thích ý nghĩa cơ bản của sáu sao cát tinh gồm Tả Phù Hữu Bật làm sao tượng trưng cho sự giúp đỡ và quý nhân; Văn Xương Văn Khúc là văn tinh chủ về sự thông minh tuấn tú; Thiên Khôi Thiên Việt là quý nhân tinh chủ về sự phò trợ đúng lúc trong những thời điểm then chốt.",
+   "fullTranslationVi": "Tả Phù Hữu Bật là sao tướng, chủ về lực lượng trợ giúp và quý nhân; Văn Xương Văn Khúc là văn tinh, chủ về sự thông minh tuấn tú; Thiên Khôi Thiên Việt là sao quý nhân, chủ về việc có người phò trợ ở thời điểm mấu chốt.",
+   "conditionsVi": "Áp dụng khi luận giải ý nghĩa tính chất cơ bản của các sao Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi và Thiên Việt.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "左辅右弼为「相星」，主助力贵人；文昌文曲为「文星」，主聪明俊秀；天魁天钺为「贵人星」，主关键时刻有人扶持。"
+     }
+    ],
+    "combinedQuotesCn": "左辅右弼为「相星」，主助力贵人；文昌文曲为「文星」，主聪明俊秀；天魁天钺为「贵人星」，主关键时刻有人扶持。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:18:04+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "f9e1c733a63aab35",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-020",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-020",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "辅弼魁钺论",
+     "subGroupKey": "gsf-7-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Lục Cát Tinh Tụ Hội Mệnh Cung Tam Phương Tứ Chính",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "cach-cuc",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú từ Cốt Tủy Phú nhấn mạnh rằng khi sáu sao cát tinh hội tụ tại mệnh cung và tam phương tứ chính sẽ mang lại chủ mệnh cuộc đời có quý nhân phù trợ không dứt và nhân duyên cực tốt. Ngay cả khi mệnh cách tầm thường, chủ mệnh vẫn có thể dựa vào sức mạnh của sáu cát tinh để tạo dựng sự nghiệp phi thường.",
+   "fullTranslationVi": "Sáu sao cát tinh cùng hội tụ tại mệnh cung và tam phương tứ chính, chủ về một đời quý nhân không dứt, nhân duyên cực tốt. Ngay cả khi mệnh cách bình thường, cũng có thể mượn sức mạnh của sáu cát tinh để đạt được sự nghiệp phi thường.",
+   "conditionsVi": "Sáu cát tinh phải cùng hội tụ tại mệnh cung và tam phương tứ chính.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "六吉星齐会命宫三方四正，主一生贵人不绝、人缘极佳。即使命格平常，亦能借六吉之力达成不凡之业。"
+     }
+    ],
+    "combinedQuotesCn": "六吉星齐会命宫三方四正，主一生贵人不绝、人缘极佳。即使命格平常，亦能借六吉之力达成不凡之业。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:19:23+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "af15d1903f136867",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-021",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-021",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "辅弼魁钺论",
+     "subGroupKey": "gsf-7-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Phụ Bật Khôi Việt",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tả Phù",
+     "Hữu Bật",
+     "Tử Vi"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Phụ Bật Giáp Mệnh",
+     "Quân Thần Khánh Hội"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "quy-nhan",
+     "menh-cung"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Luận về cách Phụ Bật Giáp Mệnh khi Tả Phù và Hữu Bật kẹp hai bên cung Mệnh trước và sau, chủ về một đời được quý nhân phò trợ, gặp lúc khốn đốn có người giúp đỡ. Cách cục này tốt nhất là khi đồng cung với Tử Vi, được gọi là cách Quân Thần Khánh Hội.",
+   "fullTranslationVi": "Tả Phù Hữu Bật giáp mệnh: Tả Phù và Hữu Bật kẹp ở hai cung trước và sau cung Mệnh, chủ về một đời được quý nhân phò trợ, gặp lúc khốn đốn có giúp đỡ. Rất thích hợp đồng cung với Tử Vi, gọi là cách Quân Thần Khánh Hội.",
+   "conditionsVi": "Điều kiện để thành cách cục là Tả Phù và Hữu Bật phải kẹp ở hai cung trước và sau cung Mệnh (Phụ Bật Giáp Mệnh), hoặc đồng cung với Tử Vi (Quân Thần Khánh Hội).",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "辅弼夹命：左辅右弼夹于命宫前后两宫，主一生贵人扶持，遇困有助。最宜与紫微同宫，称「君臣庆会」格。"
+     }
+    ],
+    "combinedQuotesCn": "辅弼夹命：左辅右弼夹于命宫前后两宫，主一生贵人扶持，遇困有助。最宜与紫微同宫，称「君臣庆会」格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:19:30+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9719c1fe129bb6e7",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-022",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-022",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "六煞星论",
+     "subGroupKey": "gsf-8-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Lục Sát Tinh Luận trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "sat-tinh",
+     "phuong-phap",
+     "luan-giai"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú phân loại các sát tinh thành ba nhóm đặc tính chính: Kình Dương và Đà La là sát tinh chủ về huyết quang, thị phi, trở ngại; Hỏa Tinh và Linh Tinh là táo tinh chủ về sự bốc đồng, nóng nảy, thương tích; Địa Không và Địa Kiếp là không vong chủ về hao tài, hư danh, không thực tế.",
+   "fullTranslationVi": "Kình Dương và Đà La là sát tinh, chủ huyết quang, thị phi, trở ngại; Hỏa Tinh và Linh Tinh là táo tinh, chủ bốc đồng, nóng nảy, thương tích; Địa Không và Địa Kiếp là không vong, chủ hao tài, hư danh, không thực tế.",
+   "conditionsVi": "Áp dụng định nghĩa và phân loại đặc tính cơ bản của sáu sao Kình Dương, Đà La, Hỏa Tinh, Linh Tinh, Địa Không, Địa Kiếp trong hệ thống Tử Vi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "擎羊陀罗为「煞星」，主血光、是非、阻碍；火星铃星为「燥星」，主冲动、急躁、伤灾；地空地劫为「空亡」，主财耗、虚名、不实。"
+     }
+    ],
+    "combinedQuotesCn": "擎羊陀罗为「煞星」，主血光、是非、阻碍；火星铃星为「燥星」，主冲动、急躁、伤灾；地空地劫为「空亡」，主财耗、虚名、不实。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:19:37+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "8ebf0053d58d2fbf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-023",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-023",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "六煞星论",
+     "subGroupKey": "gsf-8-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Lục Sát Tinh Luận trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "sach-tinh",
+     "phan-tich-tinh-cach",
+     "phuong-phap",
+     "van-han"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Luận giải về sao sát tinh không hoàn toàn là hung, ví như hòn đá mài có thể tôi luyện ra năng lực phá cục mà người thường không có. Tuổi trẻ dễ vì bốc đồng mà tự tổn thương, nhưng sau trung niên mới có thể chuyển sát tinh thành quyền lực.",
+   "fullTranslationVi": "Sát tinh không hoàn toàn là hung, sát tinh giống như hòn đá mài, có thể tôi luyện ra năng lực phá cục mà người thường không có. Khi còn trẻ dễ bốc đồng làm tổn thương bản thân, sau tuổi trung niên mới có thể hóa giải sát tinh thành quyền lực.",
+   "conditionsVi": "Áp dụng khi luận giải về bản chất hai mặt của các sát tinh, xét theo giai đoạn cuộc đời từ thời trẻ bốc đồng đến giai đoạn sau trung niên.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "煞星不全是凶——煞星犹如磨刀石，能炼出常人没有的破局力。年轻时易冲动伤己，中年后方能化煞为权。"
+     }
+    ],
+    "combinedQuotesCn": "煞星不全是凶——煞星犹如磨刀石，能炼出常人没有的破局力。年轻时易冲动伤己，中年后方能化煞为权。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:20:14+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "cccb9e5064e086a8",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-024",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-024",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "六煞星论",
+     "subGroupKey": "gsf-8-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Dương Đà Giáp Kỵ",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Kình Dương",
+     "Đà La"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [
+     "Dương Đà Giáp Kỵ"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "tu-hoa",
+     "van-han",
+     "hung-tinh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "year_2026",
+     "year_2027",
+     "horizon_5y",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Cách cục Dương Đà Giáp Kỵ xảy ra khi Kình Dương và Đà La kẹp cung có sao Hóa Kỵ, chủ về đại hung. Người có cách này trong năm hạn hoặc đại hạn cần phải đặc biệt cảnh giác với các tai họa về huyết quang, quan phi kiện tụng và những biến động lớn.",
+   "fullTranslationVi": "Dương Đà Giáp Kỵ: Kình Dương và Đà La kẹp ở cung có sao Hóa Kỵ tọa lạc, chủ về đại hung. Vào năm đó hoặc đại hạn đó, cần phải đặc biệt cảnh giác với huyết quang, quan phi và những biến động lớn.",
+   "conditionsVi": "Kình Dương và Đà La kẹp ở cung vị có sao Hóa Kỵ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "羊陀夹忌：擎羊陀罗夹于化忌星所在宫，主大凶。其年其大限须特别警觉血光、官非、重大变故。"
+     }
+    ],
+    "combinedQuotesCn": "羊陀夹忌：擎羊陀罗夹于化忌星所在宫，主大凶。其年其大限须特别警觉血光、官非、重大变故。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:20:48+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9ea14d3f898b8a0d",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-025",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-025",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "六煞星论",
+     "subGroupKey": "gsf-8-4"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Sáu Sao Sát Tinh Luận Về Không Kiếp Giáp Mệnh",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Không Kiếp Giáp Mệnh"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Không Kiếp Giáp Mệnh xuất hiện khi Địa Không và Địa Kiếp kẹp ở hai cung trước và sau Mệnh cung, chủ về một đời nên hướng về các lĩnh vực trừu tượng, hư vô, phù hợp với các ngành nghề phi thực tế như nghệ thuật, tôn giáo, huyền học, và không thích hợp để kinh doanh đầu tư.",
+   "fullTranslationVi": "Không Kiếp giáp mệnh: Địa Không và Địa Kiếp kẹp tại hai cung trước và sau của Mệnh cung, chủ một đời nên vụ việc hư không không vụ việc thực tế, nên hành nghề các ngành phi thực tế như nghệ thuật, tôn giáo, huyền học vân vân, không nên kinh doanh đầu tư.",
+   "conditionsVi": "Địa Không và Địa Kiếp phải kẹp ở hai cung trước và sau Mệnh cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "空劫夹命：地空地劫夹于命宫前后两宫，主一生宜务虚不务实，宜从事文艺、宗教、玄学等\"非实\"行业，不宜经商投资。"
+     }
+    ],
+    "combinedQuotesCn": "空劫夹命：地空地劫夹于命宫前后两宫，主一生宜务虚不务实，宜从事文艺、宗教、玄学等\"非实\"行业，不宜经商投资。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:21:47+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "0e9a978fa733b968",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-026",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-026",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "十二宫论",
+     "subGroupKey": "gsf-9-1"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Mệnh Cung Tam Phương Tứ Chính trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Tài Bạch",
+     "Quan Lộc",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "tai-loc",
+     "su-nghiep",
+     "ngoai-uyen",
+     "tam-phuong-tu-chinh",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Mệnh cung làm gốc, tam phương làm dụng với Tài Bạch chủ tài nguyên, Quan Lộc chủ sự nghiệp, Thiên Di chủ ngoại őn. Tam phương tứ chính cần có cát tinh hội chiếu thì mệnh cách mới có thể phát huy trọn vẹn.",
+   "fullTranslationVi": "Mệnh cung làm gốc, tam phương làm dụng: Tài Bạch chủ tài nguyên, Quan Lộc chủ sự nghiệp, Thiên Di chủ ngoại duyên. Tam phương tứ chính cát tinh hội chiếu, mệnh cách mới có thể phát huy trọn vẹn.",
+   "conditionsVi": "Cần có cát tinh hội chiếu trong tam phương tứ chính để mệnh cách phát huy trọn vẹn",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "命宫为本，三方为用：财帛主财源、官禄主事业、迁移主外缘。三方四正吉星会照，命格方能完整发用。"
+     }
+    ],
+    "combinedQuotesCn": "命宫为本，三方为用：财帛主财源、官禄主事业、迁移主外缘。三方四正吉星会照，命格方能完整发用。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:21:53+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "31df654eae59e6d4",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-027",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-027",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "十二宫论",
+     "subGroupKey": "gsf-9-2"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Phu Thê, Tử Nữ, Tật Ách Và Thiên Di",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Phu Thê",
+     "Tử Nữ",
+     "Tật Ách",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "phu-the",
+     "tu-nu",
+     "tat-ach",
+     "thien-di",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "palaces_family",
+     "palaces_social_health"
+    ]
+   },
+   "summaryVi": "Đoạn phú trong Cốt Tủy Phú luận giải về ý nghĩa các cung trong lá số tử vi. Cung Phu Thê xem khí chất của người phối ngẫu, cung Tử Nữ xem duyên phận với con cái, cung Tật Ách xem điểm yếu của cơ thể, và cung Thiên Di xem vận thế khi ra ngoài. Các chính tinh cùng tứ hóa trong mỗi cung sẽ quyết định sự cát hung và tiến thối của lĩnh vực đó.",
+   "fullTranslationVi": "Cung Phu Thê xem phối ngẫu khí chất, cung Tử Nữ xem tử nữ duyên phận, cung Tật Ách xem thân thể trỏm màn, cung Thiên Di xem ngoại xuất vận thế. Các cung chủ tinh dữ tứ hóa quyết định cai lĩnh vực chi cát hung tiến thối.",
+   "conditionsVi": "Các cung chủ tinh và tứ hóa trong từng cung quyết định cát hung tiến thối của lĩnh vực đó.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "夫妻宫看配偶气质，子女宫看子女缘分，疾厄宫看身体罩门，迁移宫看外出运势。各宫主星与四化决定该领域之吉凶进退。"
+     }
+    ],
+    "combinedQuotesCn": "夫妻宫看配偶气质，子女宫看子女缘分，疾厄宫看身体罩门，迁移宫看外出运势。各宫主星与四化决定该领域之吉凶进退。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:22:08+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "1e095ba500c7a584",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-028",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-028",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "十二宫论",
+     "subGroupKey": "gsf-9-3"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Cốt Tủy Phú - Luận Về Điền Trạch, Phúc Đức Và Phụ Mẫu",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Điền Trạch",
+     "Phúc Đức",
+     "Phụ Mẫu"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tai-loc",
+     "phuc-duc",
+     "phu-mau",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Đoạn phú trong Cốt Tủy Phú luận giải về ba cung quan trọng gồm Điền Trạch là kho tài của mệnh bàn quyết định việc giữ tài chính, Phúc Đức là cung chủ về tinh thần và sự an tâm hưởng thụ, cùng Phụ Mẫu là cung biểu thị quan hệ với người bề trên và đồng thời chủ quản văn thư hợp đồng.",
+   "fullTranslationVi": "Cung Điền Trạch là kho tài của mệnh bàn, tiền tài chính đáng có giữ được hay không là xem cung này; cung Phúc Đức là sự hưởng thụ tinh thần, lòng có an yên hay không là xem cung này; cung Phụ Mẫu là quan hệ với người bề trên, lại chủ về văn thư hợp đồng.",
+   "conditionsVi": "Xem xét các cung Điền Trạch, Phúc Đức và Phụ Mẫu trên mệnh bàn để luận đoán tài nguyên giữ được hay không, trạng thái tinh thần hưởng thụ, quan hệ bề trên và vấn đề văn thư hợp đồng.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "田宅宫为命盘财库，正财能否守住看此宫；福德宫为精神享受，心安与否看此宫；父母宫为长辈关系，亦主文书契约。"
+     }
+    ],
+    "combinedQuotesCn": "田宅宫为命盘财库，正财能否守住看此宫；福德宫为精神享受，心安与否看此宫；父母宫为长辈关系，亦主文书契约。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:22:53+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "f5fc6a33335b75aa",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-CTP-029",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-CTP-029",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "gusuifu",
+     "h2Cn": "骨髓赋",
+     "h3Cn": "十二宫论",
+     "subGroupKey": "gsf-9-4"
+    },
+    "workTitleVi": "Cốt Tủy Phú",
+    "groupTitleVi": "Phương pháp mượn cung luận sự trong Cốt Tủy Phú",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/gusuifu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "phuong-phap",
+     "luan-giai",
+     "menh-cung"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Nội dung quy định phương pháp mượn cung đối diện để luận đoán khi một cung bất kỳ không có chính tinh. Lấy cung Thiên Di làm ví dụ điển hình cho thấy khi Mệnh Cung vô chính diệu sẽ mượn chính tinh từ cung đối diện để xác định cách cục.",
+   "fullTranslationVi": "Không cung mượn cung đối để luận việc: Khi một cung nào đó không có chủ tinh, thì mượn chủ tinh của cung đối diện với nó để luận về việc của cung đó. Ví dụ như Mệnh Cung là không cung, thì mượn chủ tinh của Thiên Di để định mệnh cách.",
+   "conditionsVi": "Khi một cung bất kỳ không có chủ tinh (vô chính diệu) thì áp dụng phương pháp mượn chủ tinh của cung đối diện để luận đoán sự việc và định cục.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "空宫借对宫论事——某宫无主星时，借其对宫主星论该宫之事。如命宫空宫，借迁移宫主星定命格。"
+     }
+    ],
+    "combinedQuotesCn": "空宫借对宫论事——某宫无主星时，借其对宫主星论该宫之事。如命宫空宫，借迁移宫主星定命格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:22:59+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "8060245a1f36188d",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-001",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-001",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷一·总论",
+     "subGroupKey": "qj-1-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tổng luận Tử Vi Đẩu Số từ Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thân Cung",
+     "Tài Bạch",
+     "Quan Lộc",
+     "Thiên Di",
+     "Phu Thê",
+     "Phúc Đức",
+     "Phụ Mẫu",
+     "Huynh Đệ",
+     "Tử Nữ",
+     "Giao Hữu",
+     "Điền Trạch",
+     "Tật Ách"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "phuong-phap",
+     "tong-quan",
+     "nhap-mon"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú giới thiệu nguồn gốc Tử Vi Đẩu Số do Trần Đoàn tổ sư truyền lại, lấy sao Tử Vi làm đế tọa thống lĩnh trăm sao. Các sao đều có chủ riêng, có sự phân chia miếu vượng lợi hãm và hội chiếu cát hung. Phương pháp xem mệnh gồm bốn bước: an sao, định mệnh cung và thân cung, xem cát hung mười hai cung, và tham khảo phi hóa của đại hạn lưu niên.",
+   "fullTranslationVi": "Phàm Tử Vi Đẩu Số là do Trần Đoàn tổ sư truyền lại, vốn lấy sao Tử Vi làm đế tọa, thống ngự trăm sao. Các sao đều có chỗ chủ định, đều có sự phân chia miếu vượng lợi hãm, sự khác biệt của hội chiếu cát hung. Người xem mệnh, tất phải trước tiên an sao, kế tiếp định mệnh cung thân cung, thứ ba xem cát hung mười hai cung, thứ tư tham khảo phi hóa của đại hạn lưu niên.",
+   "conditionsVi": "Áp dụng phương pháp xem mệnh bốn bước gồm an sao, định mệnh cung thân cung, xem cát hung mười hai cung, và tham khảo phi hóa đại hạn lưu niên.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "夫紫微斗数者，乃陈抟祖师所传，原以紫微为帝座，统御百星。星曜各有所主，各有庙旺利陷之分，会照吉凶之别。看命者，必先安星，次定命宫身宫，三看十二宫吉凶，四参大限流年之飞化。"
+     }
+    ],
+    "combinedQuotesCn": "夫紫微斗数者，乃陈抟祖师所传，原以紫微为帝座，统御百星。星曜各有所主，各有庙旺利陷之分，会照吉凶之别。看命者，必先安星，次定命宫身宫，三看十二宫吉凶，四参大限流年之飞化。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:23:06+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "6a6be2e03e425bc9",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-002",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-002",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷一·总论",
+     "subGroupKey": "qj-1-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Phép an sao trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt",
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "phuong-phap",
+     "lap-la-so",
+     "chinh-tinh",
+     "luc-cat-luc-sat"
+    ],
+    "targetDossierSections": [
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Đoạn phú trình bày phương pháp an sao cơ bản trong Tử Vi Đẩu Số, bắt đầu từ việc lấy năm sinh để an sao Tử Vi, từ đó định vị các sao còn lại an vào mười hai cung. Mười bốn chính tinh cùng sáu cát tinh và sáu sát tinh phò tá, vận hành theo đúng phép để lập thành một lá số hoàn chỉnh, khiến muôn tượng trong đời người đều hiển hiện.",
+   "fullTranslationVi": "Phép an sao: trước tiên lấy can năm sinh để an sao Tử Vi. Vị trí của sao Tử Vi đã định, thì các chòm sao đều theo đúng phép của nó mà xếp đặt vào mười hai cung. Mười bốn chính tinh mỗi sao ở đúng vị trí của mình, sáu cát tinh và sáu sát tinh phò tá và vận hành theo. Một lá số đã định thì muôn tượng đều hiện rõ.",
+   "conditionsVi": "Dựa trên can năm sinh để an sao Tử Vi làm mốc định vị mười hai cung, kết hợp mười bốn chính tinh cùng sáu cát tinh và sáu sát tinh để an vào các cung vị tương ứng trên lá số.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "安星之法：先以年干起紫微，紫微所在宫位定，则诸星皆按其法位列十二宫。十四主星各居其位，六吉六煞辅而行之。一盘既定，万象皆现。"
+     }
+    ],
+    "combinedQuotesCn": "安星之法：先以年干起紫微，紫微所在宫位定，则诸星皆按其法位列十二宫。十四主星各居其位，六吉六煞辅而行之。一盘既定，万象皆现。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:23:13+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "70922adb93e49cfc",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-003",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-003",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷一·总论",
+     "subGroupKey": "qj-1-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Lập luận cơ bản về mệnh cung, thân cung, tam phương tứ chính và mười hai cung trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thân Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "phuong-phap",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú xác định Mệnh cung là gốc chủ về cả đời cách cục, Thân cung là ngọn chủ về xu hướng sau tuổi ba mươi, giúp phân định tiến lùi của một người. Tam phương tứ chính hội chiếu chỉ rõ nơi dụng võ, và mười hai cung chủ định toàn cảnh bức tranh nhân sinh.",
+   "fullTranslationVi": "Mệnh cung là gốc, chủ về một đời cách cục; Thân cung là phụ, chủ về hướng đi sau ba mươi tuổi. Mệnh cung và Thân cung phân minh, mới biết được sự tiến lùi của một người. Tam phương tứ chính hội chiếu, mới biết được nơi dụng võ của một người. Mười hai cung mỗi cung đều có chủ quản riêng, mới biết được toàn bộ bức tranh của đời người.",
+   "conditionsVi": "Áp dụng khi định vị Mệnh cung, Thân cung, xét sự hội chiếu của Tam phương tứ chính và phân tích toàn bộ mười hai cung trong lá số Tử Vi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "命宫为本，主一生格局；身宫为辅，主三十后归向。命身分明，方知一人之进退。三方四正会照，方知一人之用武之地。十二宫各有所主，方知人生之全图。"
+     }
+    ],
+    "combinedQuotesCn": "命宫为本，主一生格局；身宫为辅，主三十后归向。命身分明，方知一人之进退。三方四正会照，方知一人之用武之地。十二宫各有所主，方知人生之全图。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:23:25+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "27f92d6d03552337",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-004",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-004",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷二·紫微星论",
+     "subGroupKey": "qj-2-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Luận Về Sao Tử Vi Đế Tôn",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tả Phù",
+     "Hữu Bật"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "sao-tu-vi",
+     "phu-bat",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Tử Vi là chủ tinh của Bắc Đẩu, mang hành Thổ, là ngôi sao tôn quý và là đế tọa trong các vì sao. Hóa khí là tôn, chủ về sự trung hậu, có uy nghi và độc hành theo con đường riêng. Nam nữ mệnh đều ưa thích sao Tử Vi thủ mệnh, nhưng bắt buộc phải có Tả Phù và Hữu Bật đến chầu thì mới thành chính cách.",
+   "fullTranslationVi": "Tử Vi là chủ của Bắc Đẩu, thống lĩnh muôn sao. Tử Vi thuộc hành Thổ, là ngôi sao tôn quý. Trong các con số là đế tọa, hóa khí là tôn, chủ sự trung hậu có uy nghi, độc hành theo con đường riêng của mình. Nam mệnh và nữ mệnh đều ưa thích Tử Vi thủ mệnh, nhưng cần phải có Tả Phù và Hữu Bật đến chầu, thì mới là chính cách.",
+   "conditionsVi": "Mệnh có sao Tử Vi thủ mệnh, bắt buộc cần có Tả Phù và Hữu Bật hội chiếu hoặc chầu về mới thành chính cách.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微为北斗之主，统辖众星。紫微属土，乃尊贵之星。在数为帝座，化气为尊，主忠厚有威仪，独行其道。男命女命皆喜紫微守命，但需有左辅右弼来朝，方为正格。"
+     }
+    ],
+    "combinedQuotesCn": "紫微为北斗之主，统辖众星。紫微属土，乃尊贵之星。在数为帝座，化气为尊，主忠厚有威仪，独行其道。男命女命皆喜紫微守命，但需有左辅右弼来朝，方为正格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:23:49+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "a9fa9fd5ff5d72bf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-005",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-005",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷二·紫微星论",
+     "subGroupKey": "qj-2-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về Tử Vi độc tọa trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Quân Thần Khánh Hội"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "sao-tử-vi",
+     "luan-giai"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Tử Vi khi tọa thủ một mình đòi hỏi phải có Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi, Thiên Việt giáp hội mới có thể phát huy tác dụng. Tử Vi đơn độc không nơi nương tựa tuy có quý hiển cũng chẳng bền lâu. Nếu được các sao cát chiếu hội ở tam phương tứ chính thì thành cách cục Quân Thần Khánh Hội.",
+   "fullTranslationVi": "Sao Tử Vi độc tọa, cần phải có Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi, Thiên Việt giáp hội thì mới có thể làm nên việc. Tử Vi một mình không nơi nương tựa, cho dù có sự quý hiển cũng chẳng kéo dài lâu. Được các sao cát ở tam phương tứ chính hội chiếu, mới là cách cục lớn Quân Thần Khánh Hội.",
+   "conditionsVi": "Điều kiện để sao Tử Vi phát huy tác dụng và bền vững là cần có Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi, Thiên Việt giáp thủ hoặc có các sao cát hội chiếu ở tam phương tứ chính.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微独坐，需有左右昌曲魁钺夹持方能为用——单身无依的紫微，纵贵不久；得三方四正之吉星会照，方为君臣庆会大格。"
+     }
+    ],
+    "combinedQuotesCn": "紫微独坐，需有左右昌曲魁钺夹持方能为用——单身无依的紫微，纵贵不久；得三方四正之吉星会照，方为君臣庆会大格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T06:24:01+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "6dce7874e22d4d5e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-006",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-006",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷二·紫微星论",
+     "subGroupKey": "qj-2-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Luận Tử Vi Nhập Mệnh, Huynh Đệ, Tử Nữ Và Phu Thê",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Huynh Đệ",
+     "Tử Nữ",
+     "Phu Thê"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "anh-em",
+     "con-cai",
+     "hon-nhan"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Luận sao Tử Vi tại ba cung: nhập Mệnh thì anh em có quý khí, độc lập xuất chúng, phần nhiều được anh trưởng trợ giúp; tại Tử Nữ thì con cái có quý khí nhưng cần quản giáo bình đẳng; tại Phu Thê thì phối ngẫu đoan trang, nên kết hôn muộn, chớ kết hôn sớm.",
+   "fullTranslationVi": "Tử Vi nhập cung Mệnh: anh em có quý khí, độc lập, nổi bật xuất chúng, phần nhiều được anh trưởng giúp đỡ. Tử Vi ở cung Tử Nữ: con cái có quý khí, nhưng việc quản giáo cần phải bình đẳng. Tử Vi ở cung Phu Thê: phối ngẫu đoan trang, nhưng nên kết hôn muộn, không nên kết hôn sớm.",
+   "conditionsVi": "Áp dụng khi sao Tử Vi nhập cung Mệnh, hoặc an tại cung Tử Nữ, hoặc an tại cung Phu Thê.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微入命，兄弟有贵气，独立挺秀，多得长兄之助；紫微在子女，子女有贵气，但管教需平等；紫微在夫妻，配偶端庄，但宜迟婚不宜早。"
+     }
+    ],
+    "combinedQuotesCn": "紫微入命，兄弟有贵气，独立挺秀，多得长兄之助；紫微在子女，子女有贵气，但管教需平等；紫微在夫妻，配偶端庄，但宜迟婚不宜早。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T23:17:46+07:00",
+    "modelUsed": "claude-takeover-2pass",
+    "sourceHash": "5425660929266f7e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-007",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-007",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷二·紫微星论",
+     "subGroupKey": "qj-2-4"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Lận bàn về sao Tử Vi tại các cung Điền Trạch, Phúc Đức và Quan Lộc theo Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi"
+    ],
+    "palacesVi": [
+     "Điền Trạch",
+     "Phúc Đức",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tai-loc",
+     "phuc-duc",
+     "su-nghiep",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Luận giải sao Tử Vi tọa thủ tại các cung vị Điền Trạch, Phúc Đức và Quan Lộc trong Tử Vi Đẩu Số Toàn Tập. Khi ở cung Điền Trạch, chủ về có sẵn nghiệp tổ và tự tạo lập được, bất động sản là trục chính tạo phú quý. Ở cung Phúc Đức, tinh thần chuộng phong cách, tự tôn cao. Ở cung Quan Lộc, chủ đại phú quý, thích hợp ở ngôi vị cao.",
+   "fullTranslationVi": "Sao Tử Vi ở cung Điền Trạch, chủ có nghiệp tổ lại có thể tự tạo lập, bất động sản có thể làm chủ trục để gây dựng sự giàu có; sao Tử Vi ở cung Phúc Đức, tầng diện tinh thần theo đuổi phong cách, lòng tự tôn rất mạnh; sao Tử Vi ở cung Quan Lộc, chủ đại phú quý, thích hợp ở ngôi vị cao.",
+   "conditionsVi": "Sao Tử Vi tọa thủ tại các cung Điền Trạch, Phúc Đức hoặc Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微在田宅，主有祖业又能自置，房产可作为致富之主轴；紫微在福德，精神层面追求格调、自尊感强；紫微在官禄，主大富贵，宜居高位。"
+     }
+    ],
+    "combinedQuotesCn": "紫微在田宅，主有祖业又能自置，房产可作为致富之主轴；紫微在福德，精神层面追求格调、自尊感强；紫微在官禄，主大富贵，宜居高位。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:14+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "946d039ddbd18acc",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-008",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-008",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về Thiên Phủ trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Phủ",
+     "Tử Vi",
+     "Lộc Tồn"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Tử Phủ Đồng Cung",
+     "Song Lộc Triều Viên"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "tai-loc",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Thiên Phủ thuộc hành Thổ, là Nam Đẩu lệnh tinh và là chủ của kho lộc. Khi Thiên Phủ độc tọa thủ mệnh, người có phẩm hạnh đoan chính, áo cơm không lo. Thiên Phủ đồng cung với Tử Vi thành cách Tử Phủ Đồng Cung, chủ sự tôn quý. Thiên Phủ rất ưa gặp Lộc Tồn, tạo thành cách Song Lộc Triều Viên, chủ đại phú.",
+   "fullTranslationVi": "Thiên Phủ thuộc hành Thổ, là Nam Đẩu lệnh tinh, là chủ của lộc khố. Thiên Phủ độc tọa chủ phẩm hạnh đoan chính, áo cơm không lo. Thiên Phủ đồng cung với Tử Vi gọi là Tử Phủ đồng cung, chủ sự tôn quý. Thiên Phủ rất ưa gặp Lộc Tồn, gọi là Song Lộc triều viên, chủ đại phú.",
+   "conditionsVi": "Thiên Phủ thủ mệnh độc tọa, hoặc đồng cung với Tử Vi tạo thành cách Tử Phủ Đồng Cung, hoặc gặp Lộc Tồn tạo thành cách Song Lộc Triều Viên.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天府属土，南斗令星，乃禄库之主。天府独坐主品行端正、衣食无忧。天府与紫微同宫名\"紫府同宫\"，主尊贵。天府最喜见禄存，称\"双禄朝垣\"，主大富。"
+     }
+    ],
+    "combinedQuotesCn": "天府属土，南斗令星，乃禄库之主。天府独坐主品行端正、衣食无忧。天府与紫微同宫名\"紫府同宫\"，主尊贵。天府最喜见禄存，称\"双禄朝垣\"，主大富。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:17+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "6bf88af4d5ef07e2",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-009",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-009",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận Về Nam Đẩu Lục Tinh - Sao Thái Âm Trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thái Âm"
+    ],
+    "palacesVi": [
+     "Điền Trạch",
+     "Mệnh Cung"
+    ],
+    "branchesVi": [
+     "Hợi",
+     "Tý",
+     "Ngọ",
+     "Mùi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tai-loc",
+     "dien-trach",
+     "nu-menh",
+     "sao-thai-am"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Thái Âm là trung thiên chủ tinh thuộc hành Thủy, khi miếu vượng mang lại điền trạch và phú quý, lúc lạc hãm chủ về lao lực và bôn ba. Nữ mệnh có Thái Âm là cát lợi nhất, chủ về dung mạo xinh đẹp và nết na đức hạnh. Sao Thái Âm tọa thủ ở cung Hợi và cung Tý thì chủ về đại phú, còn ở cung Ngọ và cung Mùi thì sức mạnh bị giảm sút.",
+   "fullTranslationVi": "Thái Âm là trung thiên chủ tinh, thuộc hành Thủy. Thái Âm miếu vượng chủ về điền trạch, phú quý, lạc hãm chủ về lao lực, bôn ba. Nữ mệnh Thái Âm là cát lợi nhất, chủ về dung mạo xinh đẹp, hiền thục. Thái Âm ở Hợi và Tý chủ đại phú, Thái Âm ở Ngọ và Mùi thì giảm lực.",
+   "conditionsVi": "Trường hợp miếu vượng chủ về điền trạch và phú quý; trường hợp lạc hãm chủ về lao lực, bôn ba. Đối với nữ mệnh thì rất cát lợi, chủ mạo mỹ hiền thục. Về vị trí địa chi: ở Hợi và Tý chủ đại phú, ở Ngọ và Mùi thì giảm lực.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "太阴为中天主星，属水。太阴庙旺主田宅、富贵，落陷主劳碌、奔波。女命太阴最吉，主貌美贤淑。太阴在亥子主大富，太阴在午未则减力。"
+     }
+    ],
+    "combinedQuotesCn": "太阴为中天主星，属水。太阴庙旺主田宅、富贵，落陷主劳碌、奔波。女命太阴最吉，主貌美贤淑。太阴在亥子主大富，太阴在午未则减力。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:25+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "4b6ea552d6128acf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-010",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-010",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Chương Năng Lượng Nam Đấu Sáu Sao Trong Tử Vi Đẩu Số Toàn Tập: Sao Tham Lang",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tham Lang",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [
+     "Hỏa Tham Cách",
+     "Linh Tham Cách"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "sao-tham-lang",
+     "dao-hoa",
+     "cach-cuc",
+     "tai-loc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Tham Lang là ngôi sao chủ về đào hoa và dục vọng, mang hành Mộc và Thủy, có đặc tính đa tài nghệ và giao thiệp rộng. Khi hội với Hỏa Tinh hoặc Linh Tinh tạo thành Hỏa Tham Cách hoặc Linh Tham Cách, chủ về tài lộc bất ngờ và phát tài hoạnh tài. Tuy nhiên, sao này kỵ gặp Địa Không và Địa Kiếp vì sẽ trở thành hoa hòe không thực.",
+   "fullTranslationVi": "Tham Lang là sao đào hoa và dục vọng, thuộc hành Mộc thuộc hành Thủy. Tham Lang chủ về nhiều tài nghệ, giao thiệp rộng. Tham Lang gặp Hỏa Tinh gọi là cách Hỏa Tham, gặp Linh Tinh gọi là cách Linh Tham, đều chủ về thiên tài phát tài hoạnh tài. Nhưng Tham Lang kỵ Địa Không Địa Kiếp, chủ về hoa hòe không thực.",
+   "conditionsVi": "Gặp Hỏa Tinh hoặc Linh Tinh tạo thành cách Hỏa Tham hoặc Linh Tham; kỵ gặp Địa Không và Địa Kiếp.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "贪狼为桃花欲望之星，属木属水。贪狼主多才艺、社交广。贪狼逢火星称\"火贪格\"，逢铃星称\"铃贪格\"，皆主偏财横发。但贪狼忌空劫，主华而不实。"
+     }
+    ],
+    "combinedQuotesCn": "贪狼为桃花欲望之星，属木属水。贪狼主多才艺、社交广。贪狼逢火星称\"火贪格\"，逢铃星称\"铃贪格\"，皆主偏财横发。但贪狼忌空劫，主华而不实。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:39+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "3d75ffcf8ef54e64",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-011",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-011",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-4"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Chương Năng Lượng Nam Đấu Sáu Sao - Luận Về Sao Cự Môn Trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Cự Môn",
+     "Thái Dương"
+    ],
+    "palacesVi": [],
+    "branchesVi": [
+     "Sửu",
+     "Mùi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc",
+      "starVi": "Cự Môn"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ",
+      "starVi": "Cự Môn"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "su-nghiep",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Sao Cự Môn thuộc thủy, hóa khí là ám, chủ về khẩu thiệt thị phi và tài năng ăn nói, rất hợp với các nghề như luật sư, giáo viên, truyền thông. Cự Môn hóa lộc chủ về lấy lời nói để kiếm tiền, còn hóa kỵ thì khẩu thiệt và kiện tụng không dứt. Cự Môn kỵ nhất là đồng cung với Thái Dương ở hai cung Sửu và Mùi, cách này gọi là Nhật Nguyệt phản bối.",
+   "fullTranslationVi": "Cự Môn thuộc thủy, hóa khí là ám, chủ về khẩu thiệt thị phi. Cự Môn là sao tài năng ăn nói, thích hợp làm luật sư, giáo viên, truyền thông. Cự Môn hóa lộc chủ về lấy lời nói để kiếm tiền, hóa kỵ thì khẩu thiệt kiện tụng không dứt. Cự Môn kỵ nhất đồng cung với Thái Dương ở hai cung Sửu và Mùi, gọi là Nhật Nguyệt phản bối.",
+   "conditionsVi": "Cự Môn kỵ nhất là đồng cung với Thái Dương tại hai cung Sửu và Mùi, gọi là Nhật Nguyệt phản bối.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "巨门属水，化气为暗，主口舌是非。巨门为口才之星，宜律师、教师、传媒。巨门化禄主\"以口生财\"，化忌则口舌官非不断。巨门最忌与太阳同宫的丑未两宫，称\"日月反背\"。"
+     }
+    ],
+    "combinedQuotesCn": "巨门属水，化气为暗，主口舌是非。巨门为口才之星，宜律师、教师、传媒。巨门化禄主\"以口生财\"，化忌则口舌官非不断。巨门最忌与太阳同宫的丑未两宫，称\"日月反背\"。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:44+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9b57630853c37e16",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-012",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-012",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-5"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về sao Thiên Tướng trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Tướng",
+     "Tử Vi",
+     "Liêm Trinh"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "thien-tuong",
+     "phu-ta",
+     "su-nghiep",
+     "hanh-chinh",
+     "phap-vu"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Thiên Tướng thuộc hành thủy, hóa khí là ấn tinh, đóng vai trò là chòm sao phò tá mang bản tính trung hậu thật thà, rất thích hợp với các ngành nghề hành chính, thư ký và pháp vụ. Sao này không ưa thế độc tọa mà thích nhất là được đồng cung với Tử Vi hoặc Liêm Trinh nhằm mượn uy nghi của các sao đó để thành sự nghiệp.",
+   "fullTranslationVi": "Thiên Tướng thuộc hành thủy, hóa khí là ấn tinh, là chòm sao phò tá. Thiên Tướng trung hậu thật thà, thích hợp làm hành chính, thư ký, pháp vụ. Thiên Tướng không ưa độc tọa, thích hợp nhất là đồng cung với Tử Vi hoặc Liêm Trinh, mượn uy nghi của chúng để thành tựu sự nghiệp.",
+   "conditionsVi": "Thiên Tướng không ưa thế độc tọa, điều kiện tốt nhất là đồng cung với Tử Vi hoặc Liêm Trinh.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天相属水，化气为印，乃辅佐之星。天相忠厚老实，宜行政秘书法务。天相不喜独坐，最宜与紫微或廉贞同宫，借其威仪而成事。"
+     }
+    ],
+    "combinedQuotesCn": "天相属水，化气为印，乃辅佐之星。天相忠厚老实，宜行政秘书法务。天相不喜独坐，最宜与紫微或廉贞同宫，借其威仪而成事。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:47+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "ab9e89f67a75a129",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-013",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-013",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷三·南斗六星论",
+     "subGroupKey": "qj-3-6"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về sao Thiên Lương trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Lương"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Khoa",
+      "starVi": "Thiên Lương"
+     },
+     {
+      "mutagenVi": "Hóa Lộc",
+      "starVi": "Thiên Lương"
+     }
+    ],
+    "topicTags": [
+     "thien-luong",
+     "tinh-tinh",
+     "tu-hoa",
+     "chuyen-mon"
+    ],
+    "targetDossierSections": [
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Sao Thiên Lương thuộc hành Thổ, hóa khí là Ấm, là tinh đẩu của người cao tuổi, chủ về tính thiện lương, từ bi, cô khắc và khả năng hóa giải. Thiên Lương thích hợp với các lĩnh vực pháp luật, y học, giáo dục, tôn giáo. Khi sao Thiên Lương hóa Khoa thì chủ về danh tiếng, còn hóa Lộc thì ngược lại, chủ về sự hư phù.",
+   "fullTranslationVi": "Thiên Lương thuộc thổ, hóa khí là ấm, là tinh đẩu của người cao tuổi. Thiên Lương chủ sự thiện lương, từ bi, cô khắc, hóa giải. Thiên Lương hợp với pháp luật, y học, giáo dục, tôn giáo. Thiên Lương hóa khoa chủ về danh tiếng, hóa lộc trái lại chủ sự hư phù.",
+   "conditionsVi": "Sao Thiên Lương đi với hóa Khoa chủ về danh tiếng, đi với hóa Lộc thì thành ra hư phù.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天梁属土，化气为荫，乃老人之星。天梁主善良、慈悲、孤克、化解。天梁宜法律、医学、教育、宗教。天梁化科主名声，化禄反而虚浮。"
+     }
+    ],
+    "combinedQuotesCn": "天梁属土，化气为荫，乃老人之星。天梁主善良、慈悲、孤克、化解。天梁宜法律、医学、教育、宗教。天梁化科主名声，化禄反而虚浮。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:52+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "ccd6eb1cc49d223e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-014",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-014",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về sao Tử Vi trong Bắc Đấu Sáu Sao từ Tử Vi Đẩu Sưu Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Đoạn phú xác định sao Tử Vi thuộc hành Thổ, và nội dung chi tiết về ngũ hành của sao này đã được luận giải cụ thể tại quyển hai của bộ sách.",
+   "fullTranslationVi": "Sao Tử Vi thuộc hành Thổ, đã được luận giải ở quyển hai.",
+   "conditionsVi": "Nội dung mang tính chất dẫn chiếu sang quyển hai để biết thêm chi tiết về hành Thổ của sao Tử Vi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫微属土，已论于卷二。"
+     }
+    ],
+    "combinedQuotesCn": "紫微属土，已论于卷二。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:05:58+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "2006a498fca249b3",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-015",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-015",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận Về Sao Thiên Cơ Trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Văn Xương",
+     "Văn Khúc"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "sao-thien-co",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Thiên Cơ thuộc Mộc, hóa khí là thiện, là ngôi sao trí tuệ chủ về sự thông minh, cơ biến và hiếu động. Khi nhập mệnh, người có sao này tư duy nhạy bén, thích hợp làm các nghề tư vấn, lập kế hoạch, văn giáo. Thiên Cơ kỵ nhất là tính hay thay đổi và không có chủ kiến, bắt buộc phải có Văn Xương và Văn Khúc hội chiếu mới có thể thành tài.",
+   "fullTranslationVi": "Thiên Cơ thuộc Mộc, hóa khí là thiện, là ngôi sao trí tuệ. Thiên Cơ chủ thông minh, cơ biến, hiếu động. Thiên Cơ nhập mệnh, tư duy nhạy bén, thích hợp tư vấn, lập kế hoạch, văn giáo. Thiên Cơ tối kỵ thiện biến vô chủ, cần Văn Xương Văn Khúc hội chiếu phờ phương năng thành khí.",
+   "conditionsVi": "Cần có Văn Xương và Văn Khúc hội chiếu để khắc phục tính hay thay đổi, giúp thành tựu.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天机属木，化气为善，乃智慧之星。天机主聪明、机变、好动。天机入命，思维敏捷，宜咨询、策划、文教。天机最忌善变无主，需文昌文曲会照方能成器。"
+     }
+    ],
+    "combinedQuotesCn": "天机属木，化气为善，乃智慧之星。天机主聪明、机变、好动。天机入命，思维敏捷，宜咨询、策划、文教。天机最忌善变无主，需文昌文曲会照方能成器。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:06:16+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "d3f0b817e76edfb5",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-016",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-016",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về sao Thái Dương trong chương Bắc Đẩu Sáu Sao (Tử Vi Đẩu Sứ Toàn Thư)",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thái Dương"
+    ],
+    "palacesVi": [],
+    "branchesVi": [
+     "Tý",
+     "Sửu",
+     "Dần",
+     "Mão",
+     "Thìn",
+     "Tỵ",
+     "Ngọ",
+     "Mùi",
+     "Thân",
+     "Dậu",
+     "Tuất",
+     "Hợi"
+    ],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "sao-thai-duong",
+     "bac-dau-luc-tinh",
+     "danh-tieng",
+     "mieu-vuong-lac-ham"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Thái Dương thuộc hành Hỏa, hóa khí là quý, là sao quý của nam giới. Thái Dương chủ về danh tiếng, công vụ và giao tiếp. Khi Thái Dương miếu vượng sẽ chủ về đại quý, còn khi lạc hãm thì vất vả mà không thu được kết quả. Vị trí tốt nhất của Thái Dương là ở các cung Mão, Thìn, Tỵ, Ngọ, trong khi rơi vào các cung Tuất, Hợi, Tý, Sửu sẽ bị giảm lực.",
+   "fullTranslationVi": "Sao Thái Dương thuộc hành Hỏa, hóa khí là quý, là sao quý của nam giới. Thái Dương chủ về danh tiếng, công vụ, giao tiếp. Thái Dương miếu vượng chủ đại quý, lạc hãm thì lao lực mà không thu được gì. Thái Dương rất hợp ở các đất Mão, Thìn, Tỵ, Ngọ, rơi vào Tuất, Hợi, Tý, Sửu thì giảm lực.",
+   "conditionsVi": "Trường hợp miếu vượng ở các cung Mão, Thìn, Tỵ, Ngọ chủ đại quý; trường hợp lạc hãm ở các cung Tuất, Hợi, Tý, Sửu thì bị giảm lực, chủ về lao lực mà không thu được gì.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "太阳属火，化气为贵，乃男贵之星。太阳主名誉、公务、社交。太阳庙旺主大贵，落陷则劳而无获。太阳最宜在卯辰巳午之地，落于戌亥子丑则减力。"
+     }
+    ],
+    "combinedQuotesCn": "太阳属火，化气为贵，乃男贵之星。太阳主名誉、公务、社交。太阳庙旺主大贵，落陷则劳而无获。太阳最宜在卯辰巳午之地，落于戌亥子丑则减力。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:26:38+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "cf7b3fa15c913be6",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-017",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-017",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-4"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận về sao Vũ Khúc trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Vũ Khúc",
+     "Thất Sát"
+    ],
+    "palacesVi": [],
+    "branchesVi": [
+     "Sửu",
+     "Mùi"
+    ],
+    "patternsVi": [
+     "Vũ Khúc Thất Sát (Tướng Tài Cách)"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ",
+      "starVi": "Vũ Khúc"
+     }
+    ],
+    "topicTags": [
+     "tai-loc",
+     "su-nghiep",
+     "tu-hoa",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Vũ Khúc thuộc kim, hóa khí là tài tinh, chủ sự cương nghị quả quyết và giỏi quản lý tài chính kinh doanh. Vũ Khúc Hóa Kỵ chủ về phẫu thuật, huyết quang, tai nạn kim loại. Khi ở cung Sửu hoặc cung Mùi đồng cung với Thất Sát thành cách Vũ Khúc Thất Sát, chủ về tính cương trực và võ quý.",
+   "fullTranslationVi": "Vũ Khúc thuộc kim, hóa khí là tài, là chủ của tài tinh. Vũ Khúc chủ về tính cương nghị quả quyết, giỏi quản lý tài chính và kinh doanh. Vũ Khúc Hóa Kỵ chủ về phẫu thuật huyết quang, tai nạn kim loại. Vũ Khúc ở Sửu Mùi đồng cung với Thất Sát, gọi là cách Vũ Khúc Thất Sát, chủ về sự cương trực và võ quý.",
+   "conditionsVi": "Trường hợp thứ nhất: Vũ Khúc thuộc kim, hóa khí là tài, chủ tài tinh, tính cương nghị quả quyết, giỏi quản lý tài chính. Trường hợp thứ hai: Vũ Khúc Hóa Kỵ chủ phẫu thuật, huyết quang, tai nạn kim loại. Trường hợp thứ ba: Vũ Khúc tại Sửu hoặc Mùi đồng cung Thất Sát thành cách Vũ Khúc Thất Sát, chủ cương trực võ quý.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "武曲属金，化气为财，乃财星之主。武曲主刚毅果决，善理财经营。武曲化忌主手术血光、金属意外。武曲在丑未与七杀同宫，称\"武曲七杀\"格，主刚直武贵。"
+     }
+    ],
+    "combinedQuotesCn": "武曲属金，化气为财，乃财星之主。武曲主刚毅果决，善理财经营。武曲化忌主手术血光、金属意外。武曲在丑未与七杀同宫，称\"武曲七杀\"格，主刚直武贵。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T14:00:07+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "a07cb22521ee9b9f",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-018",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-018",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-5"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Luận Về Sao Liêm Trinh - Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Liêm Trinh",
+     "Thiên Tướng"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ",
+      "starVi": "Liêm Trinh"
+     }
+    ],
+    "topicTags": [
+     "sao-liem-trinh",
+     "tuhua",
+     "cach-cuc",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Sao Liêm Trinh mang ngũ hành Hỏa và Mộc, hóa khí là Tù, là sao thứ đào hoa, chủ về văn võ kiêm toàn, đa tài nghệ. Liêm Trinh hóa kỵ chủ về huyết quang, quan lợi, tranh chấp tình cảm. Khi đồng cung với Thiên Tướng tạo thành cách cục Liêm Tướng, chủ về danh tiếng thanh liêm.",
+   "fullTranslationVi": "Liêm Trinh thuộc hành Hỏa thuộc hành Mộc, hóa khí là Tù, là sao thứ đào hoa. Liêm Trinh văn võ kiêm toàn, đa tài nghệ. Liêm Trinh hóa kỵ chủ huyết quang quan phi, tranh chấp tình cảm. Liêm Trinh cùng đồng cung với Thiên Tướng là cách Liêm Tướng, chủ danh tiếng thanh liêm.",
+   "conditionsVi": "Liêm Trinh đồng cung với Thiên Tướng hình thành cách cục Liêm Tướng.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "廉贞属火属木，化气为囚，乃次桃花之星。廉贞文武兼备，多才艺。廉贞化忌主血光官非、感情纠纷。廉贞与天相同宫为\"廉相格\"，主清廉之名。"
+     }
+    ],
+    "combinedQuotesCn": "廉贞属火属木，化气为囚，乃次桃花之星。廉贞文武兼备，多才艺。廉贞化忌主血光官非、感情纠纷。廉贞与天相同宫为\"廉相格\"，主清廉之名。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:07:07+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "743d6c19cfe9da39",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-019",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-019",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷四·北斗六星论",
+     "subGroupKey": "qj-4-6"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Chương V. Luận Về Bắc Đẩu Lục Tinh - Phá Quân Tinh (Tử Vi Đẩu Số Toàn Tập)",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Phá Quân"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc",
+      "starVi": "Phá Quân"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "su-nghiep",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Phá Quân thuộc Thủy, hóa khí là hao, là ngôi sao phá hoại và đổi mới, chủ về khai mở, biến động và lục thân duyên mỏng. Phá Quân thích hợp dùng kỹ thuật chuyên môn để đi khắp nơi. Khi Phá Quân hóa Lộc thì gọi là phá rồi mới lập, chủ về trước tan tác sau mới tụ hội.",
+   "fullTranslationVi": "Phá Quân thuộc Thủy, hóa khí là hao, là ngôi sao phá hoại và đổi mới. Phá Quân chủ về khai mở, biến động, lục thân duyên mỏng. Phá Quân thích hợp dùng kỹ thuật chuyên môn đi khắp thiên hạ. Phá Quân hóa Lộc gọi là phá rồi mới lập, chủ về trước tan tác sau mới tụ hội.",
+   "conditionsVi": "Phá Quân hóa Lộc gọi là phá rồi mới lập, chủ về trước tan tác sau mới tụ hội.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "破军属水，化气为耗，乃破坏创新之星。破军主开创、变动、六亲缘薄。破军宜技术专长走天下。破军化禄称\"破而后立\"，主先散后聚。"
+     }
+    ],
+    "combinedQuotesCn": "破军属水，化气为耗，乃破坏创新之星。破军主开创、变动、六亲缘薄。破军宜技术专长走天下。破军化禄称\"破而后立\"，主先散后聚。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:07:12+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "ea1078c4a5290e3e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-020",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-020",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Luận Về Tứ Hóa Và Hóa Lộc",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Tài Bạch"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "tai-loc",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Hóa Lộc chủ về tài nguyên, duyên phận và khả năng biến hóa năng lực thành hiện thực. Khi Hóa Lộc nhập vào ba phương tứ chính của Mệnh cung, chủ về tài nguyên rộng mở; khi nhập vào cung Tài Bạch, chủ về tài lộc đến đi, nguồn tài chính chính đáng được ổn định.",
+   "fullTranslationVi": "Hóa Lộc chủ tài nguyên, chủ duyên phận, chủ năng lực biến hiện. Hóa Lộc nhập Mệnh tam phương, chủ tài nguyên rộng mở; Hóa Lộc nhập Tài Bạch, chủ tài lại tài vãng, chính tài ổn định.",
+   "conditionsVi": "Hóa Lộc cần nhập vào tam phương tứ chính của Mệnh cung hoặc nhập vào cung Tài Bạch để phát huy các đặc tính chủ về tài nguyên, duyên phận và sự ổn định của tài chính.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化禄主财源，主缘分，主能力变现。化禄入命三方，主财源广进；化禄入财帛，主财来财往，正财稳定。"
+     }
+    ],
+    "combinedQuotesCn": "化禄主财源，主缘分，主能力变现。化禄入命三方，主财源广进；化禄入财帛，主财来财往，正财稳定。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:07:15+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "e93dfa55c3a769f5",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-021",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-021",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Luận Về Tứ Hóa và Hóa Quyền",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Quyền"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "su-nghiep",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "horizon_5y",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Luận giải về bản chất của Hóa Quyền chủ về quyền lực, sự quyết đoán và tinh thần gánh vác. Khi Hóa Quyền nhập Mệnh, người đó có khả năng tự mình gánh vác một phương; khi Hóa Quyền nhập Quan Lộc, sự nghiệp có tính kiểm soát cao, rất thích hợp đi theo con đường quản lý hoặc chuyên gia kỹ thuật có uy quyền.",
+   "fullTranslationVi": "Hóa Quyền chủ về quyền lực, chủ về sự quyết đoán, chủ về sự gánh vác. Hóa Quyền nhập Mệnh, chủ về việc có khả năng tự mình gánh vác một phương; Hóa Quyền nhập Quan Lộc, chủ về sự nghiệp có sự kiểm soát lực, thích hợp đi theo con đường quản lý hoặc kỹ thuật mang tính uy quyền.",
+   "conditionsVi": "Áp dụng khi Hóa Quyền nhập Mệnh cung hoặc Quan Lộc cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化权主权力，主决断，主担当。化权入命，主能独当一面；化权入官禄，主事业有掌控力，宜走管理或技术权威路线。"
+     }
+    ],
+    "combinedQuotesCn": "化权主权力，主决断，主担当。化权入命，主能独当一面；化权入官禄，主事业有掌控力，宜走管理或技术权威路线。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:07:18+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "0c922184c1d4d5c4",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-022",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-022",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Về Tứ Hóa: Hóa Khoa",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thân Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Hóa Khoa Nhập Mệnh",
+     "Hóa Khoa Nhập Thân"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Khoa"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "hoa-khoa",
+     "danh-tich",
+     "su-nghiep"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Hóa Khoa chủ về danh tiếng, văn thư và quý nhân. Khi Hóa Khoa nhập Mệnh, chủ về danh tiếng vang xa; khi Hóa Khoa nhập Thân, chủ về dùng danh tiếng để mưu cầu lợi lộc, thích hợp với các lĩnh vực văn giáo, nghiên cứu và tư vấn.",
+   "fullTranslationVi": "Hóa Khoa chủ danh tiếng, chủ văn thư, chủ quý nhân. Hóa Khoa nhập Mệnh, chủ danh tiếng viễn bá; Hóa Khoa nhập Thân, chủ dĩ danh thủ lợi, nghi văn giáo, nghiên cứu, tư vấn.",
+   "conditionsVi": "Áp dụng khi sao Hóa Khoa nhập vào Mệnh cung hoặc Thân cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化科主名声，主文书，主贵人。化科入命，主名声远播；化科入身，主以名取利，宜文教、研究、咨询。"
+     }
+    ],
+    "combinedQuotesCn": "化科主名声，主文书，主贵人。化科入命，主名声远播；化科入身，主以名取利，宜文教、研究、咨询。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:07:24+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "dd984ee3962abe66",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-023",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-023",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-4"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Ý Nghĩa Hóa Kỵ Trong Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "hoa-ky",
+     "van-han",
+     "bai-hoc-cuoc-doi"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Hóa Kỵ chủ về bệnh tật, sát tinh và những bài học sâu sắc trong đời. Khi Hóa Kỵ nhập vào tam phương của mệnh cung, đời người thường xuất hiện điểm nút thử thách lớn nhất; vượt qua được sẽ thành đại trí tuệ. Giai đoạn ba mươi tuổi quanh đây chính là lúc năng lượng của Hóa Kỵ bộc lộ mạnh mẽ và sắc bén nhất.",
+   "fullTranslationVi": "Hóa Kỵ chủ bệnh tật, chủ sát tinh, chủ những bài học sâu sắc. Hóa Kỵ nhập vào tam phương của mệnh cung, chủ cả đời có điểm chùng, điểm nút thử thách - đây chính là bài học sâu sắc nhất trong mệnh cách, vượt qua được thì sẽ là đại trí tuệ. Khoảng ba mươi tuổi là thời điểm Hóa Kỵ sắc bén nhất.",
+   "conditionsVi": "Áp dụng khi sao Hóa Kỵ nhập vào tam phương tứ chính của mệnh cung, đặc biệt phát huy mạnh mẽ nhất vào khoảng năm ba mươi tuổi.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化忌主病，主煞，主深刻功课。化忌入命三方，主一生有\"钝点\"——这是命格里最深的功课，过得了就是大智慧。三十岁前后是化忌最锋利的时候。"
+     }
+    ],
+    "combinedQuotesCn": "化忌主病，主煞，主深刻功课。化忌入命三方，主一生有\"钝点\"——这是命格里最深的功课，过得了就是大智慧。三十岁前后是化忌最锋利的时候。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:08:23+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "f1aeea101e6bb533",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-024",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-024",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-5"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Tử Phủ Đồng Cung Cách",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Thiên Phủ",
+     "Tả Phù",
+     "Hữu Bật"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Tử Phủ Đồng Cung"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "ban-menh",
+     "phu-bat"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Tử Phủ đồng cung có sao Tử Vi và sao Thiên Phủ cùng thủ Mệnh cung, chủ về phẩm hành đoan chính, áo cơm không lo và có tài năng lãnh đạo. Cách cục này cần có sự phối hợp của Tả Phù và Hữu Bật mới trở thành một đại cách hoàn chỉnh.",
+   "fullTranslationVi": "Tử Phủ đồng cung cách: Tử Vi và Thiên Phủ cùng vào Mệnh cung, chủ về phẩm hành đoan chính, áo cơm không lo, có tài năng lãnh đạo. Cần có Tả Phù Hữu Bật đến phối hợp thì mới là đại cách trọn vẹn.",
+   "conditionsVi": "Cần có sao Tả Phù và sao Hữu Bật phối hợp để trở thành cách cục hoàn chỉnh, sao Tử Vi và sao Thiên Phủ cùng nhập Mệnh cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "紫府同宫格：紫微天府同入命宫，主品行端正、衣食无忧、有领导才能。需要左右辅弼来配合方为完整大格。"
+     }
+    ],
+    "combinedQuotesCn": "紫府同宫格：紫微天府同入命宫，主品行端正、衣食无忧、有领导才能。需要左右辅弼来配合方为完整大格。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:08:36+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "6382c32d116adb07",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-025",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-025",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-6"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Thất Sát Triều Đẩu Cách",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Tử Vi",
+     "Thiên Phủ"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di"
+    ],
+    "branchesVi": [
+     "Tý",
+     "Ngọ",
+     "Dần",
+     "Thân"
+    ],
+    "patternsVi": [
+     "Thất Sát Triều Đẩu"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Thất Sát Triều Đẩu hình thành khi sao Thất Sát tọa thủ mệnh tại các cung Tý, Ngọ, Dần, Thân và có các sao Tử Vi, Thiên Phủ chiếu từ cung đối. Cách cục này chủ về tước lộc vinh hiển, đặc biệt đại quý trong võ chức, rất thích hợp làm việc trong lực lượng vũ trang, công an, chính giới hoặc quản lý cấp cao tại các doanh nghiệp.",
+   "fullTranslationVi": "Cách cục Thất Sát Triều Đẩu: Sao Thất Sát tọa mệnh tại các cung Tý, Ngọ, Dần, Thân, đối cung có các sao Tử Vi, Thiên Phủ chiếu, chủ về tước lộc vinh hiển — võ chức đại quý, rất thích hợp làm quân đội, cảnh sát, chính giới hoặc quản lý cấp cao trong doanh nghiệp.",
+   "conditionsVi": "Sao Thất Sát tọa mệnh tại các cung Tý, Ngọ, Dần hoặc Thân, đồng thời cung đối phải có các sao Tử Vi, Thiên Phủ chiếu về.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "七杀朝斗格：七杀居子午寅申宫坐命，对宫紫微天府相照，主爵禄荣昌——武职大贵，最宜军警政界或企业高管。"
+     }
+    ],
+    "combinedQuotesCn": "七杀朝斗格：七杀居子午寅申宫坐命，对宫紫微天府相照，主爵禄荣昌——武职大贵，最宜军警政界或企业高管。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:09:36+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "9214379348808525",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-026",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-026",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-7"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Song Lộc Triều Viên Cách trong Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Lộc Tồn"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Tài Bạch",
+     "Quan Lộc",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Song Lộc Triều Viên"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "tai-loc",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách Song Lộc Triều Viên hình thành khi Hóa Lộc và Lộc Tồn cùng hội tụ tại các cung tam phương tứ chính của mệnh cung. Cách cục này mang lại nguồn tài nguyên dồi dào, cuộc sống áo cơm sung túc, được cổ thư ví với câu phú giàu ngang Tô Trương, chủ về một đời không phải lo lắng về tiền bạc.",
+   "fullTranslationVi": "Cách Song Lộc Triều Viên: Hóa Lộc và Lộc Tồn cùng hội tụ tại tam phương tứ chính của mệnh cung, giúp tài nguyên tuôn trào, áo cơm phong phú đầy đủ. Cổ nhân có câu rắng song lộc triều viên, giàu sánh ngang Tô Trương, chủ về một đời không lo về tiền bạc.",
+   "conditionsVi": "Hóa Lộc và Lộc Tồn phải cùng hội tụ tại các cung tam phương tứ chính của mệnh cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "双禄朝垣格：化禄、禄存同会命宫三方四正，财源涌动、衣食丰足。古云\"双禄朝垣，富比陶朱\"，主一生不愁财。"
+     }
+    ],
+    "combinedQuotesCn": "双禄朝垣格：化禄、禄存同会命宫三方四正，财源涌动、衣食丰足。古云\"双禄朝垣，富比陶朱\"，主一生不愁财。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:10:43+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "d32092bd65410a4c",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-027",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-027",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-8"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Chương V: Tứ Hóa và Các Cách Cục Quan Trọng — Cách Cơ Nguyệt Đồng Lương",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Thái Âm",
+     "Thiên Đồng",
+     "Thiên Lương"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Thiên Di",
+     "Tài Bạch",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Cơ Nguyệt Đồng Lương"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách Cơ Nguyệt Đồng Lương quy định rằng bốn sao Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương cùng quy tụ tại các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc sẽ tạo nên người văn chất bồng bềnh, thông minh, mưu trí và rất thích hợp cho các ngành nghề công chức, học thuật, nghệ thuật, y tế và dịch vụ có tính chất tích lũy ổn định.",
+   "fullTranslationVi": "Cách Cơ Nguyệt Đồng Lương: Bốn sao Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương cùng nhập vào các cung Mệnh, Thiên Di, Tài Bạch, Quan Lộc, chủ về người văn chất bồng bềnh, thông minh và giỏi mưu lược. Rất thích hợp với các ngành nghề công chức, học thuật, nghệ thuật, y tế, dịch vụ và những lĩnh vực cần sự tích lũy ổn định.",
+   "conditionsVi": "Bốn sao Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương phải cùng nhập vào các cung Mệnh Cung, Thiên Di, Tài Bạch, Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "机月同梁格：天机、太阴、天同、天梁四星齐入命迁财官，主文质彬彬、聪慧善谋。最适合公职、学术、文艺、医疗、服务等需稳定累积的行业。"
+     }
+    ],
+    "combinedQuotesCn": "机月同梁格：天机、太阴、天同、天梁四星齐入命迁财官，主文质彬彬、聪慧善谋。最适合公职、学术、文艺、医疗、服务等需稳定累积的行业。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:10:54+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "601946d01ffa9497",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-028",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-028",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-9"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Tập - Sát Phá Lang Cách",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thất Sát",
+     "Phá Quân",
+     "Tham Lang"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Sát Phá Lang Cách"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "van-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Cách cục Sát Phá Lang bao gồm các sao Thất Sát, Phá Quân và Tham Lang cùng hội chiếu mệnh cung, chủ về cuộc đời biến động nhiều, không chịu sống bình thường, rất thích hợp với các lĩnh vực như khởi nghiệp, quân đội, công an, kinh doanh và bán hàng, và phải đến trung vận về sau mới có thể ổn định, thủ thành.",
+   "fullTranslationVi": "Sát Phá Lang Cách: Thất Sát, Phá Quân, Tham Lang ba sao hội mệnh, chủ một đời biến động nhiều, không cam chịu bình thường, thích hợp khởi nghiệp, quân cảnh, nghiệp vụ, kinh doanh. Qua tuổi trung niên mới có thể ổn định thủ thành.",
+   "conditionsVi": "Điều kiện hình thành cách cục là ba sao Thất Sát, Phá Quân và Tham Lang hội chiếu vào mệnh cung, và thời điểm ổn định thủ thành phải đợi đến sau tuổi trung niên.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "杀破狼格：七杀、破军、贪狼三星会命，主一生变动多、不甘平凡，宜创业、军警、业务、销售。中年后才能稳定守成。"
+     }
+    ],
+    "combinedQuotesCn": "杀破狼格：七杀、破军、贪狼三星会命，主一生变动多、不甘平凡，宜创业、军警、业务、销售。中年后才能稳定守成。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:19+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "a74716029ab88213",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-QJ-029",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-QJ-029",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanji",
+     "h2Cn": "紫微斗数全集",
+     "h3Cn": "卷五·四化与格局论",
+     "subGroupKey": "qj-5-10"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Tập",
+    "groupTitleVi": "Nhật Nguyệt Đồng Cung - Tử Vi Đẩu Số Toàn Tập",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanji.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thái Dương",
+     "Thái Âm"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [
+     "Sửu",
+     "Mùi"
+    ],
+    "patternsVi": [
+     "Nhật Nguyệt Đồng Cung"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "nhan-duyen",
+     "tieng-tam"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Nhật Nguyệt Đồng Cung khi Thái Dương và Thái Âm cùng thủ cung Sửu hoặc cung Mùi, chủ về nhân duyên với người khác phái tốt, sự nghiệp thuận lợi và tiếng tăm lừng lẫy. Trong đó sức ảnh hưởng tại cung Sửu khá bình hòa, còn tại cung Mùi lực lượng giảm nhẹ hơn.",
+   "fullTranslationVi": "Nhật Nguyệt Đồng Cung: Thái Dương và Thái Âm cùng vào cung Sửu hoặc cung Mùi, chủ về nhân duyên với người khác phái tốt, sự nghiệp thuận lợi, tiếng tăm lừng lẫy. Cung Sửu lực lượng khá bình hòa, cung Mùi lực lượng giảm nhẹ.",
+   "conditionsVi": "Thái Dương và Thái Âm cùng đóng tại cung Sửu hoặc cung Mùi. Sức mạnh của cách cục tại cung Sửu khá bình hòa, trong khi tại cung Mùi lực lượng giảm nhẹ.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "日月同宫格：太阳太阴同入丑宫或未宫，主异性缘佳、事业顺遂、名声远播。丑宫力较平，未宫力略减。"
+     }
+    ],
+    "combinedQuotesCn": "日月同宫格：太阳太阴同入丑宫或未宫，主异性缘佳、事业顺遂、名声远播。丑宫力较平，未宫力略减。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:27+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "4b178f88d4cfbddf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-001",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-001",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·命宫",
+     "subGroupKey": "qs-1-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Về Mệnh Cung Bản Chất",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "phuong-phap",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Mệnh cung là gốc của một đời và là trục xoay của muôn việc, quyết định toàn bộ cục diện cuộc đời. Phương pháp xem Mệnh cung cần đi từ chủ tinh, tiếp đến phụ tinh và sát tinh, rồi xem xét sự hội chiếu của Tứ Hóa cùng Tam phương tứ chính.",
+   "fullTranslationVi": "Mệnh cung là gốc của một đời, là trục xoay của muôn việc. Mệnh cung định, thì cục diện một đời định. Xem Mệnh cung trước xem chủ tinh, kế đến xem phụ sát, lại xem Tứ Hóa cùng sự hội chiếu của Tam phương tứ chính.",
+   "conditionsVi": "Khi xem Mệnh cung, trình tự lần lượt là xét chủ tinh trước, tiếp theo xét phụ tinh và sát tinh, sau đó xét Tứ Hóa và sự hội chiếu của Tam phương tứ chính.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "命宫者，一身之根本，万事之枢纽。命宫定，则一生格局定。看命宫先看主星，次看辅煞，再看四化与三方四正之会照。"
+     }
+    ],
+    "combinedQuotesCn": "命宫者，一身之根本，万事之枢纽。命宫定，则一生格局定。看命宫先看主星，次看辅煞，再看四化与三方四正之会照。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:30+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "67a14128f747f099",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-002",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-002",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·命宫",
+     "subGroupKey": "qs-1-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Mệnh Cung: Chính Tinh Miếu Vượng Và Lạc Hãm",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "cach-cuc",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận giải về Mệnh Cung trong Tử Vi Đẩu Số Toàn Thư, nhấn mạnh rằng chủ tinh miếu vượng đem lại ưu thế tiên thiên và sự dễ dàng, trong khi chủ tinh lạc hãm tạo ra bất lợi nhưng lại thúc đẩy sự bứt phá và nghịch tập lớn nhờ ý chí không cam chịu.",
+   "fullTranslationVi": "Mệnh cung chủ tinh miếu vượng, chủ tiên thiên ưu thế, làm việc sự bán công bội; lạc hãm thì chủ tiên thiên liệt thế, nhưng phản chủ đại thành —— người lạc hãm có hai chữ không cam tâm thúc đẩy, phản năng bạo phát xuất miếu vượng mệnh cách làm bất đáo đích nghịch tập.",
+   "conditionsVi": "Áp dụng khi xem xét trạng thái miếu vượng hoặc lạc hãm của các chủ tinh tại Mệnh Cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "命宫主星庙旺，主先天优势，做事事半功倍；落陷则主先天劣势，但反主大成——落陷之人有\"不甘\"二字推动，反能爆发出庙旺命格做不到的逆袭。"
+     }
+    ],
+    "combinedQuotesCn": "命宫主星庙旺，主先天优势，做事事半功倍；落陷则主先天劣势，但反主大成——落陷之人有\"不甘\"二字推动，反能爆发出庙旺命格做不到的逆袭。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:37+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "626d62b04421e203",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-003",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-003",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·命宫",
+     "subGroupKey": "qs-1-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Luận Về Mệnh Cung và Các Sao Sát Cát trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Thiên Khôi",
+     "Thiên Việt",
+     "Kình Dương",
+     "Đà La",
+     "Hỏa Tinh",
+     "Linh Tinh",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "ban-menh",
+     "cat-tinh",
+     "sat-tinh",
+     "quy-nhan",
+     "vuot-kho",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú từ Tử Vi Đẩu Số Toàn Thư luận giải về ảnh hưởng của lục cát tinh và lục sát tinh tại Mệnh cung. Khi Mệnh cung có lục cát tinh hội chiếu thì đời người được quý nhân phù trợ không dứt; khi có lục sát tinh thì trải qua nhiều trắc trở, gian lao nhưng nếu kiên nhẫn vượt qua sẽ thành đại sự.",
+   "fullTranslationVi": "Mệnh cung gặp sáu sao cát tinh gồm Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi, Thiên Việt, chủ về cả đời quý nhân không dứt. Mệnh cung gặp sáu sao sát tinh gồm Kình Dương, Đà La, Hỏa Tinh, Linh Tinh, Địa Không, Địa Kiếp, chủ về nhiều trắc trở, tôi luyện, nhưng nếu như có thể nhẫn nại vượt qua thì ngược lại sẽ thành đại khí.",
+   "conditionsVi": "Điều kiện áp dụng là Mệnh cung có sự xuất hiện và hội chiếu của lục cát tinh hoặc lục sát tinh, trong trường hợp gặp sát tinh đòi hỏi bản thân phải nhẫn nại vượt qua thử thách mới chuyển hóa thành đại khí.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "命宫见六吉星（左辅右弼文昌文曲天魁天钺），主一生贵人不绝；命宫见六煞星（擎羊陀罗火星铃星地空地劫），主多波折磨砺，但若能忍过，反成大器。"
+     }
+    ],
+    "combinedQuotesCn": "命宫见六吉星（左辅右弼文昌文曲天魁天钺），主一生贵人不绝；命宫见六煞星（擎羊陀罗火星铃星地空地劫），主多波折磨砺，但若能忍过，反成大器。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:45+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "f1c154081a5143ba",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-004",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-004",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·财帛宫",
+     "subGroupKey": "qs-2-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Cung Tài Bạch: Nguồn Tài Lộc Và Cách Kiếm Tiền Theo Chủ Sao",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Vũ Khúc",
+     "Thái Âm",
+     "Cự Môn"
+    ],
+    "palacesVi": [
+     "Tài Bạch"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tai-loc",
+     "phuong-phap",
+     "tai-chinh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cung Tài Bạch chủ về nguồn tài lộc, thu nhập và phương thức quản lý tài chính trong đời người. Tùy thuộc vào chủ tinh thủ cung Tài Bạch mà cách thức kiếm tiền có sự khác biệt rõ rệt: sao Tử Vi chủ về tài lộc quan chức, sao Vũ Khúc chủ về tài kinh thương, sao Thái Âm chủ về tài điền trạch và sao Cự Môn chủ về tài khẩu tài.",
+   "fullTranslationVi": "Cung Tài Bạch chủ về nguồn tài lộc, thu nhập, phương thức quản lý tài chính của một đời. Chủ tinh của cung Tài Bạch khác nhau thì phương thức kiếm tiền cũng khác nhau: Tử Vi ở cung Tài Bạch chủ về tài lộc quan chức, Vũ Khúc ở cung Tài Bạch chủ về tài kinh thương, Thái Âm ở cung Tài Bạch chủ về tài điền trạch, Cự Môn ở cung Tài Bạch chủ về tài khẩu tài.",
+   "conditionsVi": "Áp dụng khi xét cung Tài Bạch và phân tích đặc tính kiếm tiền của các chủ tinh thủ cung Tài Bạch gồm Tử Vi, Vũ Khúc, Thái Âm và Cự Môn.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "财帛宫主一生之财源、收入、理财方式。财帛宫主星不同，赚钱方式各异：紫微在财主官财，武曲在财主商财，太阴在财主田宅财，巨门在财主口才财。"
+     }
+    ],
+    "combinedQuotesCn": "财帛宫主一生之财源、收入、理财方式。财帛宫主星不同，赚钱方式各异：紫微在财主官财，武曲在财主商财，太阴在财主田宅财，巨门在财主口才财。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:11:53+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "7bd39fb83515f7e3",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-005",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-005",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·财帛宫",
+     "subGroupKey": "qs-2-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Cung Tài Bạch: Luận Về Hóa Lộc, Hóa Kỵ, Lộc Tồn Và Không Kiếp",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Lộc Tồn",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Tài Bạch",
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tai-loc",
+     "tu-hoa",
+     "cung-tai-bach"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận về các trạng thái tài lộc tại cung Tài Bạch tùy theo các sao chiếu hướng: cung Tài Bạch hóa Lộc nhập Mệnh chủ tài nguyên rộng mở; cung Tài Bạch hóa Kỵ chủ tiền tài lúc đến lúc đi; cung Tài Bạch gặp Lộc Tồn chủ sự tích lũy ổn định; cung Tài Bạch gặp Địa Không Địa Kiếp chủ hao tài và hư danh.",
+   "fullTranslationVi": "Cung Tài Bạch hóa Lộc nhập Mệnh, chủ tài nguyên rộng mở; cung Tài Bạch hóa Kỵ, chủ tiền tài lúc đến lúc đi; cung Tài Bạch gặp Lộc Tồn, chủ tích lũy ổn định; cung Tài Bạch gặp Địa Không Địa Kiếp, chủ hao tài hư danh.",
+   "conditionsVi": "Áp dụng khi xem xét các tinh diệu hóa khí hoặc hung tinh hội chiếu trực tiếp tại cung Tài Bạch và mối quan hệ với Mệnh cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "财帛宫化禄入命，主财源广进；财帛宫化忌，主财来财去；财帛宫见禄存，主稳定积累；财帛宫遇空劫，主财耗虚名。"
+     }
+    ],
+    "combinedQuotesCn": "财帛宫化禄入命，主财源广进；财帛宫化忌，主财来财去；财帛宫见禄存，主稳定积累；财帛宫遇空劫，主财耗虚名。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:01+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "df09db9db2f4a98b",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-006",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-006",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·官禄宫",
+     "subGroupKey": "qs-3-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Lận về Quan Lộc Cung trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Thái Dương",
+     "Vũ Khúc",
+     "Liêm Trinh"
+    ],
+    "palacesVi": [
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "su-nghiep",
+     "cong-danh",
+     "luan-giai-sao"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cung Quan Lộc chủ về sự nghiệp, địa vị và thành tựu xã hội. Các chủ tinh khác nhau tại cung Quan Lộc sẽ định hướng sự nghiệp khác nhau: Tử Vi thích hợp với nền tảng lớn và vị trí cao, Thái Dương thích hợp với công danh sự nghiệp nhà nước, Vũ Khúc thích hợp với tài chính và thực nghiệp, Liêm Trinh thích hợp với văn võ kiêm toàn.",
+   "fullTranslationVi": "Cung Quan Lộc chủ về sự nghiệp, địa vị và thành tựu xã hội. Cung Quan Lộc chủ tinh khác nhau, phương hướng sự nghiệp cũng khác nhau: Tử Vi ở cung Quan Lộc thích hợp nền tảng lớn vị trí cao, Thái Dương ở cung Quan Lộc thích hợp công vụ danh tiếng, Vũ Khúc ở cung Quan Lộc thích hợp tài chính thực nghiệp, Liêm Trinh ở cung Quan Lộc thích hợp văn võ kiêm toàn.",
+   "conditionsVi": "Áp dụng khi xem xét các chủ tinh tọa thủ tại cung Quan Lộc để định hướng sự nghiệp và công danh.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "官禄宫主事业、地位、社会成就。官禄宫主星不同，事业方向各异：紫微在官宜大平台高位，太阳在官宜公务名声，武曲在官宜金融实业，廉贞在官宜文武兼备。"
+     }
+    ],
+    "combinedQuotesCn": "官禄宫主事业、地位、社会成就。官禄宫主星不同，事业方向各异：紫微在官宜大平台高位，太阳在官宜公务名声，武曲在官宜金融实业，廉贞在官宜文武兼备。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:04+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "d0505387a44ffbc4",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-007",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-007",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·官禄宫",
+     "subGroupKey": "qs-3-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Luận Cung Quan Lộc về Tứ Hóa",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Quan Lộc",
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Quyền"
+     },
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "su-nghiep",
+     "tu-hoa",
+     "tai-loc"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "chapter_overview"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận giải về sự ảnh hưởng của Tứ Hóa đối với cung Quan Lộc, bao gồm việc Hóa Quyền nhập Mệnh chủ về khả năng độc lập gánh vác một phía, Hóa Lộc nhập Quan Lộc chủ về tài lộc xuất phát từ nghề nghiệp và công việc, cùng với Hóa Kỵ nhập Quan Lộc chủ về các trắc trở và sóng gió trong môi trường công sở.",
+   "fullTranslationVi": "Cung Quan Lộc hóa Quyền nhập Mệnh, chủ về có thể độc lập gánh vác một phía; hóa Lộc nhập Quan, chủ về tài lộc từ nghề nghiệp mà đến; hóa Kỵ nhập Quan, chủ về công sở có nhiều sóng gió.",
+   "conditionsVi": "Áp dụng khi xét các trường hợp sao hóa Lộc, hóa Quyền, hóa Kỵ nhập vào cung Quan Lộc hoặc Mệnh Cung.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "官禄宫化权入命，主能独当一面；化禄入官，主财从职业来；化忌入官，主职场波折。"
+     }
+    ],
+    "combinedQuotesCn": "官禄宫化权入命，主能独当一面；化禄入官，主财从职业来；化忌入官，主职场波折。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:07+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "0dd3760beb7360c2",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-008",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-008",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·夫妻宫",
+     "subGroupKey": "qs-4-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Luận về Cung Phu Thê trong Tử Vi Đẩu Số Toàn Thư: Khí chất phối hợp và trạng thái hôn nhân",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Tử Vi",
+     "Tham Lang",
+     "Thiên Lương"
+    ],
+    "palacesVi": [
+     "Phu Thê"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "hon-nhan",
+     "phu-the",
+     "cach-cuc"
+    ],
+    "targetDossierSections": [
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Cung Phu Thê chủ về khí chất của người phối hợp và trạng thái hôn nhân. Khi cung Phu Thê có sao Tử Vi thì phối hợp đoan trang uy quyền, nên kết hôn muộn; có sao Tham Lang thì phối hợp nhiều tình cảm, đào hoa nặng; có sao Thiên Lương thì phối hợp trưởng thành vững chãi và lớn tuổi hơn.",
+   "fullTranslationVi": "Cung Phu Thê chủ về khí chất người phối hợp và trạng thái hôn nhân. Cung Phu Thê có sao Tử Vi chủ về người phối hợp đoan trang uy quyền, nên kết hôn muộn; cung Phu Thê có sao Tham Lang chủ về người phối hợp nhiều tình cảm, đào hoa nặng; cung Phu Thê có sao Thiên Lương chủ về người phối hợp trưởng thành vững chãi, lớn tuổi.",
+   "conditionsVi": "Áp dụng khi xem cung Phu Thê có các sao Tử Vi, Tham Lang hoặc Thiên Lương độc thủ hoặc tọa thủ tại cung này.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "夫妻宫主配偶气质、婚姻状态。夫妻宫紫微主配偶端庄威权，宜迟婚；夫妻宫贪狼主配偶多情，桃花重；夫妻宫天梁主配偶成熟稳重，年长。"
+     }
+    ],
+    "combinedQuotesCn": "夫妻宫主配偶气质、婚姻状态。夫妻宫紫微主配偶端庄威权，宜迟婚；夫妻宫贪狼主配偶多情，桃花重；夫妻宫天梁主配偶成熟稳重，年长。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:26+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "3b18ad4cd2ca277f",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-009",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-009",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "十二宫论·夫妻宫",
+     "subGroupKey": "qs-4-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Luận về Phu Thê Cung - Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Hữu Bật",
+     "Kình Dương",
+     "Linh Tinh",
+     "Thiên Khôi",
+     "Thiên Việt",
+     "Văn Khúc",
+     "Văn Xương",
+     "Đà La",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Phu Thê"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "phu-the",
+     "hon-nhan",
+     "tu-hoa",
+     "sao-sat",
+     "sao-cat"
+    ],
+    "targetDossierSections": [
+     "palaces_family",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Đoạn phú luận giải về các trạng thái của cung Phu Thê trong Tử Vi Đẩu Số. Cung Phu Thê có Hóa Kỵ xung chiếu Mệnh cung chủ về hôn nhân nhiều trắc trở; gặp sáu sao sát tinh thì cần đặc biệt chú ý sự mài giũa trong tình cảm; gặp sáu sao cát tinh thì chủ về phối hợp có quý nhân giúp đỡ.",
+   "fullTranslationVi": "Phu Thê cung hóa kỵ xung Mệnh, chủ hôn nhân nhiều trắc trở. Phu Thê cung thấy sáu sát tinh, cần đặc biệt chú ý tình cảm bị mài giũa. Phu Thê cung thấy sáu cát tinh, chủ phối hợp quý nhân.",
+   "conditionsVi": "Áp dụng khi cung Phu Thê xuất hiện các trường hợp Hóa Kỵ xung chiếu Mệnh cung, hội tụ lục sát tinh hoặc lục cát tinh.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "夫妻宫化忌冲命，主婚姻多波折。夫妻宫见六煞，需特别注意感情之磨砺。夫妻宫见六吉，主配偶贵人。"
+     }
+    ],
+    "combinedQuotesCn": "夫妻宫化忌冲命，主婚姻多波折。夫妻宫见六煞，需特别注意感情之磨砺。夫妻宫见六吉，主配偶贵人。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:30+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "7a055eebb026090a",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-010",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-010",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "四化论",
+     "subGroupKey": "qs-5-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tinh hoa Tứ Hóa trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     },
+     {
+      "mutagenVi": "Hóa Quyền"
+     },
+     {
+      "mutagenVi": "Hóa Khoa"
+     },
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "ban-menh",
+     "tai-loc",
+     "su-nghiep",
+     "danh-tieng",
+     "suc-khoe",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Tứ Hóa là tinh hoa của mệnh bàn với bốn đặc tính cơ bản: Hóa Lộc chủ tài lộc, Hóa Quyền chủ uy thế, Hóa Khoa chủ danh tiếng, và Hóa Kỵ chủ bệnh tật. Vị trí các cung có Tứ Hóa đóng vai trò quyết định các mốc sự kiện trọng đại trong suốt cuộc đời con người.",
+   "fullTranslationVi": "Tứ hóa là tinh hoa của mệnh bàn - Hóa Lộc chủ tài, Hóa Quyền chủ thế, Hóa Khoa chủ danh, Hóa Kỵ chủ bệnh. Cung vị nơi Tứ Hóa tọa thủ quyết định các nút sự kiện trọng đại trong suốt một đời người.",
+   "conditionsVi": "Áp dụng cho việc định vị các sự kiện trọng đại dựa trên vị trí của Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) trên mệnh bàn.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "四化为命盘之精华——化禄主财、化权主势、化科主名、化忌主病。四化所在宫位，决定一生重大事件之节点。"
+     }
+    ],
+    "combinedQuotesCn": "四化为命盘之精华——化禄主财、化权主势、化科主名、化忌主病。四化所在宫位，决定一生重大事件之节点。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:34+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "52d214cef0de046a",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-011",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-011",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "四化论",
+     "subGroupKey": "qs-5-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Sinh Niên Tứ Hóa và Phương Pháp Luận Tứ Hóa Trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [],
+    "topicTags": [
+     "tu-hoa",
+     "phuong-phap",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "horizon_10y"
+    ]
+   },
+   "summaryVi": "Sinh niên tứ hóa chính là tứ hóa bản mệnh, có tính chất luôn luôn cố định và không di chuyển. Các sao tứ hóa đứng yên, chỉ quan sát đại hạn và lưu niên đi đến cung vị nào. Phái Bắc Phái Phi Tinh với các phép tự hóa, cung can phi hóa, hay lai nhân cung không được chủ trương sử dụng.",
+   "fullTranslationVi": "Sinh niên tứ hóa là tứ hóa bản mệnh, vĩnh viễn cố định. Thầy Nghê nhấn mạnh các sao tứ hóa không di chuyển, chỉ xem đại hạn lưu niên đi đến nơi nào. Bắc phái Phi Tinh phái về tự hóa, cung can phi hóa, lai nhân cung, v.v., thầy Nghê không chủ trương sử dụng.",
+   "conditionsVi": "Áp dụng phương pháp xem tứ hóa bản mệnh cố định không di chuyển, chỉ xét đại hạn lưu niên đi đến cung vị nào theo quan điểm của thầy Nghê, không dùng các phép tự hóa, cung can phi hóa hay lai nhân cung của phái Bắc Phái Phi Tinh.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "生年四化为本命四化，永远固定；倪师强调四化星不动，只看大限流年走到何处。北派飞星派之自化、宫干飞化、来因宫等，倪师不主张使用。"
+     }
+    ],
+    "combinedQuotesCn": "生年四化为本命四化，永远固定；倪师强调四化星不动，只看大限流年走到何处。北派飞星派之自化、宫干飞化、来因宫等，倪师不主张使用。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:38+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "fd33f46db803e45e",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-012",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-012",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "四化论",
+     "subGroupKey": "qs-5-3"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Luận Giải Hóa Lộc Nhập Các Cung Trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Phu Thê",
+     "Quan Lộc"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "tai-loc",
+     "hon-nhan",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Đoạn phú từ Tử Vi Đẩu Số Toàn Thư luận giải về tác động của Hóa Lộc khi nhập vào các cung Mệnh (tại Tam phương tứ chính giúp tài nguyên ổn định, nhân duyên rộng, năng lực chuyển hóa thành tiền tài), cung Phu Thê (hôn nhân ngọt ngào), và cung Quan Lộc (sự nghiệp và tài nguyên tương ứng với nhau).",
+   "fullTranslationVi": "Hóa Lộc nhập Mệnh tại Tam phương tứ chính: tài nguyên ổn định, nhân duyên rộng, năng lực có thể biến thành tiền tài. Hóa Lộc nhập Phu Thê: hôn nhân ngọt ngào. Hóa Lộc nhập Quan Lộc: sự nghiệp và tài nguyên tương ứng.",
+   "conditionsVi": "Áp dụng khi sao Hóa Lộc nhập vào Mệnh cung (tại Tam phương tứ chính), cung Phu Thê, hoặc cung Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化禄入命三方四正：财源稳定，缘分广，能力可变现。化禄入夫妻：婚姻甜蜜。化禄入官禄：事业财源相应。"
+     }
+    ],
+    "combinedQuotesCn": "化禄入命三方四正：财源稳定，缘分广，能力可变现。化禄入夫妻：婚姻甜蜜。化禄入官禄：事业财源相应。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:41+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "4c659b1f28cb1cc3",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-013",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-013",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "四化论",
+     "subGroupKey": "qs-5-4"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Luận Giải Về Hóa Kỵ Trong Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Phu Thê",
+     "Quan Lộc",
+     "Thiên Di",
+     "Tài Bạch",
+     "Phúc Đức"
+    ],
+    "branchesVi": [],
+    "patternsVi": [],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Kỵ"
+     }
+    ],
+    "topicTags": [
+     "tu-hoa",
+     "hoa-ky",
+     "hon-nhan",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core",
+     "palaces_family"
+    ]
+   },
+   "summaryVi": "Luận giải về Hóa Kỵ khi nhập vào các cung Mệnh tam phương tứ chính mang lại những bài học sâu sắc đòi hỏi phải đối mặt thay vì trốn tránh; nhập cung Phu Thê khiến hôn nhân nhiều trắc trở; nhập cung Quan Lộc tạo ra nhiều sóng gió sự nghiệp nhưng sau khi rèn luyện sẽ trở thành chuyên gia.",
+   "fullTranslationVi": "Hóa Kỵ nhập Mệnh tam phương tứ chính: Một đời có những bài học sâu sắc, nên đối mặt thay vì trốn tránh. Hóa Kỵ nhập Phu Thê: Hôn nhân nhiều trắc trở. Hóa Kỵ nhập Quan Lộc: Sự nghiệp nhiều sóng gió, nhưng sau khi tôi luyện thì ngược lại sẽ trở thành nhân tài chuyên môn.",
+   "conditionsVi": "Áp dụng khi sao Hóa Kỵ nhập vào Mệnh cung ở tam phương tứ chính, cung Phu Thê hoặc cung Quan Lộc.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化忌入命三方四正：一生有深刻功课，宜面对而非逃避。化忌入夫妻：婚姻多磨砺。化忌入官禄：事业多波折，但磨练后反成专业人才。"
+     }
+    ],
+    "combinedQuotesCn": "化忌入命三方四正：一生有深刻功课，宜面对而非逃避。化忌入夫妻：婚姻多磨砺。化忌入官禄：事业多波折，但磨练后反成专业人才。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:12:56+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "fc40aa20d1a4653d",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-014",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-014",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "机月同梁格",
+     "subGroupKey": "qs-6-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Cách Cục Cơ Nguyệt Đồng Lương",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Thái Âm",
+     "Thiên Đồng",
+     "Thiên Lương"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Quan Lộc",
+     "Tài Bạch",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Cơ Nguyệt Đồng Lương"
+    ],
+    "sihuaCombos": [],
+    "topicTags": [
+     "cach-cuc",
+     "su-nghiep",
+     "ban-menh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Cơ Nguyệt Đồng Lương hình thành khi bốn sao Thiên Cơ, Thái Âm, Thiên Đồng và Thiên Lương cùng hội nhập vào mệnh cung hoặc tam phương tứ chính. Người có cách này thường văn chất bỉnh bỉnh, thông huệ thiện mưu, rất phù hợp với các ngành nghề đòi hỏi sự tích lũy ổn định như công chức, học thuật, văn nghệ, y tế và dịch vụ.",
+   "fullTranslationVi": "Thiên Cơ, Thái Âm, Thiên Đồng, Thiên Lương bốn sao cùng nhập mệnh ở tam phương tứ chính, gọi là cách Cơ Nguyệt Đồng Lương. Văn chất bỉnh bỉnh, thông huệ thiện mưu, rất thích hợp với các ngành nghề như công chức, học thuật, văn nghệ, y tế, dịch vụ v.v... cần sự tích lũy ổn định.",
+   "conditionsVi": "Bốn sao Thiên Cơ, Thái Âm, Thiên Đồng và Thiên Lương cùng quy tụ tại mệnh cung hoặc chiếu qua các cung trong tam phương tứ chính.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "天机太阴天同天梁四星齐入命三方四正，称机月同梁格。文质彬彬、聪慧善谋，最适合公职、学术、文艺、医疗、服务等需稳定累积的行业。"
+     }
+    ],
+    "combinedQuotesCn": "天机太阴天同天梁四星齐入命三方四正，称机月同梁格。文质彬彬、聪慧善谋，最适合公职、学术、文艺、医疗、服务等需稳定累积的行业。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:13:03+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "3113eda5a54985af",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-015",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-015",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "机月同梁格",
+     "subGroupKey": "qs-6-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Cách Cơ Nguyệt Đồng Lương - Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Thiên Cơ",
+     "Thái Âm",
+     "Thiên Đồng",
+     "Thiên Lương",
+     "Văn Xương",
+     "Văn Khúc"
+    ],
+    "palacesVi": [
+     "Mệnh Cung"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Cơ Nguyệt Đồng Lương"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Khoa",
+      "starVi": ""
+     }
+    ],
+    "topicTags": [
+     "su-nghiep",
+     "cach-cuc",
+     "tu-hoa",
+     "phuong-phap"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách Cơ Nguyệt Đồng Lương chủ về người làm công chức, làm công tác hành chính văn thư và có cuộc sống an ổn trọn đời. Nếu gặp thêm Văn Xương, Văn Khúc và Hóa Khoa thì danh tiếng vang xa khắp nơi. Điều kiện bất lợi nhất là khi gặp quá nhiều sao sát tinh, lúc đó chủ về nhiều biến động và khó lòng an định.",
+   "fullTranslationVi": "Cơ Nguyệt Đồng Lương làm lại viên công chức — Sách cổ từng nói cách cục này thích hợp đảm nhiệm các chức vụ công chức, công việc hành chính văn thư, được an ổn suốt đời. Lại hội họp thêm Văn Xương, Văn Khúc và Hóa Khoa thì chủ về danh tiếng vang xa. Điều tối kỵ là gặp quá nhiều sao sát tinh, thì ngược lại chủ về nhiều thay đổi khó được an định.",
+   "conditionsVi": "Cần hội họp Văn Xương, Văn Khúc và Hóa Khoa để tăng thêm danh tiếng. Tối kỵ gặp quá nhiều sao sát tinh gây ra nhiều biến động khó an.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "机月同梁作吏人——古云此格者宜担任公职、行政文书工作，安稳一生。再会昌曲化科，主名声远播。最忌煞星过多，则反主多变难安。"
+     }
+    ],
+    "combinedQuotesCn": "机月同梁作吏人——古云此格者宜担任公职、行政文书工作，安稳一生。再会昌曲化科，主名声远播。最忌煞星过多，则反主多变难安。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:13:06+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "33210de76e159cbf",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-016",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-016",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "双禄朝垣格",
+     "subGroupKey": "qs-7-1"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Tử Vi Đẩu Số Toàn Thư - Song Lộc Triều Viên Cách",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Lộc Tồn",
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc",
+     "Địa Không",
+     "Địa Kiếp"
+    ],
+    "palacesVi": [
+     "Mệnh Cung",
+     "Quan Lộc",
+     "Tài Bạch",
+     "Thiên Di"
+    ],
+    "branchesVi": [],
+    "patternsVi": [
+     "Song Lộc Triều Viên"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "tai-loc",
+     "tu-hoa"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách cục Song Lộc Triều Viên hình thành khi Hóa Lộc và Lộc Tồn cùng hội tụ tại tam phương tứ chính của mệnh cung. Cổ nhân gọi đây là cách cục giàu có sánh ngang Đào Chu, chủ về cả đời không lo thiếu tài lộc, thường thu được cả tài lộc chính đáng lẫn hoạnh tài. Tuy nhiên cách cục này kỵ Địa Không và Địa Kiếp xung phá.",
+   "fullTranslationVi": "Hóa Lộc cùng Lộc Tồn đồng hội tại tam phương tứ chính của mệnh cung, gọi là cách cục Song Lộc Triều Viên. Cổ nhân có câu \"Song Lộc triều Viên, phú so với Đào Chu\", chủ về một đời không phải lo lắng về tài chính, phần nhiều có cả chính tài và hoạnh tài cùng đạt được. Song Lộc triều Viên kỵ nhất Địa Không và Địa Kiếp. Nếu Địa Không Địa Kiếp một khi xung phá, thì Song Lộc thành hư danh. Cần phải thấy Tả Phù Hữu Bật hoặc Văn Xương Văn Khúc, mới thành chính cách.",
+   "conditionsVi": "Kỵ nhất gặp Địa Không và Địa Kiếp xung phá khiến song lộc thành hư danh; cần phải gặp Tả Phù Hữu Bật hoặc Văn Xương Văn Khúc mới thành chính cách.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "化禄与禄存同会命宫三方四正，称双禄朝垣格。古云\"双禄朝垣，富比陶朱\"，主一生不愁财，多有正财横财兼得。"
+     }
+    ],
+    "combinedQuotesCn": "化禄与禄存同会命宫三方四正，称双禄朝垣格。古云\"双禄朝垣，富比陶朱\"，主一生不愁财，多有正财横财兼得。"
+   },
+   "priorityTier": 1,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:13:11+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "2dd5fc722bd1b1f9",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  },
+  {
+   "id": "CL-TT-017",
+   "corpusType": "classic_verse",
+   "scopeTier": "tier1_core",
+   "category": "classics-fu",
+   "sourceRef": {
+    "citationId": "CL-TT-017",
+    "tradition": "ziwei_classics",
+    "sourceLicense": "PUBLIC_DOMAIN_TEXT_WITH_CC_BY_NC_SA_ADAPTATION",
+    "groupKey": {
+     "book": "quanshu",
+     "h2Cn": "紫微斗数全书",
+     "h3Cn": "双禄朝垣格",
+     "subGroupKey": "qs-7-2"
+    },
+    "workTitleVi": "Tử Vi Đẩu Số Toàn Thư",
+    "groupTitleVi": "Song Lộc Triều Viên Cách - Tử Vi Đẩu Số Toàn Thư",
+    "bvids": [],
+    "sourceFilePath": "lib/classics/data/quanshu.ts",
+    "sourceLineNumbers": []
+   },
+   "retrievalKeys": {
+    "starsVi": [
+     "Lộc Tồn",
+     "Địa Không",
+     "Địa Kiếp",
+     "Tả Phù",
+     "Hữu Bật",
+     "Văn Xương",
+     "Văn Khúc"
+    ],
+    "palacesVi": [],
+    "branchesVi": [],
+    "patternsVi": [
+     "Song Lộc Triều Viên"
+    ],
+    "sihuaCombos": [
+     {
+      "mutagenVi": "Hóa Lộc"
+     }
+    ],
+    "topicTags": [
+     "cach-cuc",
+     "tai-loc",
+     "sao-phu-tinh"
+    ],
+    "targetDossierSections": [
+     "chapter_overview",
+     "palaces_core"
+    ]
+   },
+   "summaryVi": "Cách Song Lộc Triều Viên tối kỵ gặp Địa Không và Địa Kiếp xung phá vì sẽ biến song lộc thành hư danh, cần phải gặp Tả Phù, Hữu Bật hoặc Văn Xương, Văn Khúc thì mới thành cách cục chính thống.",
+   "fullTranslationVi": "Cách Song Lộc Triều Viên tối kỵ gặp Địa Không và Địa Kiếp—nếu Địa Không và Địa Kiếp xung phá, thì song lộc thành ra hư danh. Cần phải thấy Tả Phù, Hữu Bật hoặc Văn Xương, Văn Khúc, mới là chính cách.",
+   "conditionsVi": "Kỵ gặp Địa Không và Địa Kiếp xung phá; cần gặp Tả Phù, Hữu Bật hoặc Văn Xương, Văn Khúc để thành chính cách.",
+   "hanziAnchor": {
+    "quotes": [
+     {
+      "quoteCn": "双禄朝垣最忌空劫——空劫一冲，则双禄成虚名。需见左辅右弼或文昌文曲，方为正格。"
+     }
+    ],
+    "combinedQuotesCn": "双禄朝垣最忌空劫——空劫一冲，则双禄成虚名。需见左辅右弼或文昌文曲，方为正格。"
+   },
+   "priorityTier": 2,
+   "qaMeta": {
+    "distilledAtIso": "2026-11-19T09:13:42+07:00",
+    "modelUsed": "gemini-3.5-flash-lite",
+    "sourceHash": "3f9cbc87ac50f797",
+    "glossaryCheckPassed": true,
+    "candidateModelsProbed": [
+     "gemini-2.5-pro",
+     "gemini-3.8-flash",
+     "gemini-3.5-flash-lite"
+    ]
+   }
+  }
+ ]
+}

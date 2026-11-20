@@ -1,8 +1,8 @@
 import crypto from 'crypto';
 import {
   MAX_RAW_INPUT_CHARS,
-  PreviewItem,
-  PreviewSessionEntry,
+  type PreviewItem,
+  type PreviewSessionEntry,
 } from './types.ts';
 
 const GEMINI_KEY_REGEX = /^AIza[A-Za-z0-9_-]{31,41}$/;

@@ -1,7 +1,7 @@
 {
   "name": "tu-vi-thien-ky",
   "private": true,
-  "version": "1.1.0-rc.1",
+  "version": "1.4.0",
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
@@ -10,12 +10,19 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "kb:verify-source": "tsx scripts/kb-verify-source.ts",
+    "kb:group": "tsx scripts/kb-group-entries.ts",
+    "kb:distill": "tsx scripts/kb-distill.ts",
+    "kb:audit": "tsx scripts/kb-audit-quality.ts",
+    "kb:export-audit-sheet": "tsx scripts/kb-export-audit-sheet.ts",
     "verify:engine": "tsx scripts/verify-engine.ts",
     "verify:key-pool": "tsx scripts/verify-key-pool.ts",
     "verify:dossier-context": "tsx scripts/verify-dossier-context.ts",
     "verify:dossier-ui": "tsx scripts/verify-dossier-chat-ui.ts",
     "verify:yunxian": "tsx scripts/verify-yunxian.ts",
-    "verify:all": "npm run verify:key-pool && npm run verify:dossier-context && npm run verify:dossier-ui && npm run verify:yunxian"
+    "verify:library": "tsx scripts/verify-chart-library.ts",
+    "verify:kb": "tsx scripts/verify-knowledge-base.ts",
+    "verify:all": "npm run verify:key-pool && npm run verify:dossier-context && npm run verify:dossier-ui && npm run verify:yunxian && npm run verify:library && npm run verify:kb"
   },
   "dependencies": {
     "@google/genai": "^3.3.0",

@@ -1,3 +1,3 @@
-1.1.0-rc.1
-Ngày cập nhật: 17/11/2026
-Trạng thái: Bản RC.1 — Đã hoàn tất đợt thi công QĐ-H1..H7 (Pha 0 thu hẹp QĐ-H4 + Pha 1–3 trên 13 file code) và chuẩn hóa hệ thống tài liệu QĐ-D1..D6; đạt 100% kiểm thử offline (tsc 0 lỗi, vite build đạt, verify-key-pool 18/18, verify-dossier-context 6/6, verify-dossier-ui 18/18, verify-yunxian đạt, dist 0 key nguyên văn); chờ kiểm chứng live H1 trên trình duyệt trước khi chốt 1.1.0-stable & sao lưu mới.
+1.5.0
+Ngày cập nhật: 20/11/2026
+Trạng thái: Bản ổn định (stable) — CSDL Nền Tri Thức 300 mục đã kiểm toán hoàn thiện và đã nạp; kiểm chứng live tầng AI đạt ở model chính gemini-3.5-flash-lite (sinh hồ sơ, vận hạn, lưu niên, cơ chế failover giữa các key đều đạt). Ghi chú: chân dự phòng gemini-3.8-flash chưa kiểm chứng live được vì model này không khả dụng ở free tier tại thời điểm kiểm chứng (lỗi 503 phía Google); sẽ kiểm chứng bổ sung khi model khả dụng trở lại.

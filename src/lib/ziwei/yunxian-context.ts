@@ -1,15 +1,15 @@
-import type { Palace, SiHua, ZiweiChart } from './types';
-import { LUCUN_TABLE, PALACE_NAMES_ORDER, STAR_DESCRIPTIONS, TIANMA_TABLE } from './constants';
-import { SCHOOL_AX } from './school-tables.generated';
+import type { Palace, SiHua, ZiweiChart } from './types.ts';
+import { LUCUN_TABLE, PALACE_NAMES_ORDER, STAR_DESCRIPTIONS, TIANMA_TABLE } from './constants.ts';
+import { SCHOOL_AX } from './school-tables.generated.ts';
 import {
   getDaXianSiHua,
   getLiuNianSiHua,
   getYearBranchIndex,
   getYearStemIndex,
-} from './sihua';
-import { jiangQianShenName, jiangXingBranch, suiQianShenName } from './shier-shen';
-import { detectPatterns } from './patterns';
-import { SIHUA_IN_FUQI_GU, STAR_IN_FUQI_GU } from './heming-knowledge';
+} from './sihua.ts';
+import { jiangQianShenName, jiangXingBranch, suiQianShenName } from './shier-shen.ts';
+import { detectPatterns } from './patterns.ts';
+import { SIHUA_IN_FUQI_GU, STAR_IN_FUQI_GU } from './heming-knowledge.ts';
 import {
   VI_BRANCHES,
   VI_PALACE_ROLES,
@@ -19,7 +19,7 @@ import {
   translatePalaceName,
   translateSiHua,
   translateStarName,
-} from './vi-i18n';
+} from './vi-i18n.ts';
 
 export type YunxianView = 'mingpan' | 'daxian' | 'liunian' | 'xiaoxian' | 'liuyue' | 'liuri' | 'liushi';
 

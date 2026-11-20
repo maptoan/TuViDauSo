@@ -4,10 +4,10 @@ import path from 'path';
 import {
   DEFAULT_MODEL,
   DEFAULT_SUPPORTED_MODELS,
-  EncryptedPayload,
+  type EncryptedPayload,
   FALLBACK_MODEL,
-  GeminiKeyRecord,
-  KeyPoolState,
+  type GeminiKeyRecord,
+  type KeyPoolState,
   MAX_RECENT_LOGS,
 } from './types.ts';
 import {

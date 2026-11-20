@@ -1,5 +1,5 @@
-import type { Palace, SiHua, ZiweiChart } from './types';
-import { PALACE_NAMES_ORDER, STAR_DESCRIPTIONS } from './constants';
+import type { Palace, SiHua, ZiweiChart } from './types.ts';
+import { PALACE_NAMES_ORDER, STAR_DESCRIPTIONS } from './constants.ts';
 import {
   detectSelfSihua,
   getDaXianSiHua,
@@ -7,7 +7,7 @@ import {
   getSiHuaByStem,
   getYearBranchIndex,
   getYearStemIndex,
-} from './sihua';
+} from './sihua.ts';
 import {
   buildYunxianPeriodContext,
   getDaXianYears,
@@ -16,8 +16,8 @@ import {
   type PeriodDynamicStarItem,
   type PeriodSiHuaImpact,
   type YunxianPeriodContext,
-} from './yunxian-context';
-import { detectPatterns } from './patterns';
+} from './yunxian-context.ts';
+import { detectPatterns } from './patterns.ts';
 import {
   VI_BRANCHES,
   VI_PALACE_ROLES,
@@ -31,7 +31,7 @@ import {
   translateStarName,
   translateWuxingJu,
   translateYinYang,
-} from './vi-i18n';
+} from './vi-i18n.ts';
 
 export type DossierSectionId =
   | 'chapter_overview'

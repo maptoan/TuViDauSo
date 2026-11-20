@@ -13,7 +13,7 @@ import {
   translateWuxingJu,
   VI_BRANCHES,
 } from './src/lib/ziwei/vi-i18n.ts';
-import { ZiweiChart } from './src/lib/ziwei/types.ts';
+import type { ZiweiChart } from './src/lib/ziwei/types.ts';
 import type { YunxianPeriodContext } from './src/lib/ziwei/yunxian-context.ts';
 import {
   buildChatFactTableForContextVi,
@@ -28,6 +28,14 @@ import {
 } from './src/lib/ziwei/text-sanitizer.ts';
 import { keyPoolManager } from './server/key-pool/index.ts';
 import { PoolExhaustedError } from './server/key-pool/executor.ts';
+import { initKnowledgeBase } from './server/knowledge-base/loader.ts';
+import {
+  retrieveKnowledgeForChat,
+  retrieveKnowledgeForDossierSection,
+  retrieveKnowledgeForPeriod,
+} from './server/knowledge-base/retriever.ts';
+import { verifyAcademicCitationsAndClaims } from './server/knowledge-base/verifier.ts';
+import type { KnowledgeRetrievalResult } from './server/knowledge-base/types.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -155,18 +163,41 @@ ${generateLocalInterpretationVi(chartA, 'tình duyên Phu Thê')}
 ${generateLocalInterpretationVi(chartB, 'tình duyên Phu Thê')}`;
 }
 
+function formatKnowledgeInjectionBlock(kb: KnowledgeRetrievalResult): string {
+  const parts: string[] = [];
+  if (kb.sanFangNoteVi) {
+    parts.push(`Ghi chú vị trí sao theo Tam Phương Tứ Chính: ${kb.sanFangNoteVi}`);
+  }
+  if (kb.promptBlockMarkdown.trim()) {
+    parts.push(
+      `Danh sách mã thẻ nguồn được phép trích dẫn (nếu viện dẫn Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` tương ứng trong danh sách này; KHÔNG tự bịa ID ngoài danh sách):`,
+    );
+    parts.push(kb.promptBlockMarkdown.trim());
+  } else {
+    parts.push(
+      'Không có mục trích đoạn học thuật cụ thể nào được nạp cho lượt này; tuyệt đối không gắn thẻ `[Nguồn: ...]` và không tự dẫn nguyên văn khẩu quyết hay gán cho Nghê Hải Hạ / cổ thư.',
+    );
+  }
+  if (kb.coverageBoundaryNoteVi) {
+    parts.push(`Ranh giới dữ liệu (Lớp 3): ${kb.coverageBoundaryNoteVi}`);
+  }
+  return parts.join('\n');
+}
+
 export function buildStrictPeriodAiPrompt(
   periodContext: YunxianPeriodContext,
   chartSummary: string,
-): { systemInstruction: string; prompt: string } {
+  chart?: ZiweiChart | null,
+): { systemInstruction: string; prompt: string; knowledgeResult: KnowledgeRetrievalResult } {
   const isDahan = periodContext.mode === 'dahan';
   const periodTypeLabel = isDahan
     ? 'ĐẠI HẠN (Xu thế vận trình 10 năm)'
     : 'LƯU NIÊN (Biến chuyển & sự kiện trong 1 năm)';
+  const knowledgeResult = retrieveKnowledgeForPeriod(chart ?? null, periodContext);
 
   const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
 QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN THỦ 100%):
-1. CHỈ ĐƯỢC phép luận giải dựa trên các dữ kiện có trong [BẢNG DỮ KIỆN KỲ HẠN XÁC ĐỊNH], [TRÍCH ĐOẠN TRI THỨC LIÊN QUAN] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được gửi kèm.
+1. CHỈ ĐƯỢC phép luận giải dựa trên các dữ kiện có trong [BẢNG DỮ KIỆN KỲ HẠN XÁC ĐỊNH], [TRÍCH ĐOẠN TRI THỨC LIÊN QUAN], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được gửi kèm.
 2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm tự đổi cung vị của sao, cấm tự gán Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) hoặc Sao Lưu không có trong Bảng dữ kiện.
 3. KỶ LUẬT PHÂN TẦNG TỨ HÓA & NHÃN CUNG KỲ HẠN:
    - Giữ NGUYÊN tiền tố 4 tầng Tứ Hóa đúng như Bảng dữ kiện: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
@@ -176,7 +207,9 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
 4. Phân biệt rõ tính chất kỳ hạn:
    - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
    - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
-5. Mọi nhận định phải nêu đích danh tên sao, tên cung bản mệnh, nhãn "Cung Lưu <Tên Cung>" (nếu là Lưu Niên), can chi và sao lưu khớp với Bảng dữ kiện.
+5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
+   - Khi sử dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tới Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp vào cuối đoạn/bullet đó (ví dụ: \`[Nguồn: NH-SIHUA-001]\`).
+   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách; phần không có trích đoạn đối chiếu thì luận giải thuần túy theo Bảng dữ kiện lá số mà không viện dẫn tên sách/cổ quyết.
 6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), trình bày bằng Markdown theo đúng 4 đề mục:
    ### 1. Chủ Đề Kỳ Hạn (${isDahan ? 'Xu Thế 10 Năm' : 'Sự Kiện Trong Năm'})
    ### 2. Điểm Cát & Động Lực Thuận Lợi
@@ -196,6 +229,8 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
       : []),
   ].join('\n');
 
+  const kbBlock = formatKnowledgeInjectionBlock(knowledgeResult);
+
   const prompt = `Hãy diễn giải kỳ hạn **${periodContext.periodTitleVi}** thuộc loại **${periodTypeLabel}** dựa tuyệt đối vào bảng dữ kiện xác định dưới đây:
 
 === 1. BẢNG DỮ KIỆN KỲ HẠN XÁC ĐỊNH ===
@@ -204,12 +239,15 @@ ${periodContext.factTableMarkdown}
 === 2. TRÍCH ĐOẠN TRI THỨC LIÊN QUAN ===
 ${excerpts || 'Áp dụng nguyên lý Tam Phương Tứ Chính và Tứ Hóa kỳ hạn.'}
 
-=== 3. TÓM TẮT LÁ SỐ BẢN MỆNH ===
+=== 3. TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU ===
+${kbBlock}
+
+=== 4. TÓM TẮT LÁ SỐ BẢN MỆNH ===
 ${chartSummary}
 
 Hãy trình bày bài luận giải tiếng Việt theo đúng 4 mục quy định và kết thúc bằng dòng lưu ý nội dung tham khảo.`;
 
-  return { systemInstruction, prompt };
+  return { systemInstruction, prompt, knowledgeResult };
 }
 
 export const CHAT_MAX_QUESTION_LEN = 400;
@@ -346,9 +384,15 @@ export function validateExplanationChatInput(body: InterpretChatBody | undefined
 export function buildStrictDossierSectionPrompt(
   chart: ZiweiChart,
   sectionId: DossierSectionId,
-): { systemInstruction: string; prompt: string; titleVi: string } {
+): {
+  systemInstruction: string;
+  prompt: string;
+  titleVi: string;
+  knowledgeResult: KnowledgeRetrievalResult;
+} {
   const sectionCtx = buildDossierSectionFactSheetVi(chart, sectionId);
   const chartSummary = formatChartSummaryVi(chart);
+  const knowledgeResult = retrieveKnowledgeForDossierSection(chart, sectionId);
 
   const isPalaceGroup =
     sectionId === 'palaces_core' ||
@@ -379,24 +423,32 @@ export function buildStrictDossierSectionPrompt(
 
   const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
 QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
-1. CHỈ ĐƯỢC phép luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được cung cấp.
+1. CHỈ ĐƯỢC phép luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được cung cấp.
 2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện.
 3. Khi nhắc đến Tứ Hóa, PHẢI giữ rõ tầng theo đúng tiền tố: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
 ${sectionRules}
-5. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
-6. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
+5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
+   - Khi áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên trường phái / tác giả / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` nằm trong danh sách đã nạp ở cuối đoạn hoặc mục bullet tương ứng.
+   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc trích nguyên văn khẩu quyết ngoài danh sách; với phần không có trích đoạn đi kèm, chỉ luận giải thuần túy từ dữ kiện tinh đẩu trên lá số.
+6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
+7. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
+
+  const kbBlock = formatKnowledgeInjectionBlock(knowledgeResult);
 
   const prompt = `Hãy viết chuyên sâu phần **${sectionCtx.titleVi}** cho lá số sau, tuân thủ tuyệt đối bảng dữ kiện xác định và sàn độ dài đã quy định:
 
 === 1. DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG (${sectionId}) ===
 ${sectionCtx.factSheetMarkdown}
 
-=== 2. TÓM TẮT TOÀN LÁ SỐ BẢN MỆNH ===
+=== 2. TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU ===
+${kbBlock}
+
+=== 3. TÓM TẮT TOÀN LÁ SỐ BẢN MỆNH ===
 ${chartSummary}
 
 Hãy triển khai bài luận giải đầy đủ, đúng đề mục, chuẩn xác tinh đẩu và kết thúc bằng dòng lưu ý tham khảo.`;
 
-  return { systemInstruction, prompt, titleVi: sectionCtx.titleVi };
+  return { systemInstruction, prompt, titleVi: sectionCtx.titleVi, knowledgeResult };
 }
 
 export function buildStrictExplanationChatPrompt(params: {
@@ -408,7 +460,7 @@ export function buildStrictExplanationChatPrompt(params: {
   excerpt: string;
   history: ExplanationChatHistoryItem[];
   question: string;
-}): { systemInstruction: string; prompt: string } {
+}): { systemInstruction: string; prompt: string; knowledgeResult: KnowledgeRetrievalResult } {
   const factTable = buildChatFactTableForContextVi(params.chart, {
     contextMode: params.contextMode,
     periodContext: params.periodContext,
@@ -416,16 +468,25 @@ export function buildStrictExplanationChatPrompt(params: {
     includeHorizonStart: 2026,
     includeHorizonEnd: 2035,
   });
+  const knowledgeResult = retrieveKnowledgeForChat({
+    chart: params.chart,
+    chartB: params.chartB,
+    contextMode: params.contextMode,
+    sectionTitle: params.sectionTitle,
+    periodContext: params.periodContext,
+    question: params.question,
+  });
 
   const systemInstruction = `Bạn là chuyên gia Tử Vi Đẩu Số hệ thống Thiên Kỷ (Nghê Hải Hạ), đang giải đáp trực tiếp thắc mắc của đương số dựa trên phần luận giải đang mở.
 QUY TẮC CHỐNG ẢO GIÁC & GIỚI HẠN TRẢ LỜI (BẮT BUỘC 100%):
-1. CHỈ ĐƯỢC phép trả lời dựa trên [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], [ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM] và [LỊCH SỬ HỎI ĐÁP GẦN NHẤT] được gửi kèm.
+1. CHỈ ĐƯỢC phép trả lời dựa trên [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU], [ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM] và [LỊCH SỬ HỎI ĐÁP GẦN NHẤT] được gửi kèm.
 2. TUYỆT ĐỐI CẤM bịa thêm sao, cấm tự tính nhẩm sao Lưu Niên của năm ngoài phạm vi Ma Trận 2026–2035, cấm thay đổi cung vị hoặc tự gán Tứ Hóa không có trong dữ kiện.
 3. Đối chiếu tên sao theo ĐÚNG NGUYÊN VĂN trong [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], cảnh giác các sao gần giống tên nhau (ví dụ: Giải Thần, Niên Giải và Thiên Giải là 3 sao hoàn toàn khác nhau — chỉ được nói về sao có tên khớp chính xác trong dữ kiện).
-4. Nếu người dùng nêu một sao hoặc tổ hợp sao KHÔNG xuất hiện trong [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH], PHẢI nói rõ sao đó KHÔNG CÓ trong lá số/dữ kiện hiện có và DỪNG Ở ĐÓ; TUYỆT ĐỐI KHÔNG tự gán sao đó sang cung khác hay khẳng định vị trí thay thế.
+4. Nếu người dùng nêu một sao hoặc tổ hợp sao KHÔNG xuất hiện trong [BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH] (kể cả sao mượn Vô Chính Diệu và Tam Phương Tứ Chính), PHẢI nói rõ sao đó KHÔNG CÓ trong lá số/dữ kiện hiện có và DỪNG Ở ĐÓ; TUYỆT ĐỐI KHÔNG tự gán sao đó sang cung khác hay khẳng định vị trí thay thế.
 5. Khi trích dẫn Tứ Hóa, LUÔN nêu rõ tầng ([Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], hay [Tứ Hóa Lưu Niên YYYY]).
-6. Nếu câu hỏi đề cập tới thông tin KHÔNG CÓ CƠ SỞ trong dữ kiện lá số hoặc đoạn luận giải (ví dụ dữ kiện đời tư ngoài lá số, hoặc năm ngoài bảng Ma Trận đã truyền), phải trả lời TRUNG THỰC rằng dữ kiện hiện có không đủ căn cứ cho chi tiết đó, chỉ phân tích trong phạm vi tinh đẩu đã xác định.
-7. Đi thẳng vào trọng tâm câu hỏi, độ dài mục tiêu **150–350 từ** bằng tiếng Việt chuẩn mực (không chữ Hán), theo 3 ý ngắn gọn (nếu sao được hỏi không có trong dữ kiện theo mục 4 thì chỉ cần xác nhận rõ không có và dừng ngay phần đó, không suy diễn kéo dài):
+6. Nếu câu hỏi đề cập tới thông tin KHÔNG CÓ CƠ SỞ trong dữ kiện lá số, tư liệu đối chiếu hoặc đoạn luận giải (ví dụ dữ kiện đời tư ngoài lá số, chủ đề phong thủy/bói dịch/đơn thuốc ngoài Tử Vi, hoặc năm ngoài bảng Ma Trận đã truyền), phải trả lời TRUNG THỰC rằng dữ kiện hiện có không đủ căn cứ cho chi tiết đó, chỉ phân tích trong phạm vi tinh đẩu đã xác định.
+7. KỶ LUẬT TRÍCH DẪN NGUỒN (LỚP 1): Nếu áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên tác giả/cổ thư, gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp; không tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách.
+8. Đi thẳng vào trọng tâm câu hỏi, độ dài mục tiêu **150–350 từ** bằng tiếng Việt chuẩn mực (không chữ Hán), theo 3 ý ngắn gọn (nếu sao được hỏi không có trong dữ kiện theo mục 4 thì chỉ cần xác nhận rõ không có và dừng ngay phần đó, không suy diễn kéo dài):
    - **Căn cứ tinh đẩu & Tứ Hóa**: (nêu đích danh cung, sao, Tứ Hóa liên quan)
    - **Giải đáp trực diện**: (trả lời thẳng câu hỏi)
    - **Gợi ý ứng xử thực tế**: (1–2 hành động cụ thể)`;
@@ -437,23 +498,28 @@ QUY TẮC CHỐNG ẢO GIÁC & GIỚI HẠN TRẢ LỜI (BẮT BUỘC 100%):
           .join('\n')
       : 'Chưa có lượt hỏi trước đó trong mạch này.';
 
+  const kbBlock = formatKnowledgeInjectionBlock(knowledgeResult);
+
   const prompt = `Ngữ cảnh đang mở: **${params.sectionTitle}** (Chế độ: ${params.contextMode}).
 
 === 1. BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH ===
 ${factTable}
 
-=== 2. ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM ===
+=== 2. TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU ===
+${kbBlock}
+
+=== 3. ĐOẠN TRÍCH LUẬN GIẢI ĐANG XEM ===
 ${params.excerpt || '(Người dùng đang hỏi trực tiếp trên dữ kiện lá số.)'}
 
-=== 3. LỊCH SỬ HỎI ĐÁP GẦN NHẤT ===
+=== 4. LỊCH SỬ HỎI ĐÁP GẦN NHẤT ===
 ${historyBlock}
 
-=== 4. CÂU HỎI MỚI CỦA NGƯỜI DÙNG ===
+=== 5. CÂU HỎI MỚI CỦA NGƯỜI DÙNG ===
 "${params.question}"
 
 Hãy trả lời trực diện, chuẩn xác theo đúng dữ kiện xác định và trong khoảng 150–350 từ.`;
 
-  return { systemInstruction, prompt };
+  return { systemInstruction, prompt, knowledgeResult };
 }
 
 export function registerApiRoutes(app: express.Express) {
@@ -650,7 +716,11 @@ export function registerApiRoutes(app: express.Express) {
     }
 
     const chartSummary = formatChartSummaryVi(chart);
-    const { systemInstruction, prompt } = buildStrictPeriodAiPrompt(periodContext, chartSummary);
+    const { systemInstruction, prompt, knowledgeResult } = buildStrictPeriodAiPrompt(
+      periodContext,
+      chartSummary,
+      chart,
+    );
 
     const abortController = new AbortController();
     let sseStarted = false;
@@ -725,7 +795,35 @@ export function registerApiRoutes(app: express.Express) {
                 ? '\n'
                 : '\n\n';
             sendSseText(res, `${leadingSep}${addendumBlock}`);
+            accumulatedText += `${leadingSep}${addendumBlock}`;
           }
+        }
+      }
+      if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
+        const citationAudit = verifyAcademicCitationsAndClaims(
+          accumulatedText,
+          knowledgeResult.entries,
+        );
+        sendSseJson(res, {
+          citationAudit: {
+            validIds: citationAudit.validCitationIds,
+            scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            hasUncitedClaims: citationAudit.hasUncitedClaims,
+          },
+        });
+        const tailBlock = [
+          citationAudit.referenceBlockMarkdown,
+          citationAudit.warningBlockMarkdown,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        if (tailBlock) {
+          const leadingSep = accumulatedText.endsWith('\n\n')
+            ? ''
+            : accumulatedText.endsWith('\n')
+              ? '\n'
+              : '\n\n';
+          sendSseText(res, `${leadingSep}${tailBlock}`);
         }
       }
       if (sseStarted && !res.writableEnded) {
@@ -743,9 +841,10 @@ export function registerApiRoutes(app: express.Express) {
       }
 
       const safeDetail = keyPoolManager.sanitize(err);
-      const clientMessage =
+      const rawClientMsg =
         err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      console.error(`[interpret-period] KeyPool execution failed: ${safeDetail}`);
+      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
+      console.log(`[interpret-period] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
         error: 'AI_CALL_FAILED',
@@ -772,7 +871,7 @@ export function registerApiRoutes(app: express.Express) {
       return;
     }
 
-    const { systemInstruction, prompt } = buildStrictDossierSectionPrompt(
+    const { systemInstruction, prompt, knowledgeResult } = buildStrictDossierSectionPrompt(
       validated.chart,
       validated.sectionId,
     );
@@ -796,6 +895,9 @@ export function registerApiRoutes(app: express.Express) {
       }
     };
 
+    let accumulatedText = '';
+    let wasInterrupted = false;
+
     try {
       await keyPoolManager.executeStream({
         prompt,
@@ -807,9 +909,14 @@ export function registerApiRoutes(app: express.Express) {
         },
         onChunk: (text) => {
           ensureSseStarted();
+          const safeChunk = sanitizeLayer3AOnly(text);
+          if (safeChunk) {
+            accumulatedText += safeChunk;
+          }
           sendSseText(res, text);
         },
         onInterrupted: (ev) => {
+          wasInterrupted = true;
           ensureSseStarted();
           sendSseJson(res, {
             interrupted: true,
@@ -819,6 +926,33 @@ export function registerApiRoutes(app: express.Express) {
           });
         },
       });
+      if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
+        const citationAudit = verifyAcademicCitationsAndClaims(
+          accumulatedText,
+          knowledgeResult.entries,
+        );
+        sendSseJson(res, {
+          citationAudit: {
+            validIds: citationAudit.validCitationIds,
+            scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            hasUncitedClaims: citationAudit.hasUncitedClaims,
+          },
+        });
+        const tailBlock = [
+          citationAudit.referenceBlockMarkdown,
+          citationAudit.warningBlockMarkdown,
+        ]
+          .filter(Boolean)
+          .join('\n\n');
+        if (tailBlock) {
+          const leadingSep = accumulatedText.endsWith('\n\n')
+            ? ''
+            : accumulatedText.endsWith('\n')
+              ? '\n'
+              : '\n\n';
+          sendSseText(res, `${leadingSep}${tailBlock}`);
+        }
+      }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
         res.end();
@@ -834,9 +968,10 @@ export function registerApiRoutes(app: express.Express) {
       }
 
       const safeDetail = keyPoolManager.sanitize(err);
-      const clientMessage =
+      const rawClientMsg =
         err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      console.error(`[interpret-dossier-section] KeyPool execution failed: ${safeDetail}`);
+      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
+      console.log(`[interpret-dossier-section] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
         error: 'AI_CALL_FAILED',
@@ -863,7 +998,7 @@ export function registerApiRoutes(app: express.Express) {
       return;
     }
 
-    const { systemInstruction, prompt } = buildStrictExplanationChatPrompt({
+    const { systemInstruction, prompt, knowledgeResult } = buildStrictExplanationChatPrompt({
       chart: validated.chart,
       chartB: validated.chartB,
       contextMode: validated.contextMode,
@@ -893,6 +1028,9 @@ export function registerApiRoutes(app: express.Express) {
       }
     };
 
+    let accumulatedText = '';
+    let wasInterrupted = false;
+
     try {
       await keyPoolManager.executeStream({
         prompt,
@@ -904,9 +1042,14 @@ export function registerApiRoutes(app: express.Express) {
         },
         onChunk: (text) => {
           ensureSseStarted();
+          const safeChunk = sanitizeLayer3AOnly(text);
+          if (safeChunk) {
+            accumulatedText += safeChunk;
+          }
           sendSseText(res, text);
         },
         onInterrupted: (ev) => {
+          wasInterrupted = true;
           ensureSseStarted();
           sendSseJson(res, {
             interrupted: true,
@@ -916,6 +1059,27 @@ export function registerApiRoutes(app: express.Express) {
           });
         },
       });
+      if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
+        const citationAudit = verifyAcademicCitationsAndClaims(
+          accumulatedText,
+          knowledgeResult.entries,
+        );
+        sendSseJson(res, {
+          citationAudit: {
+            validIds: citationAudit.validCitationIds,
+            scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            hasUncitedClaims: citationAudit.hasUncitedClaims,
+          },
+        });
+        if (citationAudit.chatFooterMarkdown) {
+          const leadingSep = accumulatedText.endsWith('\n\n')
+            ? ''
+            : accumulatedText.endsWith('\n')
+              ? '\n'
+              : '\n\n';
+          sendSseText(res, `${leadingSep}${citationAudit.chatFooterMarkdown}`);
+        }
+      }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
         res.end();
@@ -931,9 +1095,10 @@ export function registerApiRoutes(app: express.Express) {
       }
 
       const safeDetail = keyPoolManager.sanitize(err);
-      const clientMessage =
+      const rawClientMsg =
         err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      console.error(`[interpret-chat] KeyPool execution failed: ${safeDetail}`);
+      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
+      console.log(`[interpret-chat] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
         error: 'AI_CALL_FAILED',
@@ -1151,6 +1316,10 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
 }
 
 async function startServer() {
+  const kbSnapshot = initKnowledgeBase();
+  console.log(
+    `[Knowledge Base] Đã nạp ${kbSnapshot.totalEntries} mục (${kbSnapshot.realEntries} thật / ${kbSnapshot.sampleEntries} mẫu) từ ${kbSnapshot.filesLoaded.join(', ') || '(trống)'}`,
+  );
   const app = express();
   registerApiRoutes(app);
 

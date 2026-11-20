@@ -1,63 +1,60 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { BirthFormState } from './types';
-
-const STORAGE_KEY = 'ziwei_history';
-const MAX_ENTRIES = 10;
+import {
+  removeLibraryEntry,
+  upsertChartToLibrary,
+  useChartLibrary,
+  type ChartLibraryEntry,
+} from '../chart-library';
 
 export interface HistoryEntry {
   id: string;
   label: string;
   form: BirthFormState;
   savedAt: number;
+  pinned?: boolean;
+  completedCount?: number;
 }
 
-export function useHistory() {
-  const [history, setHistory] = useState<HistoryEntry[]>([]);
+function toHistoryEntry(entry: ChartLibraryEntry): HistoryEntry {
+  const displayName = entry.customAlias || entry.form.name;
+  const label = [
+    displayName,
+    `${entry.form.day}/${entry.form.month}/${entry.form.year}`,
+    entry.form.city || entry.form.province || '',
+    entry.form.gender === 'male' ? 'Nam' : 'Nữ',
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setHistory(JSON.parse(raw));
-    } catch { /* localStorage 不可用时静默失败 */ }
-  }, []);
+  return {
+    id: entry.chartIdentityKey,
+    label,
+    form: entry.form,
+    savedAt: entry.lastOpenedAt,
+    pinned: entry.pinned,
+    completedCount: entry.dossierSummary.completedCount,
+  };
+}
+
+/**
+ * Tương thích ngược cho hook useHistory():
+ * Ủy quyền toàn bộ sang Thư Viện Lá Số (src/lib/chart-library.ts).
+ */
+export function useHistory() {
+  const { entries } = useChartLibrary();
+
+  const history = useMemo(
+    () => entries.map(toHistoryEntry),
+    [entries],
+  );
 
   const save = useCallback((form: BirthFormState) => {
-    const label = [
-      form.name,
-      `${form.day}/${form.month}/${form.year}`,
-      form.city || form.province || '',
-      form.gender === 'male' ? 'Nam' : 'Nữ',
-    ].filter(Boolean).join(' · ');
-
-    const entry: HistoryEntry = {
-      id: Date.now().toString(),
-      label,
-      form,
-      savedAt: Date.now(),
-    };
-
-    setHistory(prev => {
-      // 去重：相同出生年月日+性别+时辰视为同一条记录
-      const deduped = prev.filter(e =>
-        !(e.form.year === form.year &&
-          e.form.month === form.month &&
-          e.form.day === form.day &&
-          e.form.gender === form.gender &&
-          e.form.clockHour === form.clockHour &&
-          e.form.clockMinute === form.clockMinute)
-      );
-      const updated = [entry, ...deduped].slice(0, MAX_ENTRIES);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+    upsertChartToLibrary(form);
   }, []);
 
   const remove = useCallback((id: string) => {
-    setHistory(prev => {
-      const updated = prev.filter(e => e.id !== id);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch {}
-      return updated;
-    });
+    removeLibraryEntry(id, { deleteMode: 'entry_and_dossier' });
   }, []);
 
   return { history, save, remove };

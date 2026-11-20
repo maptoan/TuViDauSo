@@ -1,18 +1,35 @@
 import { GoogleGenAI } from '@google/genai';
 import {
   FIRST_CHUNK_TIMEOUT_MS,
-  KeyPoolState,
+  type KeyErrorCategory,
+  type KeyPoolState,
+  MAX_KEYS_IN_POOL,
   MAX_KEY_ATTEMPTS,
-  StreamExecutionMeta,
-  StreamInterruptedEvent,
+  type StreamExecutionMeta,
+  type StreamInterruptedEvent,
   TOTAL_FAILOVER_TIME_BUDGET_MS,
 } from './types.ts';
 import {
-  ClassifiedGeminiError,
+  type ClassifiedGeminiError,
   classifyGeminiError,
   formatHumanReadableErrorVi,
   KeyAllocator,
 } from './allocator.ts';
+
+const FAST_SWEEP_CATEGORIES = new Set<KeyErrorCategory>([
+  'QUOTA_PROJECT_ZERO',
+  'QUOTA_DAILY_EXHAUSTED',
+  'AUTH_INVALID_KEY',
+]);
+
+const POOL_EXHAUSTION_ELIGIBLE_CATEGORIES = new Set<KeyErrorCategory>([
+  'QUOTA_PROJECT_ZERO',
+  'QUOTA_DAILY_EXHAUSTED',
+  'RATE_LIMIT_RPM',
+  'AUTH_INVALID_KEY',
+  'MODEL_UNAVAILABLE',
+  'NETWORK_OR_5XX',
+]);
 
 export interface AiStreamChunk {
   text?: string;
@@ -106,11 +123,19 @@ YÊU CẦU VIẾT TIẾP NỐI LIỀN MẠCH (QUAN TRỌNG):
 }
 
 export class GeminiStreamExecutor {
+  private readonly getState: () => KeyPoolState;
+  private readonly getRawKeysById: () => Map<string, string>;
+  private readonly allocator: KeyAllocator;
+
   constructor(
-    private readonly getState: () => KeyPoolState,
-    private readonly getRawKeysById: () => Map<string, string>,
-    private readonly allocator: KeyAllocator,
-  ) {}
+    getState: () => KeyPoolState,
+    getRawKeysById: () => Map<string, string>,
+    allocator: KeyAllocator,
+  ) {
+    this.getState = getState;
+    this.getRawKeysById = getRawKeysById;
+    this.allocator = allocator;
+  }
 
   public async executeStream(options: ExecuteStreamOptions): Promise<StreamExecutionMeta> {
     const nowFn = options.nowFn ?? Date.now;
@@ -153,6 +178,7 @@ export class GeminiStreamExecutor {
     const attemptedPairs = new Set<string>();
 
     let keyAttemptsUsed = 0;
+    let fastEliminatedSweeps = 0;
     let totalCallsMade = 0;
     let firstChunkEverSent = false;
     let streamedTextSoFar = '';
@@ -161,7 +187,7 @@ export class GeminiStreamExecutor {
     let lastClassifiedError: ClassifiedGeminiError | null = null;
     let lastMeta: StreamExecutionMeta | null = null;
 
-    while (keyAttemptsUsed < MAX_KEY_ATTEMPTS) {
+    while (keyAttemptsUsed < MAX_KEY_ATTEMPTS && fastEliminatedSweeps < MAX_KEYS_IN_POOL) {
       if (options.signal?.aborted) {
         throw new Error('Yêu cầu đã bị hủy bởi người dùng.');
       }
@@ -180,11 +206,12 @@ export class GeminiStreamExecutor {
         break;
       }
 
-      keyAttemptsUsed += 1;
       excludedKeyIds.add(lease.keyId);
+      let leaseHadFastElimination = false;
+      let leaseHadTransientFailure = false;
 
       try {
-        while (true) {
+        while (fastEliminatedSweeps < MAX_KEYS_IN_POOL) {
           if (options.signal?.aborted) {
             throw new Error('Yêu cầu đã bị hủy bởi người dùng.');
           }
@@ -315,6 +342,14 @@ export class GeminiStreamExecutor {
             const classified = classifyGeminiError(err, this.getRawKeysById().values());
             lastClassifiedError = classified;
 
+            // Fast-Sweep (QĐ-F1 / FS2-02 / FS2-05): Đếm theo lượt gọi API bị loại cố định trước chunk đầu
+            if (!attemptSentAnyChunk && FAST_SWEEP_CATEGORIES.has(classified.category)) {
+              fastEliminatedSweeps += 1;
+              leaseHadFastElimination = true;
+            } else {
+              leaseHadTransientFailure = true;
+            }
+
             // Ghi nhận lỗi đúng bản chất — KHÔNG ép MODEL_UNAVAILABLE sang NETWORK_OR_5XX
             if (
               classified.category === 'MODEL_UNAVAILABLE' ||
@@ -394,6 +429,9 @@ export class GeminiStreamExecutor {
           }
         }
       } finally {
+        if (leaseHadTransientFailure || !leaseHadFastElimination) {
+          keyAttemptsUsed += 1;
+        }
         lease.release();
       }
     }
@@ -423,18 +461,26 @@ export class GeminiStreamExecutor {
       };
     }
 
-    // Chuẩn hóa lỗi cuối vòng lặp thành PoolExhaustedError khi không còn khóa/model khả dụng (Tối ưu #4)
-    this.allocator.sweep(nowFn());
-    const minSec = this.allocator.getMinRemainingCooldownSec(nowFn());
+    // Chuẩn hóa lỗi cuối vòng lặp thành PoolExhaustedError theo điều kiện FS2-01
+    const finalNowMs = nowFn();
+    this.allocator.sweep(finalNowMs);
+    const minSec = this.allocator.getMinRemainingCooldownSec(finalNowMs);
     const cleanMsg = formatHumanReadableErrorVi(lastClassifiedError, minSec);
     const remainingUsable = state.keys.filter(
       (k) =>
         k.status === 'ready' &&
-        this.allocator.getUsableModelsForKey(k, defaultModel, fallbackModel, undefined, nowFn())
+        this.allocator.getUsableModelsForKey(k, defaultModel, fallbackModel, undefined, finalNowMs)
           .length > 0,
     ).length;
 
-    if (remainingUsable === 0) {
+    const budgetExhausted = finalNowMs - requestStartMs >= TOTAL_FAILOVER_TIME_BUDGET_MS;
+    const shouldThrowPoolExhausted =
+      remainingUsable === 0 ||
+      budgetExhausted ||
+      (lastClassifiedError !== null &&
+        POOL_EXHAUSTION_ELIGIBLE_CATEGORIES.has(lastClassifiedError.category));
+
+    if (shouldThrowPoolExhausted) {
       throw new PoolExhaustedError('AI_POOL_EXHAUSTED', cleanMsg, minSec);
     }
 

@@ -40,9 +40,16 @@ import {
 import {
   enforceCanonicalPalaceGroupHeadings,
   sanitizeAiVietnameseOutput,
+  scrubInvalidCitationTags,
   verifyAndEnsureCompletePeriodSiHua,
 } from '../lib/ziwei/text-sanitizer';
 import { hasValidCachedPeriodEntry } from '../lib/key-pool-ui';
+import {
+  getDossierReadState,
+  removeSingleDossierChapterFromLibrary,
+  type LibraryHydrationStatus,
+  type LibraryStorageHealth,
+} from '../lib/chart-library';
 import MarkdownContent from './MarkdownContent';
 import {
   X,
@@ -61,6 +68,9 @@ import {
   MessageSquareText,
   Layers,
   KeyRound,
+  Library,
+  Trash2,
+  RotateCcw,
 } from 'lucide-react';
 
 interface DetailedDossierModalProps {
@@ -73,7 +83,10 @@ interface DetailedDossierModalProps {
   >;
   onOpenContextualChat: (context: ContextualChatContextPayload) => void;
   onOpenKeyPool?: () => void;
+  onOpenLibrary?: () => void;
   onDossierGeneratingChange?: (generating: boolean) => void;
+  hydrationStatus?: LibraryHydrationStatus;
+  storageHealth?: LibraryStorageHealth;
 }
 
 function isPeriodChapter(
@@ -117,7 +130,10 @@ export default function DetailedDossierModal({
   onAiPeriodCacheChange,
   onOpenContextualChat,
   onOpenKeyPool,
+  onOpenLibrary,
   onDossierGeneratingChange,
+  hydrationStatus = 'ready',
+  storageHealth,
 }: DetailedDossierModalProps) {
   const [selectedChapterId, setSelectedChapterId] =
     useState<DossierChapterId>('chapter_overview');
@@ -130,6 +146,15 @@ export default function DetailedDossierModal({
     useState<DossierChapterId | null>(null);
   const [showFactSheet, setShowFactSheet] = useState(false);
   const [copiedAll, setCopiedAll] = useState(false);
+  const [confirmDeleteChapterId, setConfirmDeleteChapterId] =
+    useState<DossierChapterId | null>(null);
+  const [deletedChapterUndo, setDeletedChapterUndo] = useState<{
+    chartIdentityKey: string;
+    chapterId: DossierChapterId;
+    chapterLabelVi: string;
+    chapterState: DossierChapterState;
+    periodEntryBackup?: AiPeriodEntry;
+  } | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const cancelAutoRef = useRef(false);
@@ -140,75 +165,18 @@ export default function DetailedDossierModal({
   const localChaptersRef = useRef(localChapters);
   localChaptersRef.current = localChapters;
 
+  const isGeneratingRef = useRef(false);
+  isGeneratingRef.current = autoRunning || activeGeneratingId !== null;
+
   const chartIdentityKey = useMemo(() => buildChartIdentityKey(chart), [chart]);
   const dossierStorageKey = useMemo(
     () => buildDossierStorageKey(chartIdentityKey),
     [chartIdentityKey],
   );
+  const isHydrated = hydrationStatus === 'ready' || hydrationStatus === 'degraded';
+  const prevChartKeyRef = useRef<string>(chartIdentityKey);
 
-  // Nạp & tự làm sạch (QĐ-G2/T2 + QĐ-H1) cả 8 chương đã lưu trong sessionStorage khi đổi lá số hoặc mở modal
-  useEffect(() => {
-    const storage = getBrowserSessionStorage();
-    const stored = readDossierCacheEntry(storage, dossierStorageKey, chart);
-    if (stored && stored.sections) {
-      const next: Partial<Record<DossierChapterId, DossierChapterState>> = {};
-      const periodPatches: Array<{ periodKey: string; text: string; meta?: AiExecutionMeta }> = [];
-
-      for (const [k, val] of Object.entries(stored.sections)) {
-        if (val && val.status === 'completed' && val.text?.trim()) {
-          const chId = k as DossierChapterId;
-          next[chId] = {
-            ...val,
-            sourceBadge: formatDossierSourceBadge('cache'),
-          };
-          if (chId === 'year_2026' || chId === 'year_2027') {
-            const yr = chId === 'year_2026' ? 2026 : 2027;
-            periodPatches.push({
-              periodKey: buildPeriodCacheKeyForYear(chart, yr),
-              text: val.text,
-              meta: val.meta,
-            });
-          }
-        }
-      }
-      setLocalChapters(next);
-
-      if (periodPatches.length > 0) {
-        onAiPeriodCacheChange((prev) => {
-          let changed = false;
-          const updated = { ...prev };
-          for (const patch of periodPatches) {
-            if (!hasValidCachedPeriodEntry(updated[patch.periodKey])) {
-              updated[patch.periodKey] = {
-                text: patch.text,
-                meta: patch.meta,
-              };
-              changed = true;
-            }
-          }
-          return changed ? updated : prev;
-        });
-      }
-    } else {
-      setLocalChapters({});
-    }
-    setSelectedChapterId('chapter_overview');
-  }, [dossierStorageKey, chart, onAiPeriodCacheChange]);
-
-  // Lưu bất kỳ chương hoàn tất nào (bao gồm Lưu Niên 2026/2027) vào sessionStorage LRU (tối đa 5 hồ sơ)
-  const persistCompletedSectionToSession = useCallback(
-    (chapterId: DossierChapterId, chapterState: DossierChapterState) => {
-      saveDossierSectionToCache(
-        getBrowserSessionStorage(),
-        chart,
-        chapterId,
-        chapterState,
-      );
-    },
-    [chart],
-  );
-
-  // Dọn dẹp khi đóng modal hoặc unmount
+  // Dọn dẹp khi đóng modal, đổi lá số hoặc unmount (khai báo trước useEffect nạp hồ sơ để tránh TDZ)
   const stopAllGeneration = useCallback(() => {
     cancelAutoRef.current = true;
     pauseAfterCurrentRef.current = false;
@@ -219,6 +187,181 @@ export default function DetailedDossierModal({
     setSharedDossierGenerating(false);
     onDossierGeneratingChange?.(false);
   }, [onDossierGeneratingChange]);
+
+  // ĐC-1 + ĐC-3 + Mục vá 3A (LK-06 & LK-09):
+  // - Đổi lá số -> dừng stream cũ (nếu có) & xóa ngay localChapters cũ kể cả khi !isHydrated.
+  // - Cùng lá số -> bảo vệ chương đang 'loading' hoặc vừa sinh mới hơn trong phiên, từ chối section lệch khóa.
+  // - Theo dõi cả `open` để cập nhật sạch nếu người dùng vừa xóa hồ sơ ở ChartLibraryModal.
+  useEffect(() => {
+    const isChartChanged = prevChartKeyRef.current !== chartIdentityKey;
+    if (isChartChanged) {
+      prevChartKeyRef.current = chartIdentityKey;
+      setSelectedChapterId('chapter_overview');
+      setConfirmDeleteChapterId(null);
+      setDeletedChapterUndo(null);
+      if (isGeneratingRef.current) {
+        stopAllGeneration();
+      }
+    }
+
+    const readState = getDossierReadState(chartIdentityKey, chart);
+    const rawStored =
+      readState.record ??
+      readDossierCacheEntry(getBrowserSessionStorage(), dossierStorageKey, chart);
+    const stored =
+      rawStored && rawStored.chartIdentityKey === chartIdentityKey ? rawStored : null;
+
+    if (stored && stored.sections) {
+      const fromStorage: Partial<Record<DossierChapterId, DossierChapterState>> = {};
+      const periodPatches: Array<{
+        periodKey: string;
+        text?: string;
+        incomplete?: boolean;
+        incompleteText?: string;
+        interruptedReason?: string;
+        error?: string;
+        meta?: AiExecutionMeta;
+      }> = [];
+
+      for (const [k, val] of Object.entries(stored.sections)) {
+        if (!val) continue;
+        const chId = k as DossierChapterId;
+        const expectedSectionKey = buildDossierChapterCacheKey(chartIdentityKey, chId);
+        // LK-06 & ĐC-3: Từ chối mọi chương có sectionCacheKey thuộc về lá số khác
+        if (val.sectionCacheKey && val.sectionCacheKey !== expectedSectionKey) {
+          continue;
+        }
+        if (val.status === 'completed' && val.text?.trim()) {
+          fromStorage[chId] = {
+            ...val,
+            sectionCacheKey: expectedSectionKey,
+            sourceBadge: formatDossierSourceBadge('cache'),
+          };
+          if (chId === 'year_2026' || chId === 'year_2027') {
+            const yr = chId === 'year_2026' ? 2026 : 2027;
+            periodPatches.push({
+              periodKey: buildPeriodCacheKeyForYear(chart, yr),
+              text: val.text,
+              meta: val.meta,
+            });
+          }
+        } else if (val.status === 'incomplete' && val.incompleteText?.trim()) {
+          fromStorage[chId] = {
+            ...val,
+            sectionCacheKey: expectedSectionKey,
+            sourceBadge: formatDossierSourceBadge('cache'),
+          };
+          if (chId === 'year_2026' || chId === 'year_2027') {
+            const yr = chId === 'year_2026' ? 2026 : 2027;
+            periodPatches.push({
+              periodKey: buildPeriodCacheKeyForYear(chart, yr),
+              incomplete: true,
+              incompleteText: val.incompleteText,
+              interruptedReason: val.interruptedReason,
+              error: val.error,
+              meta: val.meta,
+            });
+          }
+        }
+      }
+
+      setLocalChapters((prev) => {
+        if (isChartChanged) {
+          return fromStorage;
+        }
+        // LK-06: Khi trên cùng lá số, bảo vệ chương đang 'loading' hoặc vừa sinh mới hơn trong phiên
+        const merged: Partial<Record<DossierChapterId, DossierChapterState>> = {
+          ...fromStorage,
+        };
+        for (const spec of DOSSIER_CHAPTER_SPECS) {
+          const chId = spec.id;
+          const expectedKey = buildDossierChapterCacheKey(chartIdentityKey, chId);
+          const prevCh = prev[chId];
+          if (!prevCh || prevCh.sectionCacheKey !== expectedKey) continue;
+          if (prevCh.status === 'loading') {
+            merged[chId] = prevCh;
+          } else if (
+            prevCh.status === 'completed' &&
+            prevCh.text?.trim() &&
+            (!merged[chId] || (prevCh.updatedAt ?? 0) > (merged[chId]?.updatedAt ?? 0))
+          ) {
+            merged[chId] = prevCh;
+          }
+        }
+        return merged;
+      });
+
+      if (periodPatches.length > 0) {
+        onAiPeriodCacheChange((prev) => {
+          let changed = false;
+          const updated = { ...prev };
+          for (const patch of periodPatches) {
+            if (patch.text && !hasValidCachedPeriodEntry(updated[patch.periodKey])) {
+              updated[patch.periodKey] = {
+                text: patch.text,
+                meta: patch.meta,
+              };
+              changed = true;
+            } else if (
+              patch.incomplete &&
+              patch.incompleteText &&
+              !hasValidCachedPeriodEntry(updated[patch.periodKey]) &&
+              !updated[patch.periodKey]?.incomplete
+            ) {
+              updated[patch.periodKey] = {
+                incomplete: true,
+                incompleteText: patch.incompleteText,
+                interruptedReason: patch.interruptedReason,
+                error: patch.error,
+                meta: patch.meta,
+              };
+              changed = true;
+            }
+          }
+          return changed ? updated : prev;
+        });
+      }
+    } else if (isChartChanged) {
+      // Mục vá 3A: Khi đổi sang lá số khác chưa có hồ sơ, xóa ngay localChapters cũ kể cả khi !isHydrated
+      setLocalChapters({});
+    } else if (isHydrated) {
+      // LK-06 & LK-09: Khi đã hydrated trên cùng lá số mà storage rỗng (vd vừa xóa dossier_only),
+      // chỉ giữ lại chương đang 'loading' (nếu có) của đúng lá số hiện tại
+      setLocalChapters((prev) => {
+        const keptLoading: Partial<Record<DossierChapterId, DossierChapterState>> = {};
+        for (const spec of DOSSIER_CHAPTER_SPECS) {
+          const ch = prev[spec.id];
+          const expectedKey = buildDossierChapterCacheKey(chartIdentityKey, spec.id);
+          if (ch && ch.sectionCacheKey === expectedKey && ch.status === 'loading') {
+            keptLoading[spec.id] = ch;
+          }
+        }
+        return keptLoading;
+      });
+    }
+  }, [
+    open,
+    chartIdentityKey,
+    dossierStorageKey,
+    chart,
+    hydrationStatus,
+    isHydrated,
+    stopAllGeneration,
+    onAiPeriodCacheChange,
+  ]);
+
+  // Lưu bất kỳ chương hoàn tất hoặc dở dang có nội dung vào SSOT IndexedDB/gương RAM (+ write-through sessionStorage)
+  const persistSectionToStorage = useCallback(
+    (chapterId: DossierChapterId, chapterState: DossierChapterState) => {
+      saveDossierSectionToCache(
+        getBrowserSessionStorage(),
+        chart,
+        chapterId,
+        chapterState,
+      );
+    },
+    [chart],
+  );
 
   useEffect(() => {
     if (!open && (autoRunning || activeGeneratingId !== null)) {
@@ -405,6 +548,7 @@ export default function DetailedDossierModal({
         let streamError: string | null = null;
         let wasInterrupted = false;
         let interruptedMsg = '';
+        let scrubbedInvalidCitationIds: string[] = [];
 
         const processLine = (line: string): boolean => {
           if (!line.startsWith('data: ')) return false;
@@ -436,6 +580,12 @@ export default function DetailedDossierModal({
                   },
                 }));
               }
+              return false;
+            }
+            if (parsed?.citationAudit && Array.isArray(parsed.citationAudit.scrubbedInvalidIds)) {
+              scrubbedInvalidCitationIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+                (x: unknown): x is string => typeof x === 'string' && x.trim().length > 0,
+              );
               return false;
             }
             if (parsed?.interrupted) {
@@ -498,8 +648,13 @@ export default function DetailedDossierModal({
         }
 
         // Pipeline chốt lớp 2 (idempotent) ngay sau vòng lặp SSE, trước cả nhánh đứt luồng lẫn nhánh hoàn tất:
-        // 1) sanitizeAiVietnameseOutput -> 2) verifyAndEnsureCompletePeriodSiHua (chương 5/6) -> 3) enforceCanonicalPalaceGroupHeadings (chương 2/3/4)
+        // 1) sanitizeAiVietnameseOutput -> 2) scrubInvalidCitationTags (ĐN-5/ĐN-6) -> 3) verifyAndEnsureCompletePeriodSiHua (chương 5/6) -> 4) enforceCanonicalPalaceGroupHeadings (chương 2/3/4)
         accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (scrubbedInvalidCitationIds.length > 0) {
+          accumulated = scrubInvalidCitationTags(accumulated, {
+            invalidIds: scrubbedInvalidCitationIds,
+          });
+        }
         if (isPeriod && periodCtx && !wasInterrupted && !streamError && accumulated.trim()) {
           accumulated = verifyAndEnsureCompletePeriodSiHua(
             accumulated,
@@ -519,6 +674,29 @@ export default function DetailedDossierModal({
             interruptedMsg ||
             streamError ||
             'Kết nối bị gián đoạn giữa chừng. Nội dung dở không được lưu làm bản hoàn tất.';
+          const hasPartialText = accumulated.trim().length > 0;
+          if (!hasPartialText) {
+            if (isPeriod && periodKey) {
+              onAiPeriodCacheChange((prev) => ({
+                ...prev,
+                [periodKey]: {
+                  error: reason,
+                },
+              }));
+            }
+            setLocalChapters((prev) => ({
+              ...prev,
+              [spec.id]: {
+                chapterId: spec.id,
+                sectionCacheKey,
+                status: 'error',
+                error: reason,
+                updatedAt: Date.now(),
+              },
+            }));
+            return 'error';
+          }
+
           const partialMeta = receivedMeta
             ? { ...receivedMeta, interrupted: true }
             : undefined;
@@ -527,26 +705,29 @@ export default function DetailedDossierModal({
               ...prev,
               [periodKey]: {
                 incomplete: true,
-                incompleteText: accumulated.trim() ? accumulated : undefined,
+                incompleteText: accumulated,
                 interruptedReason: reason,
                 meta: partialMeta,
                 error: reason,
               },
             }));
           }
+          const incompleteState: DossierChapterState = {
+            chapterId: spec.id,
+            sectionCacheKey,
+            status: 'incomplete',
+            incompleteText: accumulated,
+            interruptedReason: reason,
+            error: reason,
+            meta: partialMeta,
+            sourceBadge: formatDossierSourceBadge('generated'),
+            updatedAt: Date.now(),
+          };
           setLocalChapters((prev) => ({
             ...prev,
-            [spec.id]: {
-              chapterId: spec.id,
-              sectionCacheKey,
-              status: 'incomplete',
-              incompleteText: accumulated.trim() ? accumulated : undefined,
-              interruptedReason: reason,
-              error: reason,
-              meta: partialMeta,
-              sourceBadge: formatDossierSourceBadge('generated'),
-            },
+            [spec.id]: incompleteState,
           }));
+          persistSectionToStorage(spec.id, incompleteState);
           return 'incomplete';
         }
 
@@ -593,7 +774,7 @@ export default function DetailedDossierModal({
           ...prev,
           [spec.id]: completedState,
         }));
-        persistCompletedSectionToSession(spec.id, completedState);
+        persistSectionToStorage(spec.id, completedState);
 
         return 'completed';
       } catch (err) {
@@ -626,13 +807,13 @@ export default function DetailedDossierModal({
       chart,
       chartIdentityKey,
       onAiPeriodCacheChange,
-      persistCompletedSectionToSession,
+      persistSectionToStorage,
     ],
   );
 
-  // Sinh đơn lẻ 1 chương
+  // Sinh đơn lẻ 1 chương (ĐC-1: chờ nạp xong IndexedDB trước khi cho phép sinh đè)
   const handleGenerateSingleChapter = async (chapterId: DossierChapterId) => {
-    if (autoRunning || activeGeneratingId !== null) return;
+    if (!isHydrated || autoRunning || activeGeneratingId !== null) return;
     const spec = DOSSIER_CHAPTER_SPECS.find((s) => s.id === chapterId);
     if (!spec) return;
 
@@ -649,7 +830,7 @@ export default function DetailedDossierModal({
 
   // F6 + QĐ-H7: Chạy tự động tuần tự toàn bộ các chương chưa hoàn tất với giãn nhịp 1,200ms
   const handleRunAllSequential = async () => {
-    if (autoRunning || activeGeneratingId !== null) return;
+    if (!isHydrated || autoRunning || activeGeneratingId !== null) return;
 
     const specsToRun = DOSSIER_CHAPTER_SPECS.filter((spec) => {
       const current = resolveDossierChapterFromCaches(
@@ -684,7 +865,7 @@ export default function DetailedDossierModal({
         const spec = specsToRun[idx];
         setSelectedChapterId(spec.id);
         const outcome = await executeSingleChapterStream(spec);
-        if (outcome === 'aborted' || cancelAutoRef.current) break;
+        if (outcome === 'error' || outcome === 'aborted' || cancelAutoRef.current) break;
         if (pauseAfterCurrentRef.current) break;
 
         if (idx < specsToRun.length - 1) {
@@ -771,6 +952,87 @@ export default function DetailedDossierModal({
         `Nếu muốn cải thiện vận thế của phần này, đương số nên ưu tiên điều gì?`,
       ],
     });
+  };
+
+  // QĐ-L8 (Phương án B tăng cường C1+): Xóa riêng 1 chương đang chọn (có xác nhận tại chỗ & hoàn tác trong phiên)
+  const handleConfirmDeleteSelectedChapter = () => {
+    if (!isHydrated || isAnyBusy) return;
+    if (selectedState.status !== 'completed' && selectedState.status !== 'incomplete') return;
+
+    const snapshotState: DossierChapterState = {
+      ...selectedState,
+      sectionCacheKey: buildDossierChapterCacheKey(chartIdentityKey, selectedSpec.id),
+    };
+    const pKey = isPeriodChapter(selectedSpec)
+      ? buildPeriodCacheKeyForYear(chart, selectedSpec.year)
+      : null;
+    const periodEntryBackup = pKey ? aiPeriodCacheRef.current[pKey] : undefined;
+
+    removeSingleDossierChapterFromLibrary(chart, selectedSpec.id);
+    setLocalChapters((prev) => {
+      const next = { ...prev };
+      delete next[selectedSpec.id];
+      return next;
+    });
+    if (pKey) {
+      onAiPeriodCacheChange((prev) => {
+        if (!(pKey in prev)) return prev;
+        const next = { ...prev };
+        delete next[pKey];
+        return next;
+      });
+    }
+
+    setConfirmDeleteChapterId(null);
+    setDeletedChapterUndo({
+      chartIdentityKey,
+      chapterId: selectedSpec.id,
+      chapterLabelVi: selectedSpec.shortLabelVi,
+      chapterState: snapshotState,
+      periodEntryBackup,
+    });
+  };
+
+  const handleUndoDeleteChapter = () => {
+    if (!deletedChapterUndo || deletedChapterUndo.chartIdentityKey !== chartIdentityKey) {
+      return;
+    }
+    const { chapterId, chapterState, periodEntryBackup } = deletedChapterUndo;
+    const restoredSpec = DOSSIER_CHAPTER_SPECS.find((s) => s.id === chapterId);
+    saveDossierSectionToCache(
+      getBrowserSessionStorage(),
+      chart,
+      chapterId,
+      chapterState,
+    );
+    setLocalChapters((prev) => ({
+      ...prev,
+      [chapterId]: chapterState,
+    }));
+    if (restoredSpec && isPeriodChapter(restoredSpec)) {
+      const pKey = buildPeriodCacheKeyForYear(chart, restoredSpec.year);
+      const restoredEntry: AiPeriodEntry | undefined =
+        periodEntryBackup ??
+        (chapterState.status === 'completed' && chapterState.text?.trim()
+          ? { text: chapterState.text, meta: chapterState.meta }
+          : chapterState.status === 'incomplete' && chapterState.incompleteText?.trim()
+            ? {
+                incomplete: true,
+                incompleteText: chapterState.incompleteText,
+                interruptedReason: chapterState.interruptedReason,
+                error: chapterState.error,
+                meta: chapterState.meta,
+              }
+            : undefined);
+      if (restoredEntry) {
+        onAiPeriodCacheChange((prev) => ({
+          ...prev,
+          [pKey]: restoredEntry,
+        }));
+      }
+    }
+    setSelectedChapterId(chapterId);
+    setDeletedChapterUndo(null);
   };
 
   if (!open) return null;
@@ -866,7 +1128,13 @@ export default function DetailedDossierModal({
                     <span>Âm lịch: {headerMeta.lunar}</span>
                     <span>·</span>
                     <span className="font-mono-tabular">
-                      Hoàn tất: <strong className="text-[var(--t-gold)]">{completedCount}/8</strong> chương
+                      {isHydrated ? (
+                        <>
+                          Hoàn tất: <strong className="text-[var(--t-gold)]">{completedCount}/8</strong> chương
+                        </>
+                      ) : (
+                        <strong className="text-amber-300">Đang nạp từ IndexedDB...</strong>
+                      )}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-[var(--t-faint)]">
@@ -878,6 +1146,17 @@ export default function DetailedDossierModal({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap">
+                {onOpenLibrary && (
+                  <button
+                    type="button"
+                    onClick={onOpenLibrary}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-[var(--t-gold)] cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Library className="w-3.5 h-3.5" />
+                    <span>Thư Viện</span>
+                  </button>
+                )}
+
                 {onOpenKeyPool && (
                   <button
                     type="button"
@@ -903,6 +1182,24 @@ export default function DetailedDossierModal({
               </div>
             </div>
 
+            {!isHydrated && (
+              <div className="rounded-lg border border-sky-500/40 bg-sky-950/35 px-3 py-2 text-xs text-sky-200 flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-sky-400" />
+                <span>
+                  Đang nạp dữ liệu Hồ Sơ 8 Chương từ bộ nhớ bền vững IndexedDB — tạm khóa thao tác sinh mới để bảo vệ các chương đã lưu.
+                </span>
+              </div>
+            )}
+
+            {isHydrated && storageHealth && !storageHealth.indexedDbAvailable && (
+              <div className="rounded-lg border border-amber-500/45 bg-amber-950/35 px-3 py-2 text-xs text-amber-200 flex items-center gap-2">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
+                <span>
+                  IndexedDB đang bị chặn — Hồ sơ chỉ lưu tạm tối đa 3 bản nóng cục bộ. Hãy mở Thư Viện và Xuất .JSON để sao lưu.
+                </span>
+              </div>
+            )}
+
             {/* Progress bar + F6 orchestration + F1 exports */}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -910,16 +1207,18 @@ export default function DetailedDossierModal({
                   <button
                     type="button"
                     onClick={handleRunAllSequential}
-                    disabled={isAnyBusy || completedCount === DOSSIER_CHAPTER_SPECS.length}
+                    disabled={!isHydrated || isAnyBusy || completedCount === DOSSIER_CHAPTER_SPECS.length}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed transition-all cursor-pointer whitespace-nowrap shrink-0"
                   >
                     <Play className="w-3.5 h-3.5" />
                     <span>
-                      {completedCount === DOSSIER_CHAPTER_SPECS.length
-                        ? 'Đã hoàn tất trọn bộ 8/8 chương'
-                        : completedCount > 0
-                          ? `Tự động tạo tiếp (${DOSSIER_CHAPTER_SPECS.length - completedCount} chương thiếu)`
-                          : 'Tự động tạo trọn bộ (8 chương)'}
+                      {!isHydrated
+                        ? 'Đang nạp bộ nhớ bền vững...'
+                        : completedCount === DOSSIER_CHAPTER_SPECS.length
+                          ? 'Đã hoàn tất trọn bộ 8/8 chương'
+                          : completedCount > 0
+                            ? `Tự động tạo tiếp (${DOSSIER_CHAPTER_SPECS.length - completedCount} chương thiếu)`
+                            : 'Tự động tạo trọn bộ (8 chương)'}
                     </span>
                   </button>
                 ) : (
@@ -1082,25 +1381,101 @@ export default function DetailedDossierModal({
                     <button
                       type="button"
                       onClick={() => handleGenerateSingleChapter(selectedSpec.id)}
-                      disabled={isAnyBusy}
+                      disabled={!isHydrated || isAnyBusy}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 disabled:opacity-45 disabled:cursor-not-allowed transition-all cursor-pointer whitespace-nowrap shrink-0"
                     >
                       <Sparkles
-                        className={`w-3.5 h-3.5 ${isSelectedBusy ? 'animate-spin' : ''}`}
+                        className={`w-3.5 h-3.5 ${isSelectedBusy || !isHydrated ? 'animate-spin' : ''}`}
                       />
                       <span>
-                        {isSelectedBusy
-                          ? 'Đang sinh chương...'
-                          : selectedState.status === 'completed'
-                            ? 'Tạo lại chương này'
-                            : selectedState.status === 'incomplete' ||
-                                selectedState.status === 'error'
-                              ? 'Thử lại chương này'
-                              : 'Sinh chương này'}
+                        {!isHydrated
+                          ? 'Đang nạp...'
+                          : isSelectedBusy
+                            ? 'Đang sinh chương...'
+                            : selectedState.status === 'completed'
+                              ? 'Tạo lại chương này'
+                              : selectedState.status === 'incomplete' ||
+                                  selectedState.status === 'error'
+                                ? 'Thử lại chương này'
+                                : 'Sinh chương này'}
                       </span>
                     </button>
+
+                    {(selectedState.status === 'completed' ||
+                      selectedState.status === 'incomplete') && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfirmDeleteChapterId((curr) =>
+                            curr === selectedSpec.id ? null : selectedSpec.id,
+                          )
+                        }
+                        disabled={!isHydrated || isAnyBusy}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-rose-400 hover:border-rose-500/50 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                        title="Xóa riêng nội dung chương này khỏi Hồ Sơ"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa chương này</span>
+                      </button>
+                    )}
                   </div>
                 </div>
+
+                {/* Xác nhận xóa chương tại chỗ (QĐ-L8 C1+) */}
+                {confirmDeleteChapterId === selectedSpec.id && (
+                  <div className="rounded-xl p-3 border border-rose-500/50 bg-rose-950/35 text-xs text-rose-100 flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                      <span>
+                        Xác nhận xóa nội dung <strong>{selectedSpec.shortLabelVi}</strong> khỏi Hồ Sơ của lá số này? (Bạn có thể hoàn tác ngay trong phiên).
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteChapterId(null)}
+                        className="px-2.5 py-1 rounded-md border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-[var(--t-text)] cursor-pointer"
+                      >
+                        Hủy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleConfirmDeleteSelectedChapter}
+                        className="px-2.5 py-1 rounded-md font-semibold bg-rose-600 text-white hover:bg-rose-500 cursor-pointer"
+                      >
+                        Xác nhận xóa
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Banner hoàn tác xóa chương trong phiên (LK-08 / QĐ-L8 C1+) */}
+                {deletedChapterUndo &&
+                  deletedChapterUndo.chartIdentityKey === chartIdentityKey && (
+                    <div className="rounded-xl p-3 border border-amber-500/45 bg-amber-950/30 text-xs text-amber-100 flex flex-wrap items-center justify-between gap-2">
+                      <span>
+                        Đã xóa nội dung <strong>{deletedChapterUndo.chapterLabelVi}</strong> khỏi Hồ Sơ lá số này.
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleUndoDeleteChapter}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 cursor-pointer"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                          <span>Hoàn tác</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeletedChapterUndo(null)}
+                          className="p-1 text-amber-300/70 hover:text-amber-100 cursor-pointer"
+                          title="Ẩn thông báo"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                 {/* Unboxed quiet provenance line (SourceBadge + Model + MaskedKey) */}
                 {(selectedState.sourceBadge || selectedState.meta) && (
@@ -1230,7 +1605,7 @@ export default function DetailedDossierModal({
                       <button
                         type="button"
                         onClick={() => handleGenerateSingleChapter(selectedSpec.id)}
-                        disabled={isAnyBusy}
+                        disabled={!isHydrated || isAnyBusy}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 disabled:opacity-45 cursor-pointer"
                       >
                         Tiếp tục sinh phần còn thiếu
@@ -1238,7 +1613,7 @@ export default function DetailedDossierModal({
                       <button
                         type="button"
                         onClick={() => handleGenerateSingleChapter(selectedSpec.id)}
-                        disabled={isAnyBusy}
+                        disabled={!isHydrated || isAnyBusy}
                         className="px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-400/50 bg-amber-500/15 text-amber-200 hover:bg-amber-500/25 disabled:opacity-45 cursor-pointer"
                       >
                         Thử lại chương này
@@ -1275,13 +1650,21 @@ export default function DetailedDossierModal({
                 <div className="rounded-xl p-5 border border-[var(--t-border)] bg-[var(--t-surface)] space-y-4">
                   <div className="space-y-1.5">
                     <div className="text-sm font-semibold text-[var(--t-text)]">
-                      Chương này chưa được sinh luận giải AI
+                      {!isHydrated
+                        ? 'Đang kiểm tra bộ nhớ bền vững IndexedDB...'
+                        : 'Chương này chưa được sinh luận giải AI'}
                     </div>
                     <p className="text-xs text-[var(--t-text2)] leading-relaxed">
-                      Nhấn <strong className="text-[var(--t-gold)]">"Sinh chương này"</strong> để luận giải riêng chương này, hoặc nhấn{' '}
-                      <strong className="text-[var(--t-gold)]">"Tự động tạo trọn bộ (8 chương)"</strong> ở thanh trên để hệ thống sinh tuần tự từng chương an toàn (giãn nhịp 1,2 giây/chương).
-                      {isPeriodChapter(selectedSpec) &&
-                        ' Kết quả Lưu Niên 2026 & 2027 được đồng bộ bộ nhớ đệm 2 chiều trực tiếp với tab Vận Hạn.'}
+                      {!isHydrated ? (
+                        'Hệ thống đang đọc lại các chương đã lưu từ IndexedDB để tránh kết luận nhầm 0/8 hoặc ghi đè.'
+                      ) : (
+                        <>
+                          Nhấn <strong className="text-[var(--t-gold)]">"Sinh chương này"</strong> để luận giải riêng chương này, hoặc nhấn{' '}
+                          <strong className="text-[var(--t-gold)]">"Tự động tạo trọn bộ (8 chương)"</strong> ở thanh trên để hệ thống sinh tuần tự từng chương an toàn (giãn nhịp 1,2 giây/chương).
+                          {isPeriodChapter(selectedSpec) &&
+                            ' Kết quả Lưu Niên 2026 & 2027 được đồng bộ bộ nhớ đệm 2 chiều trực tiếp với tab Vận Hạn.'}
+                        </>
+                      )}
                     </p>
                   </div>
 

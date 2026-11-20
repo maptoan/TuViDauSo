@@ -24,7 +24,10 @@ import {
   unlockExtraChatTurns,
   upsertLruSessionEntry,
 } from '../lib/dossier-chat-ui';
-import { sanitizeAiVietnameseOutput } from '../lib/ziwei/text-sanitizer';
+import {
+  sanitizeAiVietnameseOutput,
+  scrubInvalidCitationTags,
+} from '../lib/ziwei/text-sanitizer';
 import MarkdownContent from './MarkdownContent';
 import {
   X,
@@ -305,6 +308,7 @@ export default function ContextualChatDrawer({
     let receivedMeta: AiExecutionMeta | undefined;
     let wasInterrupted = false;
     let streamError = '';
+    let scrubbedInvalidIds: string[] = [];
 
     const updateAssistant = (patch: Partial<StoredChatMessage>) => {
       setMessages((prev) =>
@@ -371,6 +375,12 @@ export default function ContextualChatDrawer({
             updateAssistant({ meta: receivedMeta });
             return false;
           }
+          if (Array.isArray(parsed?.citationAudit?.scrubbedInvalidIds)) {
+            scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+              (id: unknown): id is string => typeof id === 'string',
+            );
+            return false;
+          }
           if (parsed?.interrupted) {
             wasInterrupted = true;
             if (parsed.message) streamError = parsed.message;
@@ -410,6 +420,11 @@ export default function ContextualChatDrawer({
       }
 
       accumulated = sanitizeAiVietnameseOutput(accumulated);
+      if (scrubbedInvalidIds.length > 0 && accumulated) {
+        accumulated = scrubInvalidCitationTags(accumulated, {
+          invalidIds: scrubbedInvalidIds,
+        });
+      }
 
       const finalAssistant: StoredChatMessage = {
         id: assistantId,
