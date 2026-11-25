@@ -6,7 +6,7 @@ process.env.ZIWEI_DISABLE_AUTO_LISTEN = '1';
 
 import { generateChart } from '../src/lib/ziwei/algorithm.ts';
 import { PALACE_NAMES_ORDER } from '../src/lib/ziwei/constants.ts';
-import { translatePalaceName, formatChartSummaryVi } from '../src/lib/ziwei/vi-i18n.ts';
+import { translatePalaceName, formatChartSummaryVi, VI_STEMS, VI_BRANCHES } from '../src/lib/ziwei/vi-i18n.ts';
 import {
   buildYunxianPeriodContext,
   formatPeriodSiHuaFactLine,
@@ -21,6 +21,10 @@ import {
   buildPalaceGroupFactSheetVi,
   periodCtxLabelDynStars,
 } from '../src/lib/ziwei/dossier-context.ts';
+import {
+  enforceCanonicalPalaceGroupHeadings,
+  sanitizeAiVietnameseOutput,
+} from '../src/lib/ziwei/text-sanitizer.ts';
 import {
   CHAT_MAX_EXCERPT_LEN,
   CHAT_MAX_HISTORY_MESSAGES,
@@ -640,7 +644,106 @@ async function runTests() {
     );
   }
 
-  console.log('\n=== TẤT CẢ 8 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.5 ĐỀU ĐẠT ===');
+  // 9. BRIEF 1.5.6 · Nhóm Z (Z1 gộp tiêu đề trùng liên tiếp, Z2 từ điển chính tả + Đóng tại, Z4 prompt Lưu Niên <= +35 ký tự)
+  {
+    console.log('\n[9/9] Kiểm thử BRIEF 1.5.6 Nhóm Z (Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt Lưu Niên)...');
+    const sample1977 = generateChart({
+      name: 'Mẫu 1977',
+      year: 1977,
+      month: 7,
+      day: 26,
+      hour: 5,
+      gender: 'male',
+      longitude: 105.85,
+      city: 'Hà Nội',
+    });
+
+    // Z1: Thu gọn tiêu đề ### Cung ... chuẩn hóa giống hệt nhau liên tiếp (có hoặc không có dòng trống xen giữa)
+    const z1SameNoBlank = [
+      '### Cung Phu Thê (Mậu Thân)',
+      '### Cung Phu Thê',
+      'Nội dung luận cung Phu Thê.',
+    ].join('\n');
+    const z1OutNoBlank = enforceCanonicalPalaceGroupHeadings(z1SameNoBlank, sample1977);
+    assert.strictEqual(
+      z1OutNoBlank.split('\n').filter((l) => l.startsWith('### Cung Phu Thê')).length,
+      1,
+      'Z1: 2 tiêu đề ### Cung Phu Thê liên tiếp phải gộp còn 1',
+    );
+    assert.strictEqual(enforceCanonicalPalaceGroupHeadings(z1OutNoBlank, sample1977), z1OutNoBlank, 'Z1: phải lũy đẳng');
+
+    const z1SameWithBlank = [
+      '### Cung Mệnh (Nhâm Dần)',
+      '',
+      '### Cung Mệnh Cung',
+      'Nội dung bản cung Mệnh.',
+    ].join('\n');
+    const z1OutWithBlank = enforceCanonicalPalaceGroupHeadings(z1SameWithBlank, sample1977);
+    assert.strictEqual(
+      z1OutWithBlank,
+      '### Cung Mệnh (Nhâm Dần) [AN MỆNH] [Đại hạn 4–13 tuổi]\nNội dung bản cung Mệnh.',
+      'Z1: 2 tiêu đề trùng có dòng trống ở giữa phải gộp thành 1 và bỏ dòng trống kẹp giữa',
+    );
+
+    const z1DistinctConsecutive = [
+      '### Cung Mệnh',
+      '### Cung Phu Thê',
+      'Nội dung nối tiếp.',
+    ].join('\n');
+    const phuThePalace = sample1977.palaces.find((p) => p.name === '夫妻');
+    const phuTheCanon = `### Cung Phu Thê (${VI_STEMS[phuThePalace!.stem]} ${VI_BRANCHES[phuThePalace!.branch]})`;
+    const z1OutDistinct = enforceCanonicalPalaceGroupHeadings(z1DistinctConsecutive, sample1977);
+    assert.ok(z1OutDistinct.includes('### Cung Mệnh (Nhâm Dần)'));
+    assert.ok(z1OutDistinct.includes(phuTheCanon));
+
+    const z1NonConsecutive = [
+      '### Cung Phu Thê',
+      'Đoạn văn phân tích 1.',
+      '### Cung Phu Thê',
+      'Đoạn văn phân tích 2.',
+    ].join('\n');
+    const z1OutNonConsec = enforceCanonicalPalaceGroupHeadings(z1NonConsecutive, sample1977);
+    assert.strictEqual(
+      z1OutNonConsec.split('\n').filter((l) => l.startsWith('### Cung Phu Thê')).length,
+      2,
+      'Z1: 2 tiêu đề không liên tiếp phải giữ nguyên cả hai',
+    );
+
+    // Z2: Sanitizer chính tả & yunxian-context "Đóng tại"
+    const z2Input =
+      'Mệnh thủ mì ở Dần, sao đóng nhờ trên cung Tài. Bối cảnh trinhtrạng và trinh trạng sức khỏe; nhưng trình trạng thật, thủ Mệnh, và địa danh Bảo Ninh vẫn giữ nguyên.';
+    const z2Once = sanitizeAiVietnameseOutput(z2Input);
+    const z2Twice = sanitizeAiVietnameseOutput(z2Once);
+    assert.strictEqual(z2Twice, z2Once, 'Z2: sanitizer phải lũy đẳng');
+    assert.ok(z2Once.includes('Mệnh thủ Mệnh ở Dần'));
+    assert.ok(z2Once.includes('sao đóng tại cung Tài'));
+    assert.ok(z2Once.includes('Bối cảnh tình trạng và tình trạng sức khỏe'));
+    assert.ok(z2Once.includes('trình trạng thật'));
+    assert.ok(z2Once.includes('thủ Mệnh'));
+    assert.ok(z2Once.includes('Bảo Ninh'));
+
+    const ctx2026Z2 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 })!;
+    assert.ok(ctx2026Z2.factTableMarkdown.includes('→ Đóng tại cung Bản Mệnh gốc'));
+    assert.ok(!ctx2026Z2.factTableMarkdown.includes('Đóng nhờ trên'));
+
+    // Z4: Prompt Lưu Niên siết câu chữ & tổng systemInstruction <= 3860 (+35 so với 3825)
+    const periodPromptZ4 = buildStrictPeriodAiPrompt(ctx2026Z2, formatChartSummaryVi(sample1977), sample1977);
+    assert.ok(
+      periodPromptZ4.systemInstruction.includes(
+        'viết 900–1.300 từ cho thân bài (không tính tiêu đề, dòng dữ kiện Tứ Hóa, khối tham chiếu); dừng luận giải khi đủ ý, không kéo dài thêm',
+      ),
+    );
+    assert.ok(
+      periodPromptZ4.systemInstruction.length <= 3860,
+      `Z4: systemInstruction vượt trần +35 ký tự (${periodPromptZ4.systemInstruction.length} > 3860)`,
+    );
+
+    console.log(
+      `  -> Đạt [BRIEF 1.5.6 Nhóm Z]: Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt (${periodPromptZ4.systemInstruction.length}/3860 ký tự).`,
+    );
+  }
+
+  console.log('\n=== TẤT CẢ 9 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.6 ĐỀU ĐẠT ===');
 }
 
 runTests().catch((err) => {

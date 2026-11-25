@@ -10,6 +10,17 @@ import {
   FIRST_CHUNK_TIMEOUT_MAX_MS,
   FIRST_CHUNK_TIMEOUT_MIN_MS,
   type GeminiKeyRecord,
+  KEY_POOL_BACKUP_CIPHER,
+  KEY_POOL_BACKUP_FORMAT,
+  KEY_POOL_BACKUP_KDF,
+  KEY_POOL_BACKUP_MAX_BYTES,
+  KEY_POOL_BACKUP_MAX_ITERATIONS,
+  KEY_POOL_BACKUP_MIN_PASSPHRASE_LEN,
+  KEY_POOL_BACKUP_PBKDF2_ITERATIONS,
+  KEY_POOL_BACKUP_SCHEMA_VERSION,
+  type KeyPoolBackupEnvelope,
+  type KeyPoolBackupHeader,
+  type KeyPoolBackupPlaintextPayload,
   type KeyPoolState,
   MAX_RECENT_LOGS,
   type ModelProfileConfig,
@@ -374,6 +385,169 @@ export class KeyPoolCryptoStore {
 
     return seeds;
   }
+}
+
+export function assertValidBackupPassphrase(passphrase: unknown): string {
+  if (
+    typeof passphrase !== 'string' ||
+    passphrase.trim().length === 0 ||
+    passphrase.length < KEY_POOL_BACKUP_MIN_PASSPHRASE_LEN
+  ) {
+    throw new Error(
+      `Mật khẩu bảo vệ gói sao lưu phải có ít nhất ${KEY_POOL_BACKUP_MIN_PASSPHRASE_LEN} ký tự.`,
+    );
+  }
+  return passphrase;
+}
+
+export function buildCanonicalBackupAad(header: KeyPoolBackupHeader): Buffer {
+  const ordered: Record<string, unknown> = {};
+  for (const key of Object.keys(header).sort()) {
+    ordered[key] = (header as unknown as Record<string, unknown>)[key];
+  }
+  return Buffer.from(JSON.stringify(ordered), 'utf8');
+}
+
+export function encryptPoolBackup(
+  payload: KeyPoolBackupPlaintextPayload,
+  passphrase: string,
+  nowMs = Date.now(),
+): KeyPoolBackupEnvelope {
+  const validPass = assertValidBackupPassphrase(passphrase);
+  const salt = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12);
+  const derivedKey = crypto.pbkdf2Sync(
+    validPass,
+    salt,
+    KEY_POOL_BACKUP_PBKDF2_ITERATIONS,
+    32,
+    'sha256',
+  );
+
+  const header: KeyPoolBackupHeader = {
+    format: KEY_POOL_BACKUP_FORMAT,
+    schemaVersion: KEY_POOL_BACKUP_SCHEMA_VERSION,
+    kdf: KEY_POOL_BACKUP_KDF,
+    iterations: KEY_POOL_BACKUP_PBKDF2_ITERATIONS,
+    cipher: KEY_POOL_BACKUP_CIPHER,
+    salt: salt.toString('base64'),
+    iv: iv.toString('base64'),
+    exportedAt: new Date(nowMs).toISOString(),
+  };
+  const aad = buildCanonicalBackupAad(header);
+
+  const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv);
+  cipher.setAAD(aad);
+  const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
+  const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+
+  return {
+    ...header,
+    authTag: authTag.toString('base64'),
+    ciphertext: ciphertext.toString('base64'),
+  };
+}
+
+export function decryptPoolBackup(
+  rawEnvelope: unknown,
+  passphrase: string,
+): KeyPoolBackupPlaintextPayload {
+  const validPass = assertValidBackupPassphrase(passphrase);
+
+  if (!rawEnvelope || typeof rawEnvelope !== 'object' || Array.isArray(rawEnvelope)) {
+    throw new Error('Định dạng tệp sao lưu Kho Khóa không hợp lệ.');
+  }
+
+  const serializedBytes = Buffer.byteLength(JSON.stringify(rawEnvelope), 'utf8');
+  if (serializedBytes > KEY_POOL_BACKUP_MAX_BYTES) {
+    throw new Error('Gói sao lưu vượt quá giới hạn tối đa 256 KB.');
+  }
+
+  const env = rawEnvelope as Partial<KeyPoolBackupEnvelope>;
+  if (
+    env.format !== KEY_POOL_BACKUP_FORMAT ||
+    env.schemaVersion !== KEY_POOL_BACKUP_SCHEMA_VERSION ||
+    env.kdf !== KEY_POOL_BACKUP_KDF ||
+    env.cipher !== KEY_POOL_BACKUP_CIPHER ||
+    typeof env.iterations !== 'number' ||
+    !Number.isInteger(env.iterations) ||
+    env.iterations < KEY_POOL_BACKUP_PBKDF2_ITERATIONS ||
+    env.iterations > KEY_POOL_BACKUP_MAX_ITERATIONS ||
+    typeof env.salt !== 'string' ||
+    typeof env.iv !== 'string' ||
+    typeof env.authTag !== 'string' ||
+    typeof env.ciphertext !== 'string' ||
+    typeof env.exportedAt !== 'string' ||
+    !env.exportedAt.trim()
+  ) {
+    throw new Error('Cấu trúc hoặc tham số mã hóa của gói sao lưu không hợp lệ.');
+  }
+
+  const saltBuf = Buffer.from(env.salt, 'base64');
+  const ivBuf = Buffer.from(env.iv, 'base64');
+  const authTagBuf = Buffer.from(env.authTag, 'base64');
+  const cipherBuf = Buffer.from(env.ciphertext, 'base64');
+
+  if (
+    saltBuf.length !== 16 ||
+    ivBuf.length !== 12 ||
+    authTagBuf.length !== 16 ||
+    cipherBuf.length === 0
+  ) {
+    throw new Error('Dữ liệu mật mã (salt/iv/authTag) trong gói sao lưu không hợp lệ.');
+  }
+
+  const header: KeyPoolBackupHeader = {
+    format: env.format,
+    schemaVersion: env.schemaVersion,
+    kdf: env.kdf,
+    iterations: env.iterations,
+    cipher: env.cipher,
+    salt: env.salt,
+    iv: env.iv,
+    exportedAt: env.exportedAt,
+  };
+  const aad = buildCanonicalBackupAad(header);
+  const derivedKey = crypto.pbkdf2Sync(validPass, saltBuf, env.iterations, 32, 'sha256');
+
+  let plaintextStr: string;
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', derivedKey, ivBuf);
+    decipher.setAAD(aad);
+    decipher.setAuthTag(authTagBuf);
+    const plain = Buffer.concat([decipher.update(cipherBuf), decipher.final()]);
+    plaintextStr = plain.toString('utf8');
+  } catch {
+    throw new Error(
+      'Không thể giải mã gói sao lưu: mật khẩu không đúng hoặc tệp sao lưu đã bị chỉnh sửa.',
+    );
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(plaintextStr);
+  } catch {
+    throw new Error('Nội dung giải mã của gói sao lưu không phải JSON hợp lệ.');
+  }
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    throw new Error('Dữ liệu bên trong gói sao lưu không đúng cấu trúc.');
+  }
+
+  const obj = parsed as Partial<KeyPoolBackupPlaintextPayload>;
+  if (!Array.isArray(obj.keys)) {
+    throw new Error('Gói sao lưu thiếu danh sách khóa hợp lệ.');
+  }
+
+  return {
+    keys: obj.keys,
+    modelConfig: obj.modelConfig ?? {
+      defaultModel: DEFAULT_MODEL,
+      fallbackModel: FALLBACK_MODEL,
+      supportedModels: [...DEFAULT_SUPPORTED_MODELS],
+    },
+  };
 }
 
 export { POOL_FILE_PATH, MASTER_KEY_FILE_PATH };

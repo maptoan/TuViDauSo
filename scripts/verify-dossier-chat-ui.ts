@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import express from 'express';
 import { generateChart } from '../src/lib/ziwei/algorithm';
 import { buildYunxianPeriodContext, formatPeriodSiHuaFactLine } from '../src/lib/ziwei/yunxian-context';
 import { formatCanonicalPalaceHeading } from '../src/lib/ziwei/dossier-context';
@@ -14,10 +18,14 @@ import { formToBirthInfo, searchParamsToForm } from '../src/lib/ziwei/share';
 import type { BirthFormState } from '../src/lib/ziwei/types';
 import { shouldRefreshKeyPoolSnapshot } from '../src/lib/key-pool-ui';
 import { PROVINCES } from '../src/lib/ziwei/cities';
+import { KeyPoolManager } from '../server/key-pool/index';
+import { PoolExhaustedError, TpmGuardSkipError } from '../server/key-pool/executor';
 import {
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
   buildStrictPeriodAiPrompt,
+  buildStructuredStreamErrorPayload,
+  registerApiRoutes,
 } from '../server';
 import {
   BRANCH_GRID_POS,
@@ -51,11 +59,14 @@ import {
   buildDossierStorageKey,
   buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
+  classifyDossierFailure,
+  createBestPartialSnapshot,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
   filterPersistableChatMessages,
   formatDossierSourceBadge,
   getChatCooldownRemainingSec,
+  getDossierChapterContentLength,
   getSharedDossierGenerating,
   listLruSessionKeys,
   readDossierCacheEntry,
@@ -63,7 +74,10 @@ import {
   recordChatQuestionSent,
   removeLruSessionEntry,
   resolveChapterDeterministicFactSheet,
+  resolveChapterWithBestPartial,
   resolveDossierChapterFromCaches,
+  runDossierSequentialWithDualFuse,
+  sanitizeClientErrorDisplayText,
   sanitizeDossierChapterText,
   saveDossierSectionToCache,
   setSharedDossierGenerating,
@@ -115,6 +129,19 @@ function runTest(name: string, fn: () => void) {
   total += 1;
   try {
     fn();
+    passed += 1;
+    console.log(`PASS [${total}]: ${name}`);
+  } catch (err) {
+    console.error(`FAIL [${total}]: ${name}`);
+    console.error(err);
+    process.exitCode = 1;
+  }
+}
+
+async function runAsyncTest(name: string, fn: () => Promise<void>) {
+  total += 1;
+  try {
+    await fn();
     passed += 1;
     console.log(`PASS [${total}]: ${name}`);
   } catch (err) {
@@ -1328,6 +1355,385 @@ runTest('[BRIEF 1.5.5 · TEST-15] Z3 bộ lọc sanitizer từ vựng/Telex/enum
     clientMixed,
     'scrubInvalidCitationTags phải lũy đẳng',
   );
+});
+
+runTest('[BRIEF 1.5.6 · X0-TEST-16] Plumbing lỗi backend + checkPreStreamGate H3 M3 + phân loại/khử mã nội bộ phía client', () => {
+  // (a) Backend buildStructuredStreamErrorPayload giữ đúng category/cooldown
+  const poolCooldown = new PoolExhaustedError(
+    'AI_POOL_EXHAUSTED',
+    'Pool dang hoi nguoi',
+    42,
+    'RATE_LIMIT_RPM',
+  );
+  const p1 = buildStructuredStreamErrorPayload(poolCooldown);
+  assert.equal(p1.httpStatus, 503);
+  assert.equal(p1.error, 'AI_POOL_EXHAUSTED');
+  assert.equal(p1.errorCategory, 'RATE_LIMIT_RPM');
+  assert.equal(p1.minRemainingCooldownSec, 42);
+
+  const poolAuthDisabled = new PoolExhaustedError(
+    'AI_POOL_EXHAUSTED',
+    'Tat ca khoa bi vo hieu',
+    null,
+    'AUTH_INVALID_KEY',
+  );
+  const p2 = buildStructuredStreamErrorPayload(poolAuthDisabled);
+  assert.equal(p2.error, 'AI_POOL_EXHAUSTED');
+  assert.equal(p2.errorCategory, 'AUTH_INVALID_KEY');
+  assert.equal(p2.minRemainingCooldownSec, null);
+
+  const tpmErr = new TpmGuardSkipError('TPM_GUARD_SKIP: vuot nguong tam thoi', 25);
+  assert.equal(tpmErr instanceof PoolExhaustedError, false);
+  const p3 = buildStructuredStreamErrorPayload(tpmErr);
+  assert.equal(p3.httpStatus, 429);
+  assert.equal(p3.error, 'TPM_GUARD_SKIP');
+  assert.equal(p3.errorCategory, 'TPM_GUARD_SKIP');
+  assert.equal(p3.minRemainingCooldownSec, 25);
+
+  const p4 = buildStructuredStreamErrorPayload(new Error('FIRST_CHUNK_TIMEOUT'));
+  assert.equal(p4.httpStatus, 503);
+  assert.equal(p4.error, 'AI_CALL_FAILED');
+  assert.equal(p4.errorCategory, 'FIRST_CHUNK_TIMEOUT');
+
+  // (b) KeyPoolManager.checkPreStreamGate (H3 M3)
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ziwei-x0-gate-'));
+  try {
+    const mgr = new KeyPoolManager(tmpDir);
+    const gateEmpty = mgr.checkPreStreamGate();
+    assert.equal(gateEmpty.ok, false);
+    if (!gateEmpty.ok) {
+      assert.equal(gateEmpty.status, 503);
+      assert.equal(gateEmpty.error, 'AI_NOT_CONFIGURED');
+    }
+
+    const kId = mgr._addRawKeyForVerification('AIzaSyX0TestGateKey1234567890abcdefghijk', 'Gate Key');
+    const rec = mgr._findKeyRecord(kId);
+    assert.ok(rec);
+    const now = Date.now();
+
+    // Cooling <= 30s -> cho phep vao executeStream cho H3 fallback
+    rec.status = 'cooldown';
+    rec.cooldownUntil = now + 15_000;
+    rec.cooldownReason = 'RATE_LIMIT_RPM';
+    assert.equal(mgr.checkPreStreamGate(now).ok, true);
+
+    // Cooling > 30s -> chan truoc SSE voi 503 AI_POOL_EXHAUSTED
+    rec.status = 'cooldown';
+    rec.cooldownUntil = now + 45_000;
+    const gateCoolingLong = mgr.checkPreStreamGate(now);
+    assert.equal(gateCoolingLong.ok, false);
+    if (!gateCoolingLong.ok) {
+      assert.equal(gateCoolingLong.status, 503);
+      assert.equal(gateCoolingLong.error, 'AI_POOL_EXHAUSTED');
+      assert.ok((gateCoolingLong.minRemainingCooldownSec ?? 0) >= 44);
+    }
+
+    // Disabled AUTH_INVALID_KEY -> chan truoc SSE voi errorCategory='AUTH_INVALID_KEY'
+    rec.status = 'disabled';
+    rec.cooldownUntil = null;
+    rec.cooldownReason = 'AUTH_INVALID_KEY';
+    rec.stats.lastErrorType = 'AUTH_INVALID_KEY';
+    const gateDisabled = mgr.checkPreStreamGate(now);
+    assert.equal(gateDisabled.ok, false);
+    if (!gateDisabled.ok) {
+      assert.equal(gateDisabled.error, 'AI_POOL_EXHAUSTED');
+      assert.equal(gateDisabled.errorCategory, 'AUTH_INVALID_KEY');
+      assert.equal(gateDisabled.minRemainingCooldownSec, null);
+    }
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+
+  // (c) Client classifyDossierFailure & sanitizeClientErrorDisplayText (khong lo ma noi bo)
+  const internalTokens = [
+    'FIRST_CHUNK_TIMEOUT',
+    'AI_POOL_EXHAUSTED',
+    'TPM_GUARD_SKIP',
+    'AUTH_INVALID_KEY',
+    'AUTH_FORBIDDEN_REPEATED',
+    'NETWORK_OR_5XX',
+    'RATE_LIMIT_RPM',
+    'QUOTA_DAILY_EXHAUSTED',
+    'QUOTA_PROJECT_ZERO',
+    'API_NOT_ENABLED',
+    'MODEL_UNAVAILABLE',
+    'AI_NOT_CONFIGURED',
+    'AI_CALL_FAILED',
+  ];
+
+  const fatalCases = [
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_NOT_CONFIGURED' }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AUTH_INVALID_KEY', minRemainingCooldownSec: null }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AI_POOL_EXHAUSTED', minRemainingCooldownSec: 90 }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_CALL_FAILED', errorCategory: 'QUOTA_PROJECT_ZERO', minRemainingCooldownSec: null }),
+    classifyDossierFailure({ aborted: true }),
+  ];
+  for (const fc of fatalCases) {
+    assert.equal(fc.kind, 'fatal', `Phai xep loai fatal cho ${fc.errorCode}/${fc.errorCategory}`);
+    for (const tok of internalTokens) {
+      assert.equal(fc.userMessageVi.includes(tok), false, `Khong duoc lo ma noi bo ${tok}`);
+    }
+  }
+
+  const transientCases = [
+    classifyDossierFailure({ error: 'AI_CALL_FAILED', errorCategory: 'FIRST_CHUNK_TIMEOUT', message: 'Error: FIRST_CHUNK_TIMEOUT' }),
+    classifyDossierFailure({ httpStatus: 429, error: 'TPM_GUARD_SKIP', errorCategory: 'TPM_GUARD_SKIP', minRemainingCooldownSec: 20 }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AI_POOL_EXHAUSTED', minRemainingCooldownSec: 45 }),
+    classifyDossierFailure({ error: 'AI_CALL_FAILED', errorCategory: 'RATE_LIMIT_RPM', minRemainingCooldownSec: 15 }),
+    classifyDossierFailure({ error: 'AI_CALL_FAILED', errorCategory: 'NETWORK_OR_5XX', interrupted: true }),
+    classifyDossierFailure({ error: 'AI_CALL_FAILED', message: 'Legacy AI_CALL_FAILED fallback' }),
+  ];
+  for (const tc of transientCases) {
+    assert.equal(tc.kind, 'transient', `Phai xep loai transient cho ${tc.errorCode}/${tc.errorCategory}`);
+    for (const tok of internalTokens) {
+      assert.equal(tc.userMessageVi.includes(tok), false, `Khong duoc lo ma noi bo ${tok}`);
+    }
+  }
+
+  const sanitizedRaw = sanitizeClientErrorDisplayText('Error: [TPM_GUARD_SKIP] Vuot nguong FIRST_CHUNK_TIMEOUT tam thoi');
+  assert.equal(sanitizedRaw.includes('TPM_GUARD_SKIP'), false);
+  assert.equal(sanitizedRaw.includes('FIRST_CHUNK_TIMEOUT'), false);
+  assert.ok(sanitizedRaw.includes('Vuot nguong'));
+
+  // (d) Kiem tra UI nut 'Sinh lại chương này' trong DetailedDossierModal.tsx
+  const modalSource = fs.readFileSync(
+    path.resolve('src/components/DetailedDossierModal.tsx'),
+    'utf8',
+  );
+  assert.ok(modalSource.includes('Sinh lại chương này'));
+  assert.equal(modalSource.includes('Tạo lại chương này'), false);
+});
+
+runTest('[BRIEF 1.5.6 · ĐK-NT-6c] Bảo toàn bestPartialSoFar khi sinh lại ngắn hơn hoặc lỗi, thay thế khi dài hơn hoặc hoàn tất', () => {
+  const chart = buildNguyenVanAn1995Chart();
+  const chartId = buildChartIdentityKey(chart);
+  const cacheKey = buildDossierChapterCacheKey(chartId, 'palaces_core');
+  const text1500 = 'A'.repeat(1500);
+  const text400 = 'B'.repeat(400);
+  const text1800 = 'C'.repeat(1800);
+  const textComplete950 = 'D'.repeat(950);
+
+  const initialIncomplete: DossierChapterState = {
+    chapterId: 'palaces_core',
+    sectionCacheKey: cacheKey,
+    status: 'incomplete',
+    incompleteText: text1500,
+    interruptedReason: 'Ngắt giữa chừng',
+  };
+  const snap1500 = createBestPartialSnapshot(initialIncomplete);
+  assert.ok(snap1500);
+  assert.equal(getDossierChapterContentLength(snap1500), 1500);
+
+  // 1) Sinh lại bị cắt ngắn hơn (400 ký tự) -> khôi phục bản 1500 ký tự
+  const resShorter = resolveChapterWithBestPartial(snap1500, {
+    chapterId: 'palaces_core',
+    sectionCacheKey: cacheKey,
+    status: 'incomplete',
+    incompleteText: text400,
+    interruptedReason: 'Ngắt sớm hơn',
+  });
+  assert.equal(resShorter.restoredFromBest, true);
+  assert.equal(resShorter.resolvedState.incompleteText, text1500);
+  assert.equal(resShorter.resolvedState.restoredFromLongerPartial, true);
+  assert.ok(resShorter.resolvedState.restoredNoticeVi?.includes('1.500'));
+
+  // 2) Sinh lại lỗi 0 ký tự -> khôi phục bản 1500 ký tự
+  const resError0 = resolveChapterWithBestPartial(snap1500, {
+    chapterId: 'palaces_core',
+    sectionCacheKey: cacheKey,
+    status: 'error',
+    error: 'Quá tải tạm thời',
+  });
+  assert.equal(resError0.restoredFromBest, true);
+  assert.equal(resError0.resolvedState.status, 'incomplete');
+  assert.equal(resError0.resolvedState.incompleteText, text1500);
+
+  // 3) Sinh lại bị cắt nhưng dài hơn (1800 ký tự) -> thay thế bằng 1800 ký tự
+  const resLonger = resolveChapterWithBestPartial(snap1500, {
+    chapterId: 'palaces_core',
+    sectionCacheKey: cacheKey,
+    status: 'incomplete',
+    incompleteText: text1800,
+    interruptedReason: 'Ngắt muộn hơn',
+  });
+  assert.equal(resLonger.restoredFromBest, false);
+  assert.equal(resLonger.resolvedState.incompleteText, text1800);
+
+  // 4) Sinh lại hoàn tất (completed) -> luôn thay thế bằng bản hoàn tất
+  const resCompleted = resolveChapterWithBestPartial(snap1500, {
+    chapterId: 'palaces_core',
+    sectionCacheKey: cacheKey,
+    status: 'completed',
+    text: textComplete950,
+  });
+  assert.equal(resCompleted.restoredFromBest, false);
+  assert.equal(resCompleted.resolvedState.status, 'completed');
+  assert.equal(resCompleted.resolvedState.text, textComplete950);
+});
+
+await runAsyncTest('[BRIEF 1.5.6 · X0-HTTP] Endpoint pre-SSE trả JSON có errorCategory/minRemainingCooldownSec khi Kho Khóa trống hoặc bảo vệ', async () => {
+  const app = express();
+  registerApiRoutes(app);
+  const server = await new Promise<ReturnType<typeof app.listen>>((resolve) => {
+    const s = app.listen(0, '127.0.0.1', () => resolve(s));
+  });
+  try {
+    const addr = server.address();
+    if (!addr || typeof addr === 'string') throw new Error('Invalid test port');
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+    const chart = buildNguyenVanAn1995Chart();
+
+    const rSection = await fetch(`${baseUrl}/api/interpret-dossier-section`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, sectionId: 'chapter_overview' }),
+    });
+    if (rSection.status === 503) {
+      const j = (await rSection.json()) as { error?: string; errorCategory?: string; minRemainingCooldownSec?: unknown };
+      assert.ok(j.error === 'AI_NOT_CONFIGURED' || j.error === 'AI_POOL_EXHAUSTED');
+      assert.ok(typeof j.errorCategory === 'string' && j.errorCategory.length > 0);
+      assert.ok('minRemainingCooldownSec' in j);
+    }
+
+    const rChat = await fetch(`${baseUrl}/api/interpret-chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        contextMode: 'natal',
+        sectionTitle: 'Test',
+        excerpt: 'Test excerpt',
+        question: 'Hỏi test?',
+      }),
+    });
+    if (rChat.status === 503) {
+      const j = (await rChat.json()) as { error?: string; errorCategory?: string };
+      assert.ok(j.error === 'AI_NOT_CONFIGURED' || j.error === 'AI_POOL_EXHAUSTED');
+      assert.ok(typeof j.errorCategory === 'string' && j.errorCategory.length > 0);
+    }
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+await runAsyncTest('[BRIEF 1.5.6 · ĐK-NT-6a] Bộ điều phối 2 cầu chì: bỏ qua lỗi tạm thời ở Vòng 1 & thử lại đúng 1 vòng ở Vòng 2 (tối ưu thứ tự tăng dần)', async () => {
+  const attempts = new Map<DossierChapterId, number>();
+  const sequence: Array<{ id: DossierChapterId; pass: 1 | 2 }> = [];
+  const passesSeen: number[] = [];
+
+  // Ca 1: Chương 2 và Chương 5 lỗi tạm thời ở Vòng 1 -> phục hồi ở Vòng 2
+  const summary1 = await runDossierSequentialWithDualFuse({
+    specsToRun: DOSSIER_CHAPTER_SPECS,
+    pacingMs: 0,
+    waitBetweenChapters: async () => {},
+    shouldStop: () => false,
+    onPassChange: (p) => passesSeen.push(p),
+    runChapter: async (spec, pass) => {
+      const count = (attempts.get(spec.id) ?? 0) + 1;
+      attempts.set(spec.id, count);
+      sequence.push({ id: spec.id, pass });
+      if (pass === 1 && spec.id === 'palaces_core') {
+        return {
+          status: 'error',
+          failure: classifyDossierFailure({ error: 'AI_CALL_FAILED', errorCategory: 'FIRST_CHUNK_TIMEOUT' }),
+        };
+      }
+      if (pass === 1 && spec.id === 'year_2026') {
+        return {
+          status: 'incomplete',
+          failure: classifyDossierFailure({ httpStatus: 429, error: 'TPM_GUARD_SKIP', errorCategory: 'TPM_GUARD_SKIP', minRemainingCooldownSec: 20 }),
+        };
+      }
+      return { status: 'completed' };
+    },
+  });
+
+  assert.deepEqual(passesSeen, [1, 2]);
+  assert.equal(summary1.completedInPass1.length, 6);
+  assert.deepEqual(summary1.retriedInPass2, ['palaces_core', 'year_2026']);
+  assert.deepEqual(summary1.recoveredInPass2, ['palaces_core', 'year_2026']);
+  assert.deepEqual(summary1.remainingIncompleteOrError, []);
+  assert.equal(summary1.haltedReason, 'none');
+  // Đảm bảo Vòng 1 chạy xong Chương 3..8 trước khi Vòng 2 chạy lại Chương 2, 5
+  assert.deepEqual(
+    sequence.map((x) => `${x.pass}:${x.id}`),
+    [
+      '1:chapter_overview',
+      '1:palaces_core',
+      '1:palaces_family',
+      '1:palaces_social_health',
+      '1:year_2026',
+      '1:year_2027',
+      '1:horizon_5y',
+      '1:horizon_10y',
+      '2:palaces_core',
+      '2:year_2026',
+    ],
+  );
+
+  // Ca 2: Chương 2 thất bại cả ở Vòng 1 lẫn Vòng 2 (cooldown <= 60) -> chỉ thử lại tối đa 1 vòng
+  const attempts2 = new Map<DossierChapterId, number>();
+  const summary2 = await runDossierSequentialWithDualFuse({
+    specsToRun: DOSSIER_CHAPTER_SPECS.slice(0, 3),
+    pacingMs: 0,
+    waitBetweenChapters: async () => {},
+    shouldStop: () => false,
+    runChapter: async (spec) => {
+      attempts2.set(spec.id, (attempts2.get(spec.id) ?? 0) + 1);
+      if (spec.id === 'palaces_core') {
+        return {
+          status: 'error',
+          failure: classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AI_POOL_EXHAUSTED', minRemainingCooldownSec: 45 }),
+        };
+      }
+      return { status: 'completed' };
+    },
+  });
+  assert.equal(attempts2.get('palaces_core'), 2);
+  assert.deepEqual(summary2.retriedInPass2, ['palaces_core']);
+  assert.deepEqual(summary2.recoveredInPass2, []);
+  assert.deepEqual(summary2.remainingIncompleteOrError, ['palaces_core']);
+});
+
+await runAsyncTest('[BRIEF 1.5.6 · ĐK-NT-6b] Bộ điều phối dừng tức thì khi gặp lỗi toàn cục (fatal) hoặc người dùng dừng', async () => {
+  const fatalInputs = [
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_NOT_CONFIGURED' }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AUTH_INVALID_KEY', minRemainingCooldownSec: null }),
+    classifyDossierFailure({ httpStatus: 503, error: 'AI_POOL_EXHAUSTED', errorCategory: 'AI_POOL_EXHAUSTED', minRemainingCooldownSec: 90 }),
+  ];
+
+  for (const fatalFailure of fatalInputs) {
+    const executed: DossierChapterId[] = [];
+    const summary = await runDossierSequentialWithDualFuse({
+      specsToRun: DOSSIER_CHAPTER_SPECS,
+      pacingMs: 0,
+      waitBetweenChapters: async () => {},
+      shouldStop: () => false,
+      runChapter: async (spec) => {
+        executed.push(spec.id);
+        return { status: 'error', failure: fatalFailure };
+      },
+    });
+    assert.deepEqual(executed, ['chapter_overview']);
+    assert.deepEqual(summary.retriedInPass2, []);
+    assert.equal(summary.haltedReason, 'fatal_error');
+  }
+
+  // Người dùng dừng (aborted) ở Chương 1 -> dừng ngay, 0 retry
+  const executedAbort: DossierChapterId[] = [];
+  const abortSummary = await runDossierSequentialWithDualFuse({
+    specsToRun: DOSSIER_CHAPTER_SPECS,
+    pacingMs: 0,
+    waitBetweenChapters: async () => {},
+    shouldStop: () => false,
+    runChapter: async (spec) => {
+      executedAbort.push(spec.id);
+      return { status: 'aborted', failure: classifyDossierFailure({ aborted: true }) };
+    },
+  });
+  assert.deepEqual(executedAbort, ['chapter_overview']);
+  assert.deepEqual(abortSummary.retriedInPass2, []);
+  assert.equal(abortSummary.haltedReason, 'aborted');
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

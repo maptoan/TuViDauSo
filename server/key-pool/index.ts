@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import {
   DEFAULT_SUPPORTED_MODELS,
   type GeminiKeyPublicView,
+  type KeyPoolBackupEnvelope,
+  type KeyPoolBackupImportResult,
+  type KeyPoolBackupKeyEntry,
   type KeyPoolPublicSnapshot,
   type KeyPoolState,
   MAX_KEYS_IN_POOL,
@@ -17,7 +20,12 @@ import {
   TEST_KEY_TIMEOUT_MS,
 } from './types.ts';
 import { computeKeyFingerprint, isValidGeminiApiKey, parseBatchKeys } from './parser.ts';
-import { KeyPoolCryptoStore, mergeModelProfiles } from './crypto-store.ts';
+import {
+  decryptPoolBackup,
+  encryptPoolBackup,
+  KeyPoolCryptoStore,
+  mergeModelProfiles,
+} from './crypto-store.ts';
 import {
   classifyGeminiError,
   isSupportedGemini35Plus,
@@ -30,6 +38,9 @@ import {
   type ExecuteStreamOptions,
   GeminiStreamExecutor,
   isGemmaModel,
+  PoolExhaustedError,
+  type PoolFailureCategory,
+  TpmGuardSkipError,
 } from './executor.ts';
 
 interface StoredPreviewSession {
@@ -137,6 +148,80 @@ export class KeyPoolManager {
 
   public sanitize(raw: unknown): string {
     return sanitizeSecretText(raw, this.rawKeysById.values());
+  }
+
+  public classifyError(err: unknown) {
+    return classifyGeminiError(err, this.rawKeysById.values());
+  }
+
+  public checkPreStreamGate(now = Date.now()):
+    | { ok: true }
+    | {
+        ok: false;
+        status: 503;
+        error: 'AI_NOT_CONFIGURED' | 'AI_POOL_EXHAUSTED';
+        errorCategory: PoolFailureCategory;
+        minRemainingCooldownSec: number | null;
+        message: string;
+      } {
+    this.allocator.sweep(now);
+    const total = this.state.keys.length;
+    if (total === 0) {
+      return {
+        ok: false,
+        status: 503,
+        error: 'AI_NOT_CONFIGURED',
+        errorCategory: 'AI_NOT_CONFIGURED',
+        minRemainingCooldownSec: null,
+        message:
+          'Chưa cấu hình AI (kho khóa hiện chưa có khóa Gemini nào). Hệ thống giữ nguyên Khung dữ kiện xác định và không giả lập văn bản AI.',
+      };
+    }
+
+    const ready = this.state.keys.filter((k) => k.status === 'ready').length;
+    const cooldown = this.state.keys.filter((k) => k.status === 'cooldown').length;
+    const minSec = this.allocator.getMinRemainingCooldownSec(now);
+
+    if (ready === 0 && cooldown === 0) {
+      const authDisabled = this.state.keys.find(
+        (k) =>
+          k.cooldownReason === 'AUTH_INVALID_KEY' ||
+          k.cooldownReason === 'AUTH_FORBIDDEN_REPEATED' ||
+          k.stats.lastErrorType === 'AUTH_INVALID_KEY' ||
+          k.stats.lastErrorType === 'AUTH_FORBIDDEN_REPEATED',
+      );
+      const errCat: PoolFailureCategory =
+        authDisabled?.cooldownReason && authDisabled.cooldownReason !== 'NONE'
+          ? authDisabled.cooldownReason
+          : authDisabled?.stats.lastErrorType && authDisabled.stats.lastErrorType !== 'NONE'
+            ? authDisabled.stats.lastErrorType
+            : 'AUTH_INVALID_KEY';
+      return {
+        ok: false,
+        status: 503,
+        error: 'AI_POOL_EXHAUSTED',
+        errorCategory: errCat,
+        minRemainingCooldownSec: null,
+        message: 'Tất cả khóa Gemini trong kho hiện đều bị vô hiệu hóa hoặc chưa sẵn sàng.',
+      };
+    }
+
+    if (ready === 0 && cooldown > 0 && minSec !== null && minSec > 30) {
+      const cooling = this.state.keys.find(
+        (k) => k.status === 'cooldown' && k.cooldownReason !== 'NONE',
+      );
+      const errCat: PoolFailureCategory = cooling?.cooldownReason ?? 'RATE_LIMIT_RPM';
+      return {
+        ok: false,
+        status: 503,
+        error: 'AI_POOL_EXHAUSTED',
+        errorCategory: errCat,
+        minRemainingCooldownSec: minSec,
+        message: `Tất cả khóa Gemini trong kho đang trong thời gian chờ nguội (khóa kế tiếp sẵn sàng sau khoảng ${minSec} giây).`,
+      };
+    }
+
+    return { ok: true };
   }
 
   public getDiagnostics() {
@@ -579,6 +664,158 @@ export class KeyPoolManager {
     return this.executor.executeStream(options);
   }
 
+  public exportEncryptedBackup(
+    passphrase: string,
+    nowMs = Date.now(),
+  ): KeyPoolBackupEnvelope {
+    const keys: KeyPoolBackupKeyEntry[] = [];
+    for (const rec of this.state.keys) {
+      const rawKey = this.rawKeysById.get(rec.id);
+      if (!rawKey || !isValidGeminiApiKey(rawKey)) continue;
+      keys.push({
+        rawKey,
+        label: rec.label,
+        detectedProjectNumber: rec.detectedProjectNumber ?? null,
+      });
+    }
+
+    return encryptPoolBackup(
+      {
+        keys,
+        modelConfig: {
+          defaultModel: this.state.modelConfig.defaultModel,
+          fallbackModel: this.state.modelConfig.fallbackModel,
+          supportedModels: [...this.state.modelConfig.supportedModels],
+          profiles: this.mergeProfiles(this.state.modelConfig.profiles),
+        },
+      },
+      passphrase,
+      nowMs,
+    );
+  }
+
+  public importEncryptedBackup(
+    rawEnvelope: unknown,
+    passphrase: string,
+    nowMs = Date.now(),
+  ): KeyPoolBackupImportResult {
+    const payload = decryptPoolBackup(rawEnvelope, passphrase);
+
+    const existingFingerprints = new Set(this.state.keys.map((k) => k.fingerprint));
+    let importedCount = 0;
+    let skippedDuplicate = 0;
+    let invalid = 0;
+    let truncated = 0;
+
+    for (const item of payload.keys) {
+      const rawKey = typeof item?.rawKey === 'string' ? item.rawKey.trim() : '';
+      if (!rawKey || !isValidGeminiApiKey(rawKey)) {
+        invalid += 1;
+        continue;
+      }
+
+      const fp = computeKeyFingerprint(rawKey);
+      if (existingFingerprints.has(fp)) {
+        skippedDuplicate += 1;
+        continue;
+      }
+
+      if (this.state.keys.length >= MAX_KEYS_IN_POOL) {
+        truncated += 1;
+        continue;
+      }
+
+      const cleanLabel =
+        typeof item.label === 'string' && item.label.trim().length > 0
+          ? item.label.trim().slice(0, 64)
+          : `Khóa khôi phục ${importedCount + 1}`;
+      const cleanProject =
+        typeof item.detectedProjectNumber === 'string' && item.detectedProjectNumber.trim().length > 0
+          ? item.detectedProjectNumber.trim().slice(0, 64)
+          : null;
+
+      const record = this.store.createKeyRecord({
+        rawKey,
+        label: cleanLabel,
+        source: 'user_import',
+        now: nowMs,
+      });
+      record.detectedProjectNumber = cleanProject;
+
+      this.state.keys.push(record);
+      this.rawKeysById.set(record.id, rawKey);
+      existingFingerprints.add(fp);
+      importedCount += 1;
+
+      this.allocator.appendLog({
+        timestamp: nowMs,
+        keyId: record.id,
+        maskedKey: record.maskedKey,
+        fromStatus: 'ready',
+        toStatus: 'ready',
+        reason: 'BACKUP_IMPORTED (score=100)',
+      });
+    }
+
+    let modelConfigApplied = false;
+    const incomingMc = payload.modelConfig;
+    if (incomingMc && typeof incomingMc === 'object') {
+      const nextDefault =
+        typeof incomingMc.defaultModel === 'string' &&
+        isSupportedGemini35Plus(incomingMc.defaultModel.trim())
+          ? incomingMc.defaultModel.trim()
+          : this.state.modelConfig.defaultModel;
+      const nextFallback =
+        typeof incomingMc.fallbackModel === 'string' &&
+        isSupportedGemini35Plus(incomingMc.fallbackModel.trim())
+          ? incomingMc.fallbackModel.trim()
+          : this.state.modelConfig.fallbackModel;
+
+      const supported = new Set<string>([
+        ...DEFAULT_SUPPORTED_MODELS,
+        ...this.state.modelConfig.supportedModels,
+        nextDefault,
+        nextFallback,
+      ]);
+      if (Array.isArray(incomingMc.supportedModels)) {
+        for (const m of incomingMc.supportedModels) {
+          if (typeof m === 'string') {
+            const clean = m.trim();
+            if (clean && isSupportedGemini35Plus(clean)) {
+              supported.add(clean);
+            }
+          }
+        }
+      }
+
+      const mergedProfiles = this.mergeProfiles(
+        this.state.modelConfig.profiles,
+        incomingMc.profiles,
+      );
+
+      this.state.modelConfig = {
+        defaultModel: nextDefault,
+        fallbackModel: nextFallback,
+        supportedModels: Array.from(supported),
+        profiles: mergedProfiles,
+      };
+      modelConfigApplied = true;
+    }
+
+    if (importedCount > 0 || modelConfigApplied) {
+      this.scheduleSave(true);
+    }
+
+    return {
+      importedCount,
+      skippedDuplicate,
+      invalid,
+      truncated,
+      totalAfter: this.state.keys.length,
+      modelConfigApplied,
+    };
+  }
+
   // Hỗ trợ kiểm thử tự động trong verify-key-pool.ts
   public _getAllocatorForVerification(): KeyAllocator {
     return this.allocator;
@@ -605,4 +842,4 @@ export class KeyPoolManager {
 }
 
 export const keyPoolManager = new KeyPoolManager();
-export { isValidGeminiApiKey };
+export { isValidGeminiApiKey, PoolExhaustedError, TpmGuardSkipError };

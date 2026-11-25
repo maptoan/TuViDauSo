@@ -55,14 +55,34 @@ export interface AiExecutionMeta {
   fallbackLegLatencyMs?: number;
 }
 
+export type Kp3AuditFlagSeverity = 'critical' | 'medium';
+
+export type Kp3AuditFlagCode =
+  | 'PALACE_GANZHI_MISMATCH'
+  | 'DAXIAN_STEM_MISMATCH'
+  | 'ILLEGAL_STAR_PAIR_KHONG_KIEP'
+  | 'ZERO_CITATIONS_IN_CHAPTER';
+
+export interface Kp3AuditFlag {
+  code: Kp3AuditFlagCode;
+  severity: Kp3AuditFlagSeverity;
+  palaceVi?: string;
+  ageRange?: string;
+  excerpt?: string;
+  messageVi: string;
+}
+
 export interface AiPeriodEntry {
   text?: string;
   incompleteText?: string;
   incomplete?: boolean;
   interruptedReason?: string;
   meta?: AiExecutionMeta;
+  auditFlags?: Kp3AuditFlag[];
   error?: string;
   errorCode?: string;
+  errorCategory?: string;
+  minRemainingCooldownSec?: number | null;
   notConfigured?: boolean;
 }
 
@@ -172,6 +192,42 @@ const PALACE_GROUP_CHAPTER_IDS = new Set<DossierChapterId>([
   'palaces_family',
   'palaces_social_health',
 ]);
+
+export function normalizeKnownBareCitationTags(
+  text: string,
+  allowedBareIds: readonly string[],
+): string {
+  if (!text || !allowedBareIds || allowedBareIds.length === 0) return text;
+  const allowedSet = new Set(
+    allowedBareIds.map((id) => id.trim().toUpperCase()).filter(Boolean),
+  );
+  if (allowedSet.size === 0) return text;
+
+  const lines = text.split('\n');
+  let inMetaBlock = false;
+  const converted = lines.map((line) => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('> 📚') || trimmed.startsWith('> ⚠️') || trimmed.startsWith('> 📌')) {
+      inMetaBlock = true;
+      return line;
+    }
+    if (inMetaBlock) {
+      if (trimmed.startsWith('>')) return line;
+      inMetaBlock = false;
+    }
+    return line.replace(
+      /(?<!\[)(?<!`)\[([A-Za-z0-9_-]{4,24})\](?!\()(?!`)(?!\])/g,
+      (fullMatch, rawInner: string, offset: number, fullStr: string) => {
+        const before = fullStr.slice(Math.max(0, offset - 12), offset);
+        if (/\[Nguồn:\s*$/iu.test(before)) return fullMatch;
+        const idUpper = rawInner.trim().toUpperCase();
+        if (!allowedSet.has(idUpper)) return fullMatch;
+        return `[Nguồn: ${idUpper}]`;
+      },
+    );
+  });
+  return converted.join('\n');
+}
 
 export function sanitizeDossierChapterText(
   text: string | undefined,
@@ -837,9 +893,447 @@ export interface DossierChapterState {
   interruptedReason?: string;
   error?: string;
   errorCode?: string;
+  errorCategory?: string;
+  minRemainingCooldownSec?: number | null;
+  restoredFromLongerPartial?: boolean;
+  restoredNoticeVi?: string;
   meta?: AiExecutionMeta;
+  auditFlags?: Kp3AuditFlag[];
   sourceBadge?: DossierSourceBadge;
   updatedAt?: number;
+}
+
+export type DossierFailureKind = 'transient' | 'fatal';
+
+export interface ParsedAiFailureInfo {
+  kind: DossierFailureKind;
+  errorCode: string;
+  errorCategory: string;
+  minRemainingCooldownSec: number | null;
+  notConfigured: boolean;
+  userMessageVi: string;
+}
+
+const INTERNAL_ERROR_TOKEN_REGEX =
+  /\b(?:FIRST_CHUNK_TIMEOUT|AI_POOL_EXHAUSTED|TPM_GUARD_SKIP|AUTH_INVALID_KEY|AUTH_FORBIDDEN_REPEATED|NETWORK_OR_5XX|RATE_LIMIT_RPM|QUOTA_DAILY_EXHAUSTED|QUOTA_PROJECT_ZERO|API_NOT_ENABLED|MODEL_UNAVAILABLE|AI_NOT_CONFIGURED|AI_CALL_FAILED|ABORTED)\b/g;
+
+export function sanitizeClientErrorDisplayText(rawMessage?: string | null): string {
+  if (!rawMessage || typeof rawMessage !== 'string') return '';
+  return rawMessage
+    .replace(/^Error:\s*/i, '')
+    .replace(/\[?(?:FIRST_CHUNK_TIMEOUT|AI_POOL_EXHAUSTED|TPM_GUARD_SKIP|AUTH_INVALID_KEY|AUTH_FORBIDDEN_REPEATED|NETWORK_OR_5XX|RATE_LIMIT_RPM|QUOTA_DAILY_EXHAUSTED|QUOTA_PROJECT_ZERO|API_NOT_ENABLED|MODEL_UNAVAILABLE|AI_NOT_CONFIGURED|AI_CALL_FAILED)\]?:?\s*/g, '')
+    .replace(INTERNAL_ERROR_TOKEN_REGEX, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s·:\-—]+|[\s·:\-—]+$/g, '')
+    .trim();
+}
+
+export interface ClassifyDossierFailureInput {
+  httpStatus?: number;
+  error?: string | null;
+  errorCategory?: string | null;
+  minRemainingCooldownSec?: number | null;
+  message?: string | null;
+  interrupted?: boolean;
+  aborted?: boolean;
+}
+
+const FATAL_AUTH_OR_CONFIG_CATEGORIES = new Set([
+  'AI_NOT_CONFIGURED',
+  'AUTH_INVALID_KEY',
+  'AUTH_FORBIDDEN_REPEATED',
+]);
+
+const QUOTA_OR_PROJECT_CATEGORIES = new Set([
+  'QUOTA_PROJECT_ZERO',
+  'QUOTA_DAILY_EXHAUSTED',
+  'API_NOT_ENABLED',
+]);
+
+const TRANSIENT_CATEGORIES = new Set([
+  'FIRST_CHUNK_TIMEOUT',
+  'NETWORK_OR_5XX',
+  'MODEL_UNAVAILABLE',
+  'RATE_LIMIT_RPM',
+  'TPM_GUARD_SKIP',
+]);
+
+export function classifyDossierFailure(
+  input: ClassifyDossierFailureInput,
+): ParsedAiFailureInfo {
+  if (input.aborted) {
+    return {
+      kind: 'fatal',
+      errorCode: 'ABORTED',
+      errorCategory: 'ABORTED',
+      minRemainingCooldownSec: null,
+      notConfigured: false,
+      userMessageVi: 'Người dùng đã dừng thao tác sinh nội dung.',
+    };
+  }
+
+  const rawMsg = typeof input.message === 'string' ? input.message : '';
+  const rawErr = typeof input.error === 'string' ? input.error.trim() : '';
+  const rawCat = typeof input.errorCategory === 'string' ? input.errorCategory.trim() : '';
+
+  const errorCode =
+    rawErr ||
+    (rawCat === 'AI_NOT_CONFIGURED'
+      ? 'AI_NOT_CONFIGURED'
+      : rawCat === 'TPM_GUARD_SKIP'
+        ? 'TPM_GUARD_SKIP'
+        : 'AI_CALL_FAILED');
+
+  let errorCategory = rawCat;
+  if (!errorCategory) {
+    if (errorCode === 'AI_NOT_CONFIGURED') {
+      errorCategory = 'AI_NOT_CONFIGURED';
+    } else if (errorCode === 'TPM_GUARD_SKIP' || rawMsg.includes('TPM_GUARD_SKIP')) {
+      errorCategory = 'TPM_GUARD_SKIP';
+    } else if (rawMsg.includes('FIRST_CHUNK_TIMEOUT')) {
+      errorCategory = 'FIRST_CHUNK_TIMEOUT';
+    } else if (input.httpStatus === 429) {
+      errorCategory = 'RATE_LIMIT_RPM';
+    } else if (errorCode === 'AI_POOL_EXHAUSTED') {
+      errorCategory = 'AI_POOL_EXHAUSTED';
+    } else {
+      errorCategory = 'NETWORK_OR_5XX';
+    }
+  }
+
+  const cooldown =
+    typeof input.minRemainingCooldownSec === 'number' &&
+    Number.isFinite(input.minRemainingCooldownSec)
+      ? Math.max(0, Math.ceil(input.minRemainingCooldownSec))
+      : null;
+
+  const notConfigured =
+    errorCode === 'AI_NOT_CONFIGURED' || errorCategory === 'AI_NOT_CONFIGURED';
+
+  let kind: DossierFailureKind = 'transient';
+
+  if (
+    notConfigured ||
+    FATAL_AUTH_OR_CONFIG_CATEGORIES.has(errorCategory) ||
+    FATAL_AUTH_OR_CONFIG_CATEGORIES.has(errorCode)
+  ) {
+    kind = 'fatal';
+  } else if (
+    errorCode === 'AI_POOL_EXHAUSTED' ||
+    errorCategory === 'AI_POOL_EXHAUSTED'
+  ) {
+    // Pool đang cạn: chỉ cho phép coi là tạm thời nếu đang nguội <= 60s
+    kind = cooldown !== null && cooldown >= 1 && cooldown <= 60 ? 'transient' : 'fatal';
+  } else if (QUOTA_OR_PROJECT_CATEGORIES.has(errorCategory)) {
+    kind = cooldown !== null && cooldown >= 1 && cooldown <= 60 ? 'transient' : 'fatal';
+  } else if (TRANSIENT_CATEGORIES.has(errorCategory)) {
+    kind = 'transient';
+  } else {
+    kind = 'transient';
+  }
+
+  const sanitizedMsg = sanitizeClientErrorDisplayText(rawMsg);
+
+  let userMessageVi = '';
+  if (notConfigured) {
+    userMessageVi =
+      'Chưa có khóa Gemini API nào được cấu hình trong Kho Khóa.';
+  } else if (
+    errorCategory === 'AUTH_INVALID_KEY' ||
+    errorCategory === 'AUTH_FORBIDDEN_REPEATED'
+  ) {
+    userMessageVi =
+      'Khóa Gemini API không hợp lệ hoặc bị từ chối quyền truy cập. Vui lòng kiểm tra lại Kho Khóa.';
+  } else if (errorCode === 'AI_POOL_EXHAUSTED') {
+    if (cooldown !== null && cooldown >= 1 && cooldown <= 60) {
+      userMessageVi = `Kho khóa đang quá tải tạm thời (còn khoảng ${cooldown}s hồi nguội). Hệ thống có thể tự thử lại.`;
+    } else if (cooldown !== null && cooldown > 60) {
+      userMessageVi = `Toàn bộ khóa trong Kho đang hồi nguội lâu (${cooldown}s). Vui lòng đợi hoặc bổ sung khóa khác.`;
+    } else {
+      userMessageVi =
+        'Toàn bộ khóa trong Kho đang bận hoặc bị vô hiệu hóa. Vui lòng kiểm tra Kho Khóa.';
+    }
+  } else if (errorCategory === 'TPM_GUARD_SKIP') {
+    userMessageVi =
+      cooldown !== null && cooldown > 0
+        ? `Hàng rào bảo vệ hạn mức token vừa tạm hoãn yêu cầu (hồi sau khoảng ${cooldown}s).`
+        : 'Hàng rào bảo vệ hạn mức token vừa tạm hoãn yêu cầu để tránh nghẽn luồng.';
+  } else if (errorCategory === 'FIRST_CHUNK_TIMEOUT') {
+    userMessageVi =
+      'Máy chủ AI phản hồi chậm quá thời gian chờ ở tín hiệu đầu tiên.';
+  } else if (errorCategory === 'RATE_LIMIT_RPM') {
+    userMessageVi =
+      cooldown !== null && cooldown > 0
+        ? `Khóa API vừa chạm ngưỡng tốc độ tạm thời (hồi sau khoảng ${cooldown}s).`
+        : 'Khóa API vừa chạm ngưỡng tốc độ tạm thời.';
+  } else if (QUOTA_OR_PROJECT_CATEGORIES.has(errorCategory)) {
+    userMessageVi =
+      sanitizedMsg ||
+      'Dự án hoặc khóa Gemini API đã hết hạn mức sử dụng trong ngày / chưa bật dịch vụ.';
+  } else if (input.interrupted) {
+    userMessageVi =
+      sanitizedMsg ||
+      'Luồng kết nối AI bị gián đoạn giữa chừng.';
+  } else {
+    userMessageVi =
+      sanitizedMsg ||
+      'Kết nối tới dịch vụ AI tạm thời gián đoạn. Vui lòng thử lại.';
+  }
+
+  return {
+    kind,
+    errorCode,
+    errorCategory,
+    minRemainingCooldownSec: cooldown,
+    notConfigured,
+    userMessageVi,
+  };
+}
+
+export function getDossierChapterContentLength(
+  state?: Partial<DossierChapterState> | null,
+): number {
+  if (!state) return 0;
+  if (state.status === 'completed') {
+    return state.text?.trim().length ?? 0;
+  }
+  return (
+    state.incompleteText?.trim().length ||
+    state.text?.trim().length ||
+    0
+  );
+}
+
+export function createBestPartialSnapshot(
+  state?: DossierChapterState | null,
+): DossierChapterState | null {
+  if (!state) return null;
+  if (state.status === 'completed' && state.text?.trim()) {
+    return { ...state };
+  }
+  if (state.status === 'incomplete' && state.incompleteText?.trim()) {
+    return { ...state };
+  }
+  return null;
+}
+
+export function resolveChapterWithBestPartial(
+  bestSnapshot: DossierChapterState | null,
+  incoming: DossierChapterState,
+): { resolvedState: DossierChapterState; restoredFromBest: boolean } {
+  if (incoming.status === 'completed' && incoming.text?.trim()) {
+    return { resolvedState: incoming, restoredFromBest: false };
+  }
+  const bestLen = getDossierChapterContentLength(bestSnapshot);
+  const incomingLen = getDossierChapterContentLength(incoming);
+  if (bestSnapshot && bestLen > 0 && incomingLen < bestLen) {
+    return {
+      resolvedState: {
+        ...bestSnapshot,
+        error: incoming.error ?? bestSnapshot.error,
+        errorCode: incoming.errorCode ?? bestSnapshot.errorCode,
+        errorCategory: incoming.errorCategory ?? bestSnapshot.errorCategory,
+        minRemainingCooldownSec:
+          incoming.minRemainingCooldownSec ?? bestSnapshot.minRemainingCooldownSec,
+        interruptedReason:
+          incoming.interruptedReason ??
+          incoming.error ??
+          bestSnapshot.interruptedReason,
+        restoredFromLongerPartial: true,
+        restoredNoticeVi: `Đã giữ lại bản dài hơn trước đó (${bestLen.toLocaleString('vi-VN')} ký tự) vì lần thử lại chỉ nhận được ${incomingLen.toLocaleString('vi-VN')} ký tự.`,
+        updatedAt: Date.now(),
+      },
+      restoredFromBest: true,
+    };
+  }
+  return { resolvedState: incoming, restoredFromBest: false };
+}
+
+export interface DualFuseChapterResult {
+  status: 'completed' | 'incomplete' | 'error' | 'aborted';
+  failure?: ParsedAiFailureInfo;
+}
+
+export interface DualFuseRunOptions {
+  specsToRun: readonly DossierChapterSpec[];
+  runChapter: (spec: DossierChapterSpec, pass: 1 | 2) => Promise<DualFuseChapterResult>;
+  shouldStop: () => boolean;
+  shouldPause?: () => boolean;
+  pacingMs?: number;
+  waitBetweenChapters?: (ms: number) => Promise<void>;
+  onPassChange?: (pass: 1 | 2, queuedIds: DossierChapterId[]) => void;
+}
+
+export interface DualFuseSummary {
+  completedInPass1: DossierChapterId[];
+  retriedInPass2: DossierChapterId[];
+  recoveredInPass2: DossierChapterId[];
+  remainingIncompleteOrError: DossierChapterId[];
+  haltedReason: 'none' | 'aborted' | 'paused' | 'fatal_error';
+  fatalFailure?: ParsedAiFailureInfo;
+}
+
+export async function runDossierSequentialWithDualFuse(
+  options: DualFuseRunOptions,
+): Promise<DualFuseSummary> {
+  const {
+    specsToRun,
+    runChapter,
+    shouldStop,
+    shouldPause,
+    pacingMs = DOSSIER_INTER_CHAPTER_PACING_MS,
+    waitBetweenChapters,
+    onPassChange,
+  } = options;
+
+  const waitFn =
+    waitBetweenChapters ??
+    ((ms: number) =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+      }));
+
+  const completedInPass1: DossierChapterId[] = [];
+  const retriedInPass2: DossierChapterId[] = [];
+  const recoveredInPass2: DossierChapterId[] = [];
+  const remainingIncompleteOrError: DossierChapterId[] = [];
+  const retryQueue: DossierChapterSpec[] = [];
+  let haltedReason: DualFuseSummary['haltedReason'] = 'none';
+  let fatalFailure: ParsedAiFailureInfo | undefined;
+
+  onPassChange?.(1, []);
+
+  for (let i = 0; i < specsToRun.length; i += 1) {
+    if (shouldStop()) {
+      haltedReason = 'aborted';
+      break;
+    }
+    if (shouldPause?.()) {
+      haltedReason = 'paused';
+      break;
+    }
+
+    const spec = specsToRun[i];
+    const result = await runChapter(spec, 1);
+
+    if (result.status === 'aborted' || shouldStop()) {
+      haltedReason = 'aborted';
+      break;
+    }
+
+    if (result.status === 'completed') {
+      completedInPass1.push(spec.id);
+    } else if (result.failure?.kind === 'fatal') {
+      haltedReason = 'fatal_error';
+      fatalFailure = result.failure;
+      remainingIncompleteOrError.push(spec.id);
+      break;
+    } else {
+      retryQueue.push(spec);
+    }
+
+    if (shouldPause?.()) {
+      haltedReason = 'paused';
+      break;
+    }
+
+    if (i < specsToRun.length - 1 && pacingMs > 0) {
+      await waitFn(pacingMs);
+    }
+  }
+
+  if (haltedReason !== 'none') {
+    for (const queued of retryQueue) {
+      if (!remainingIncompleteOrError.includes(queued.id)) {
+        remainingIncompleteOrError.push(queued.id);
+      }
+    }
+    return {
+      completedInPass1,
+      retriedInPass2,
+      recoveredInPass2,
+      remainingIncompleteOrError,
+      haltedReason,
+      fatalFailure,
+    };
+  }
+
+  if (retryQueue.length > 0) {
+    onPassChange?.(
+      2,
+      retryQueue.map((s) => s.id),
+    );
+    if (pacingMs > 0) {
+      await waitFn(pacingMs);
+    }
+
+    for (let j = 0; j < retryQueue.length; j += 1) {
+      if (shouldStop()) {
+        haltedReason = 'aborted';
+        for (let k = j; k < retryQueue.length; k += 1) {
+          remainingIncompleteOrError.push(retryQueue[k].id);
+        }
+        break;
+      }
+      if (shouldPause?.()) {
+        haltedReason = 'paused';
+        for (let k = j; k < retryQueue.length; k += 1) {
+          remainingIncompleteOrError.push(retryQueue[k].id);
+        }
+        break;
+      }
+
+      const spec = retryQueue[j];
+      retriedInPass2.push(spec.id);
+      const retryResult = await runChapter(spec, 2);
+
+      if (retryResult.status === 'aborted' || shouldStop()) {
+        haltedReason = 'aborted';
+        for (let k = j; k < retryQueue.length; k += 1) {
+          if (!remainingIncompleteOrError.includes(retryQueue[k].id)) {
+            remainingIncompleteOrError.push(retryQueue[k].id);
+          }
+        }
+        break;
+      }
+
+      if (retryResult.status === 'completed') {
+        recoveredInPass2.push(spec.id);
+      } else {
+        remainingIncompleteOrError.push(spec.id);
+        if (retryResult.failure?.kind === 'fatal') {
+          haltedReason = 'fatal_error';
+          fatalFailure = retryResult.failure;
+          for (let k = j + 1; k < retryQueue.length; k += 1) {
+            remainingIncompleteOrError.push(retryQueue[k].id);
+          }
+          break;
+        }
+      }
+
+      if (shouldPause?.()) {
+        haltedReason = 'paused';
+        for (let k = j + 1; k < retryQueue.length; k += 1) {
+          remainingIncompleteOrError.push(retryQueue[k].id);
+        }
+        break;
+      }
+
+      if (j < retryQueue.length - 1 && pacingMs > 0) {
+        await waitFn(pacingMs);
+      }
+    }
+  }
+
+  return {
+    completedInPass1,
+    retriedInPass2,
+    recoveredInPass2,
+    remainingIncompleteOrError,
+    haltedReason,
+    fatalFailure,
+  };
 }
 
 export interface StoredDossierRecord {
@@ -907,6 +1401,9 @@ export function resolveDossierChapterFromCaches(
         status: 'completed',
         text: sanitizeDossierChapterText(periodEntry.text, spec.id, chart),
         meta: periodEntry.meta,
+        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
+        restoredFromLongerPartial: matchingLocal?.restoredFromLongerPartial,
+        restoredNoticeVi: matchingLocal?.restoredNoticeVi,
         sourceBadge:
           matchingLocal?.sourceBadge ?? formatDossierSourceBadge('cache'),
       };
@@ -921,7 +1418,13 @@ export function resolveDossierChapterFromCaches(
         }),
         interruptedReason: periodEntry.interruptedReason || periodEntry.error,
         error: periodEntry.error,
+        errorCode: periodEntry.errorCode,
+        errorCategory: periodEntry.errorCategory,
+        minRemainingCooldownSec: periodEntry.minRemainingCooldownSec,
+        restoredFromLongerPartial: matchingLocal?.restoredFromLongerPartial,
+        restoredNoticeVi: matchingLocal?.restoredNoticeVi,
         meta: periodEntry.meta,
+        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
         sourceBadge: matchingLocal?.sourceBadge,
       };
     }
@@ -932,7 +1435,10 @@ export function resolveDossierChapterFromCaches(
         status: 'error',
         error: periodEntry.error,
         errorCode: periodEntry.errorCode,
+        errorCategory: periodEntry.errorCategory,
+        minRemainingCooldownSec: periodEntry.minRemainingCooldownSec,
         meta: periodEntry.meta,
+        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
       };
     }
   }

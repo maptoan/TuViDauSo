@@ -651,7 +651,7 @@ export function buildYunxianPeriodContext(
     const luckyText = node.luckyStarsVi.length > 0 ? node.luckyStarsVi.join(', ') : 'Không';
     const shaText = node.shaStarsVi.length > 0 ? node.shaStarsVi.join(', ') : 'Không';
     factLines.push(
-      `• **${node.roleVi}** → Đóng nhờ trên cung Bản Mệnh gốc **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}** | Cát tinh: ${luckyText} | Sát tinh: ${shaText}${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
+      `• **${node.roleVi}** → Đóng tại cung Bản Mệnh gốc **${node.natalPalaceNameVi} (${node.ganZhiVi})**: Chính tinh **${node.majorStarsVi.join(', ')}** | Cát tinh: ${luckyText} | Sát tinh: ${shaText}${shText}${dynText} *(Tuế/Tướng: ${node.shierShenVi.suiQian} · ${node.shierShenVi.jiangQian})*`,
     );
   }
 

@@ -116,7 +116,16 @@ export function sanitizeAiVietnameseOutput(
     .replace(/(?<!\p{L})(?:HOÁ|Hoá|HÓA)[ \t]+(Lộc|Quyền|Khoa|Kỵ)(?!\p{L})/gu, 'Hóa $1')
     .replace(/(?<!\p{L})(trục[ \t]+)thế[ \t]+Mạnh(?!\p{L})/gu, '$1thế mạnh')
     // Z3 (Y5 fallback): Tiêu đề lặp "### Cung Mệnh Cung"
-    .replace(/(^\s*#{2,4}[ \t]+)Cung[ \t]+Mệnh[ \t]+Cung(?=$|[\s(\[–—-])/gmu, '$1Cung Mệnh');
+    .replace(/(^\s*#{2,4}[ \t]+)Cung[ \t]+Mệnh[ \t]+Cung(?=$|[\s(\[–—-])/gmu, '$1Cung Mệnh')
+    // Z2 (1.5.6): Lỗi chính tả ngữ cảnh & dịch máy cố định với biên chữ Unicode
+    .replace(/(?<!\p{L})thủ[ \t]+mì(?!\p{L})/gu, 'thủ Mệnh')
+    .replace(/(?<!\p{L})Thủ[ \t]+mì(?!\p{L})/gu, 'Thủ Mệnh')
+    .replace(/(?<!\p{L})đóng[ \t]+nhờ[ \t]+trên(?!\p{L})/gu, 'đóng tại')
+    .replace(/(?<!\p{L})Đóng[ \t]+nhờ[ \t]+trên(?!\p{L})/gu, 'Đóng tại')
+    .replace(/(?<!\p{L})trinhtrạng(?!\p{L})/gu, 'tình trạng')
+    .replace(/(?<!\p{L})Trinhtrạng(?!\p{L})/gu, 'Tình trạng')
+    .replace(/(?<!\p{L})trinh[ \t]+trạng(?!\p{L})/gu, 'tình trạng')
+    .replace(/(?<!\p{L})Trinh[ \t]+trạng(?!\p{L})/gu, 'Tình trạng');
 
   // Thu gọn khoảng trắng ngang bị đúp sau chữ mà vẫn giữ nguyên thụt đầu dòng, bảng Markdown và xuống dòng.
   out = out
@@ -421,42 +430,84 @@ export function enforceCanonicalPalaceGroupHeadings(text: string, chart: ZiweiCh
   }
 
   const lines = text.split('\n');
-  const updatedLines = lines.map((line) => {
+  const dedupedLines: string[] = [];
+  let lastEmittedCanonicalHeading: string | null = null;
+  let pendingBlanks: string[] = [];
+
+  for (const line of lines) {
     const headingMatch = line.match(/^\s*#{2,4}\s+(?:\d+[.)]\s*)?Cung\s+(.+)$/iu);
-    if (!headingMatch) return line;
+    let canonicalLine: string | null = null;
 
-    const rest = headingMatch[1].normalize('NFC').trim();
-    const titleBeforeBadges = rest.split(/[([\n]/u)[0]?.trim() ?? '';
-    const titleLower = titleBeforeBadges.toLowerCase();
+    if (headingMatch) {
+      const rest = headingMatch[1].normalize('NFC').trim();
+      const titleBeforeBadges = rest.split(/[([\n]/u)[0]?.trim() ?? '';
+      const titleLower = titleBeforeBadges.toLowerCase();
 
-    let matchedCanonical: string | null = null;
-    let matchedLabelLen = 0;
-    for (const entry of sortedAliases) {
-      const labelLower = entry.label.normalize('NFC').toLowerCase();
-      const startRe = new RegExp(`^${escapeRegExp(labelLower)}(?=$|[\\s(\\[,:–—-])`, 'u');
-      if (startRe.test(titleLower)) {
-        matchedCanonical = entry.canonicalNameVi.normalize('NFC').toLowerCase();
-        matchedLabelLen = entry.label.length;
-        break;
+      let matchedCanonical: string | null = null;
+      let matchedLabelLen = 0;
+      for (const entry of sortedAliases) {
+        const labelLower = entry.label.normalize('NFC').toLowerCase();
+        const startRe = new RegExp(`^${escapeRegExp(labelLower)}(?=$|[\\s(\\[,:–—-])`, 'u');
+        if (startRe.test(titleLower)) {
+          matchedCanonical = entry.canonicalNameVi.normalize('NFC').toLowerCase();
+          matchedLabelLen = entry.label.length;
+          break;
+        }
+      }
+
+      if (matchedCanonical) {
+        // Từ chối tiêu đề gộp nhiều cung (ví dụ: "### Cung Mệnh và Quan Lộc").
+        const remainderTitle = titleLower.slice(matchedLabelLen).trim();
+        let hasAnotherPalace = false;
+        if (remainderTitle.length > 0) {
+          hasAnotherPalace = sortedAliases.some((entry) => {
+            const entryCanon = entry.canonicalNameVi.normalize('NFC').toLowerCase();
+            if (entryCanon === matchedCanonical) return false;
+            const otherRe = new RegExp(`(?<!\\p{L})${escapeRegExp(entry.label.toLowerCase())}(?!\\p{L})`, 'u');
+            return otherRe.test(remainderTitle);
+          });
+        }
+        if (!hasAnotherPalace) {
+          canonicalLine = canonicalByNameLower.get(matchedCanonical) ?? null;
+        }
       }
     }
 
-    if (!matchedCanonical) return line;
-
-    // Từ chối tiêu đề gộp nhiều cung (ví dụ: "### Cung Mệnh và Quan Lộc").
-    const remainderTitle = titleLower.slice(matchedLabelLen).trim();
-    if (remainderTitle.length > 0) {
-      const hasAnotherPalace = sortedAliases.some((entry) => {
-        const entryCanon = entry.canonicalNameVi.normalize('NFC').toLowerCase();
-        if (entryCanon === matchedCanonical) return false;
-        const otherRe = new RegExp(`(?<!\\p{L})${escapeRegExp(entry.label.toLowerCase())}(?!\\p{L})`, 'u');
-        return otherRe.test(remainderTitle);
-      });
-      if (hasAnotherPalace) return line;
+    if (canonicalLine !== null) {
+      if (canonicalLine === lastEmittedCanonicalHeading) {
+        // Z1: Thu gọn các dòng tiêu đề cung chuẩn hóa giống hệt nhau liên tiếp thành 1.
+        pendingBlanks = [];
+        continue;
+      }
+      if (pendingBlanks.length > 0) {
+        dedupedLines.push(...pendingBlanks);
+        pendingBlanks = [];
+      }
+      dedupedLines.push(canonicalLine);
+      lastEmittedCanonicalHeading = canonicalLine;
+      continue;
     }
 
-    return canonicalByNameLower.get(matchedCanonical) ?? line;
-  });
+    if (/^\s*$/.test(line)) {
+      if (lastEmittedCanonicalHeading !== null) {
+        pendingBlanks.push(line);
+      } else {
+        dedupedLines.push(line);
+      }
+      continue;
+    }
 
-  return updatedLines.join('\n');
+    if (pendingBlanks.length > 0) {
+      dedupedLines.push(...pendingBlanks);
+      pendingBlanks = [];
+    }
+    lastEmittedCanonicalHeading = null;
+    dedupedLines.push(line);
+  }
+
+  if (pendingBlanks.length > 0) {
+    dedupedLines.push(...pendingBlanks);
+  }
+
+  return dedupedLines.join('\n');
 }

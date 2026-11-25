@@ -10,6 +10,7 @@ import {
 } from '../lib/ziwei/vi-i18n';
 import {
   buildChartIdentityKey,
+  classifyDossierFailure,
   type ContextualChatContextPayload,
 } from '../lib/dossier-chat-ui';
 import { sanitizeAiVietnameseOutput } from '../lib/ziwei/text-sanitizer';
@@ -116,7 +117,33 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
         signal: controller.signal,
       });
 
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
+        let errJson: {
+          error?: string;
+          errorCategory?: string;
+          minRemainingCooldownSec?: number | null;
+          message?: string;
+        } | null = null;
+        try {
+          errJson = await res.json();
+        } catch {
+          // ignore
+        }
+        const failure = classifyDossierFailure({
+          httpStatus: res.status,
+          error: errJson?.error,
+          errorCategory: errJson?.errorCategory,
+          minRemainingCooldownSec: errJson?.minRemainingCooldownSec ?? null,
+          message: errJson?.message,
+        });
+        setStreamNotice(
+          `${failure.userMessageVi} Đang hiển thị bản phân tích xác định tại chỗ.`,
+        );
+        setResult(buildLocalHemingFallback(chartA, chartB));
+        return;
+      }
+
+      if (!res.body) {
         setStreamNotice(
           'Không kết nối được luồng AI Hợp Bàn — đang hiển thị bản phân tích xác định tại chỗ.',
         );
@@ -130,6 +157,11 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
       let acc = '';
       let wasInterrupted = false;
       let streamError = '';
+      let streamErrorCode: string | null = null;
+      let streamErrorCategory: string | null = null;
+      let streamCooldownSec: number | null = null;
+      let interruptedCategory: string | null = null;
+      let interruptedCooldownSec: number | null = null;
 
       const processLine = (line: string): boolean => {
         if (!line.startsWith('data: ')) return false;
@@ -143,10 +175,25 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
           if (parsed?.interrupted) {
             wasInterrupted = true;
             if (parsed.message) streamError = parsed.message;
+            if (typeof parsed.errorCategory === 'string') {
+              interruptedCategory = parsed.errorCategory;
+            }
+            if (typeof parsed.minRemainingCooldownSec === 'number') {
+              interruptedCooldownSec = parsed.minRemainingCooldownSec;
+            }
             return false;
           }
           if (parsed?.error) {
             streamError = parsed.message || 'Luồng AI Hợp Bàn gặp lỗi.';
+            if (typeof parsed.error === 'string') {
+              streamErrorCode = parsed.error;
+            }
+            if (typeof parsed.errorCategory === 'string') {
+              streamErrorCategory = parsed.errorCategory;
+            }
+            if (typeof parsed.minRemainingCooldownSec === 'number') {
+              streamCooldownSec = parsed.minRemainingCooldownSec;
+            }
             return false;
           }
           const text = parsed?.delta?.text ?? '';
@@ -184,15 +231,20 @@ export default function HemingView({ onOpenContextualChat }: HemingViewProps) {
       }
 
       if (wasInterrupted || streamError) {
+        const failure = classifyDossierFailure({
+          error: streamErrorCode,
+          errorCategory: streamErrorCategory ?? interruptedCategory,
+          minRemainingCooldownSec: streamCooldownSec ?? interruptedCooldownSec,
+          message: streamError,
+          interrupted: wasInterrupted,
+        });
         if (acc.trim()) {
           setStreamNotice(
-            streamError ||
-              'Luồng Hợp Bàn bị gián đoạn giữa chừng — đang giữ phần nội dung đã nhận.',
+            `${failure.userMessageVi} Đang giữ phần nội dung đã nhận.`,
           );
         } else {
           setStreamNotice(
-            streamError ||
-              'Luồng AI Hợp Bàn bị gián đoạn — đang hiển thị bản phân tích xác định tại chỗ.',
+            `${failure.userMessageVi} Đang hiển thị bản phân tích xác định tại chỗ.`,
           );
           setResult(buildLocalHemingFallback(chartA, chartB));
         }

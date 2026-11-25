@@ -666,3 +666,43 @@ export function applyBatchItemToSnapshot<
     },
   };
 }
+
+export interface PoolReadinessBanner {
+  severity: 'critical' | 'warn';
+  code: 'LOW_TOTAL_KEYS' | 'LOW_READY_KEYS';
+  title: string;
+  message: string;
+}
+
+/**
+ * KP-7 Tầng 2 (Y1): Cảnh báo trạng thái sẵn sàng của Kho Khóa khi số khóa sẵn sàng < 3,
+ * phân biệt rõ "kho có ít hơn 3 khóa" (total < 3) vs "chỉ còn X/Y khóa sẵn sàng" (total >= 3 && ready < 3).
+ */
+export function evaluatePoolReadinessBanner(summary: {
+  total: number;
+  ready: number;
+  cooldown?: number;
+  disabled?: number;
+}): PoolReadinessBanner | null {
+  if (summary.ready >= 3) return null;
+
+  if (summary.total < 3) {
+    return {
+      severity: summary.total === 0 ? 'critical' : 'warn',
+      code: 'LOW_TOTAL_KEYS',
+      title: 'Kho có ít hơn 3 khóa',
+      message:
+        summary.total === 0
+          ? 'Kho hiện chưa có khóa Gemini nào (kho có ít hơn 3 khóa). Hãy dán danh sách khóa hoặc khôi phục từ gói sao lưu để sử dụng AI.'
+          : `Kho có ít hơn 3 khóa (hiện có ${summary.total} khóa, ${summary.ready} sẵn sàng). Nên nạp tối thiểu 3 khóa để luân chuyển ổn định khi sinh hồ sơ nhiều chương.`,
+    };
+  }
+
+  return {
+    severity: summary.ready === 0 ? 'critical' : 'warn',
+    code: 'LOW_READY_KEYS',
+    title: `Chỉ còn ${summary.ready}/${summary.total} khóa sẵn sàng`,
+    message: `Chỉ còn ${summary.ready}/${summary.total} khóa sẵn sàng (các khóa còn lại đang chờ nguội hoặc bị vô hiệu hóa). Bạn có thể chờ nguội, bấm kiểm tra lại khóa đang nguội hoặc bổ sung khóa mới.`,
+  };
+}
+

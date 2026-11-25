@@ -147,20 +147,77 @@ export interface ExecuteStreamOptions {
   maxContinuations?: number;
 }
 
+export type PoolFailureCategory =
+  | KeyErrorCategory
+  | 'TPM_GUARD_SKIP'
+  | 'AI_NOT_CONFIGURED'
+  | 'AI_POOL_EXHAUSTED';
+
 export class PoolExhaustedError extends Error {
   public readonly code: 'AI_NOT_CONFIGURED' | 'AI_POOL_EXHAUSTED';
   public readonly minRemainingCooldownSec: number | null;
+  public readonly errorCategory: PoolFailureCategory;
 
   constructor(
     code: 'AI_NOT_CONFIGURED' | 'AI_POOL_EXHAUSTED',
     message: string,
     minRemainingCooldownSec: number | null = null,
+    errorCategory?: PoolFailureCategory,
   ) {
     super(message);
     this.name = 'PoolExhaustedError';
     this.code = code;
     this.minRemainingCooldownSec = minRemainingCooldownSec;
+    this.errorCategory =
+      errorCategory ?? (code === 'AI_NOT_CONFIGURED' ? 'AI_NOT_CONFIGURED' : 'AI_POOL_EXHAUSTED');
   }
+}
+
+export class TpmGuardSkipError extends Error {
+  public readonly code = 'TPM_GUARD_SKIP' as const;
+  public readonly errorCategory = 'TPM_GUARD_SKIP' as const;
+  public readonly minRemainingCooldownSec: number | null;
+
+  constructor(message: string, minRemainingCooldownSec: number | null = null) {
+    super(message);
+    this.name = 'TpmGuardSkipError';
+    this.minRemainingCooldownSec = minRemainingCooldownSec;
+  }
+}
+
+function inferPoolExhaustedCategory(
+  keys: KeyPoolState['keys'],
+  lastClassified: ClassifiedGeminiError | null,
+  minRemainingCooldownSec: number | null,
+): PoolFailureCategory {
+  if (lastClassified && lastClassified.category !== 'NONE' && lastClassified.category !== 'UNKNOWN') {
+    return lastClassified.category;
+  }
+  if (keys.length === 0) {
+    return 'AI_NOT_CONFIGURED';
+  }
+  if (keys.every((k) => k.status === 'disabled')) {
+    const authDisabled = keys.find(
+      (k) =>
+        k.cooldownReason === 'AUTH_INVALID_KEY' ||
+        k.cooldownReason === 'AUTH_FORBIDDEN_REPEATED' ||
+        k.stats.lastErrorType === 'AUTH_INVALID_KEY' ||
+        k.stats.lastErrorType === 'AUTH_FORBIDDEN_REPEATED',
+    );
+    return authDisabled?.cooldownReason && authDisabled.cooldownReason !== 'NONE'
+      ? authDisabled.cooldownReason
+      : authDisabled?.stats.lastErrorType && authDisabled.stats.lastErrorType !== 'NONE'
+        ? authDisabled.stats.lastErrorType
+        : 'AUTH_INVALID_KEY';
+  }
+  if (minRemainingCooldownSec !== null) {
+    const coolingKey = keys.find(
+      (k) => k.status === 'cooldown' && k.cooldownReason !== 'NONE',
+    );
+    if (coolingKey) return coolingKey.cooldownReason;
+    return 'RATE_LIMIT_RPM';
+  }
+  return 'AI_POOL_EXHAUSTED';
 }
 
 const PREV_SEAM_NO_SPACE_RE = /[\s(\[{"'“‘«*]$/u;
@@ -216,6 +273,8 @@ export class GeminiStreamExecutor {
       throw new PoolExhaustedError(
         'AI_NOT_CONFIGURED',
         'Chưa cấu hình AI (kho khóa hiện chưa có khóa Gemini nào). Hệ thống giữ nguyên Khung dữ kiện xác định và không giả lập văn bản AI.',
+        null,
+        'AI_NOT_CONFIGURED',
       );
     }
 
@@ -379,12 +438,18 @@ export class GeminiStreamExecutor {
       const waited = await tryWaitForFallbackCooldown();
       if (!waited) {
         const minSec = this.allocator.getMinRemainingCooldownSec(nowFn());
+        const inferredCategory = inferPoolExhaustedCategory(
+          state.keys,
+          lastClassifiedError,
+          minSec,
+        );
         throw new PoolExhaustedError(
           'AI_POOL_EXHAUSTED',
           minSec !== null
             ? `Tất cả khóa Gemini trong kho đang trong thời gian chờ nguội (khóa kế tiếp sẵn sàng sau khoảng ${minSec} giây) hoặc đã bị vô hiệu hóa.`
             : 'Tất cả khóa Gemini trong kho hiện đều bị vô hiệu hóa hoặc chưa sẵn sàng.',
           minSec,
+          inferredCategory,
         );
       }
     }
@@ -780,14 +845,16 @@ export class GeminiStreamExecutor {
                   classified.category !== 'AUTH_INVALID_KEY';
 
                 if (!canContinue) {
+                  const interruptMinSec = this.allocator.getMinRemainingCooldownSec(errNow);
                   const reasonText = formatHumanReadableErrorVi(
                     classified,
-                    this.allocator.getMinRemainingCooldownSec(errNow),
+                    interruptMinSec,
                   );
                   options.onInterrupted?.({
                     reason: reasonText,
                     errorCategory: classified.category,
                     partialLength: streamedTextSoFar.length,
+                    minRemainingCooldownSec: interruptMinSec,
                   });
                   const fbLat = computeFallbackLatency(errNow);
                   return {
@@ -846,6 +913,7 @@ export class GeminiStreamExecutor {
         reason: reasonText,
         errorCategory: lastClassifiedError?.category ?? 'UNKNOWN',
         partialLength: streamedTextSoFar.length,
+        minRemainingCooldownSec: minSec,
       });
       const fbLat = computeFallbackLatency(endNow);
       return {
@@ -874,7 +942,10 @@ export class GeminiStreamExecutor {
       lastTpmSkipReason !== null &&
       (allTargetsTpmSkipped || (lastClassifiedError === null && totalCallsMade === 0))
     ) {
-      throw new Error(lastTpmSkipReason);
+      throw new TpmGuardSkipError(
+        lastTpmSkipReason,
+        this.allocator.getMinRemainingCooldownSec(nowFn()),
+      );
     }
 
     // Chuẩn hóa lỗi cuối vòng lặp thành PoolExhaustedError theo điều kiện FS2-01
@@ -914,7 +985,12 @@ export class GeminiStreamExecutor {
         POOL_EXHAUSTION_ELIGIBLE_CATEGORIES.has(lastClassifiedError.category));
 
     if (shouldThrowPoolExhausted) {
-      throw new PoolExhaustedError('AI_POOL_EXHAUSTED', cleanMsg, minSec);
+      const errorCategory = inferPoolExhaustedCategory(
+        state.keys,
+        lastClassifiedError,
+        minSec,
+      );
+      throw new PoolExhaustedError('AI_POOL_EXHAUSTED', cleanMsg, minSec, errorCategory);
     }
 
     throw new Error(cleanMsg);

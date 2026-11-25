@@ -200,6 +200,7 @@ export interface StreamInterruptedEvent {
   reason: string;
   errorCategory: KeyErrorCategory;
   partialLength: number;
+  minRemainingCooldownSec?: number | null;
 }
 
 export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
@@ -266,3 +267,49 @@ export const LEASE_ABSOLUTE_MAX_TTL_MS = 210_000;
 export const PREVIEW_SESSION_TTL_MS = 5 * 60_000;
 export const MAX_PREVIEW_SESSIONS = 20;
 export const MAX_RECENT_LOGS = 100;
+
+export const KEY_POOL_BACKUP_FORMAT = 'ziwei-key-pool-backup';
+export const KEY_POOL_BACKUP_SCHEMA_VERSION = 1;
+export const KEY_POOL_BACKUP_KDF = 'PBKDF2-HMAC-SHA256';
+export const KEY_POOL_BACKUP_CIPHER = 'AES-256-GCM';
+export const KEY_POOL_BACKUP_PBKDF2_ITERATIONS = 210_000;
+export const KEY_POOL_BACKUP_MAX_ITERATIONS = 2_000_000;
+export const KEY_POOL_BACKUP_MIN_PASSPHRASE_LEN = 8;
+export const KEY_POOL_BACKUP_MAX_BYTES = 256 * 1024;
+
+export interface KeyPoolBackupHeader {
+  format: typeof KEY_POOL_BACKUP_FORMAT;
+  schemaVersion: typeof KEY_POOL_BACKUP_SCHEMA_VERSION;
+  kdf: typeof KEY_POOL_BACKUP_KDF;
+  iterations: number;
+  cipher: typeof KEY_POOL_BACKUP_CIPHER;
+  salt: string;
+  iv: string;
+  exportedAt: string;
+}
+
+export interface KeyPoolBackupEnvelope extends KeyPoolBackupHeader {
+  authTag: string;
+  ciphertext: string;
+}
+
+export interface KeyPoolBackupKeyEntry {
+  rawKey: string;
+  label: string;
+  detectedProjectNumber: string | null;
+}
+
+export interface KeyPoolBackupPlaintextPayload {
+  keys: KeyPoolBackupKeyEntry[];
+  modelConfig: PoolModelConfig;
+}
+
+export interface KeyPoolBackupImportResult {
+  importedCount: number;
+  skippedDuplicate: number;
+  invalid: number;
+  truncated: number;
+  totalAfter: number;
+  modelConfigApplied: boolean;
+}
+

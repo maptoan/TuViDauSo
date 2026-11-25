@@ -23,10 +23,13 @@ import {
   shouldShowCompletedContinuationBadge,
   shouldShowInterruptedContinuationBadge,
 } from '../lib/key-pool-ui';
-import type {
-  AiExecutionMeta,
-  AiPeriodEntry,
-  ContextualChatContextPayload,
+import {
+  classifyDossierFailure,
+  normalizeKnownBareCitationTags,
+  type AiExecutionMeta,
+  type AiPeriodEntry,
+  type ContextualChatContextPayload,
+  type Kp3AuditFlag,
 } from '../lib/dossier-chat-ui';
 import type { ActiveSihua } from './TimeNav';
 import MarkdownContent from './MarkdownContent';
@@ -168,22 +171,34 @@ export default function InsightPanel({
         });
 
         if (!res.ok) {
-          let errMsg =
-            'Chưa thể kết nối dịch vụ AI cho kỳ hạn này. Hệ thống giữ nguyên Khung dữ kiện xác định ở trên.';
-          let errCode = '';
+          let errJson: {
+            error?: string;
+            errorCategory?: string;
+            minRemainingCooldownSec?: number | null;
+            message?: string;
+          } | null = null;
           try {
-            const errJson = await res.json();
-            if (errJson?.message) errMsg = errJson.message;
-            if (errJson?.error) errCode = errJson.error;
+            errJson = await res.json();
           } catch {
             // ignore JSON parse error
           }
+          const failure = classifyDossierFailure({
+            httpStatus: res.status,
+            error: errJson?.error,
+            errorCategory: errJson?.errorCategory,
+            minRemainingCooldownSec: errJson?.minRemainingCooldownSec ?? null,
+            message:
+              errJson?.message ||
+              'Chưa thể kết nối dịch vụ AI cho kỳ hạn này. Hệ thống giữ nguyên Khung dữ kiện xác định ở trên.',
+          });
           setAiPeriodCache((prev) => ({
             ...prev,
             [pKey]: {
-              notConfigured: res.status === 503 && errCode === 'AI_NOT_CONFIGURED',
-              errorCode: errCode,
-              error: errMsg,
+              notConfigured: failure.notConfigured,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              minRemainingCooldownSec: failure.minRemainingCooldownSec,
+              error: failure.userMessageVi,
             },
           }));
           return;
@@ -194,6 +209,8 @@ export default function InsightPanel({
             ...prev,
             [pKey]: {
               notConfigured: false,
+              errorCode: 'AI_CALL_FAILED',
+              errorCategory: 'NETWORK_OR_5XX',
               error: 'Không nhận được luồng phản hồi từ máy chủ.',
             },
           }));
@@ -206,9 +223,16 @@ export default function InsightPanel({
         let accumulated = '';
         let receivedMeta: AiExecutionMeta | undefined;
         let streamError: string | null = null;
+        let streamErrorCode: string | null = null;
+        let streamErrorCategory: string | null = null;
+        let streamCooldownSec: number | null = null;
         let wasInterrupted = false;
         let interruptedMsg = '';
+        let interruptedCategory: string | null = null;
+        let interruptedCooldownSec: number | null = null;
         let scrubbedInvalidIds: string[] = [];
+        let normalizedBareIds: string[] = [];
+        let receivedAuditFlags: Kp3AuditFlag[] = [];
 
         const processLine = (line: string) => {
           if (!line.startsWith('data: ')) return false;
@@ -227,20 +251,51 @@ export default function InsightPanel({
               }));
               return false;
             }
-            if (Array.isArray(parsed?.citationAudit?.scrubbedInvalidIds)) {
-              scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
-                (id: unknown): id is string => typeof id === 'string',
-              );
+            if (parsed?.citationAudit) {
+              if (Array.isArray(parsed.citationAudit.scrubbedInvalidIds)) {
+                scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+                  (id: unknown): id is string => typeof id === 'string',
+                );
+              }
+              if (Array.isArray(parsed.citationAudit.normalizedBareIds)) {
+                normalizedBareIds = parsed.citationAudit.normalizedBareIds.filter(
+                  (id: unknown): id is string => typeof id === 'string',
+                );
+              }
+              if (Array.isArray(parsed.citationAudit.auditFlags)) {
+                receivedAuditFlags = parsed.citationAudit.auditFlags.filter(
+                  (f: unknown): f is Kp3AuditFlag =>
+                    Boolean(f) &&
+                    typeof f === 'object' &&
+                    typeof (f as Kp3AuditFlag).code === 'string' &&
+                    typeof (f as Kp3AuditFlag).messageVi === 'string',
+                );
+              }
               return false;
             }
             if (parsed?.interrupted) {
               wasInterrupted = true;
               interruptedMsg =
                 parsed.message || 'Luồng kết nối Gemini bị gián đoạn giữa chừng.';
+              if (typeof parsed.errorCategory === 'string') {
+                interruptedCategory = parsed.errorCategory;
+              }
+              if (typeof parsed.minRemainingCooldownSec === 'number') {
+                interruptedCooldownSec = parsed.minRemainingCooldownSec;
+              }
               return false;
             }
             if (parsed?.error) {
               streamError = parsed.message || 'Lời gọi Gemini API gặp lỗi.';
+              if (typeof parsed.error === 'string') {
+                streamErrorCode = parsed.error;
+              }
+              if (typeof parsed.errorCategory === 'string') {
+                streamErrorCategory = parsed.errorCategory;
+              }
+              if (typeof parsed.minRemainingCooldownSec === 'number') {
+                streamCooldownSec = parsed.minRemainingCooldownSec;
+              }
               return false;
             }
             const text = parsed?.delta?.text ?? '';
@@ -278,8 +333,11 @@ export default function InsightPanel({
           processLine(sseBuffer.trim());
         }
 
-        // Chốt lớp 2 (idempotent): sanitizeAiVietnameseOutput -> scrubInvalidCitationTags -> verifyAndEnsureCompletePeriodSiHua trước khi ghi cache/state
+        // Chốt lớp 2 (idempotent): sanitizeAiVietnameseOutput -> Z3 normalizeKnownBareCitationTags -> scrubInvalidCitationTags -> verifyAndEnsureCompletePeriodSiHua trước khi ghi cache/state
         accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (normalizedBareIds.length > 0 && accumulated) {
+          accumulated = normalizeKnownBareCitationTags(accumulated, normalizedBareIds);
+        }
         if (scrubbedInvalidIds.length > 0 && accumulated) {
           accumulated = scrubInvalidCitationTags(accumulated, {
             invalidIds: scrubbedInvalidIds,
@@ -292,29 +350,51 @@ export default function InsightPanel({
           ).patchedText;
         }
 
+        const persistedAuditFlags =
+          receivedAuditFlags.length > 0 ? receivedAuditFlags : undefined;
+
         if (wasInterrupted) {
-          const reason =
-            interruptedMsg ||
-            'Kết nối AI bị gián đoạn giữa chừng. Nội dung dở không được lưu vào bộ nhớ đệm.';
+          const failure = classifyDossierFailure({
+            error: streamErrorCode,
+            errorCategory: streamErrorCategory ?? interruptedCategory,
+            minRemainingCooldownSec: streamCooldownSec ?? interruptedCooldownSec,
+            message: interruptedMsg || streamError,
+            interrupted: true,
+          });
           setAiPeriodCache((prev) => ({
             ...prev,
             [pKey]: {
+              notConfigured: failure.notConfigured,
               incomplete: true,
               incompleteText: accumulated.trim() ? accumulated : undefined,
-              interruptedReason: reason,
+              interruptedReason: failure.userMessageVi,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              minRemainingCooldownSec: failure.minRemainingCooldownSec,
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
-              error: reason,
+              error: failure.userMessageVi,
+              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
             },
           }));
         } else if (streamError) {
+          const failure = classifyDossierFailure({
+            error: streamErrorCode,
+            errorCategory: streamErrorCategory,
+            minRemainingCooldownSec: streamCooldownSec,
+            message: streamError,
+          });
           setAiPeriodCache((prev) => ({
             ...prev,
             [pKey]: {
-              notConfigured: false,
+              notConfigured: failure.notConfigured,
               incomplete: Boolean(accumulated.trim()),
               incompleteText: accumulated.trim() ? accumulated : undefined,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              minRemainingCooldownSec: failure.minRemainingCooldownSec,
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
-              error: streamError!,
+              error: failure.userMessageVi,
+              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
             },
           }));
         } else if (!accumulated.trim()) {
@@ -322,6 +402,8 @@ export default function InsightPanel({
             ...prev,
             [pKey]: {
               notConfigured: false,
+              errorCode: 'AI_CALL_FAILED',
+              errorCategory: 'NETWORK_OR_5XX',
               error:
                 'Phản hồi từ Gemini API trống. Hệ thống chỉ hiển thị Khung dữ kiện xác định.',
             },
@@ -332,6 +414,7 @@ export default function InsightPanel({
             [pKey]: {
               text: accumulated,
               meta: receivedMeta,
+              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
             },
           }));
         }
@@ -341,6 +424,8 @@ export default function InsightPanel({
             ...prev,
             [pKey]: {
               notConfigured: false,
+              errorCode: 'AI_CALL_FAILED',
+              errorCategory: 'NETWORK_OR_5XX',
               error:
                 'Không thể kết nối tới dịch vụ AI. Hệ thống chỉ hiển thị Khung dữ kiện xác định.',
             },
@@ -866,12 +951,19 @@ export default function InsightPanel({
                       {currentAiEntry.incomplete
                         ? 'Trạng thái AI: Kết nối bị ngắt giữa chừng (chưa lưu bộ nhớ đệm)'
                         : currentAiEntry.notConfigured
-                        ? 'Trạng thái AI: Chưa cấu hình AI'
+                        ? 'Trạng thái AI: Chưa cấu hình Kho Khóa AI'
+                        : currentAiEntry.errorCategory === 'AUTH_INVALID_KEY' ||
+                          currentAiEntry.errorCategory === 'AUTH_FORBIDDEN_REPEATED'
+                        ? 'Trạng thái AI: Khóa API không hợp lệ hoặc bị từ chối quyền'
                         : currentAiEntry.errorCode === 'AI_POOL_EXHAUSTED'
                         ? 'Trạng thái AI: Toàn bộ khóa trong Kho đang nguội hoặc bị vô hiệu'
-                        : 'Trạng thái AI: Lỗi gọi Gemini API'}
+                        : currentAiEntry.errorCategory === 'TPM_GUARD_SKIP'
+                        ? 'Trạng thái AI: Hàng rào bảo vệ hạn mức đang tạm hoãn'
+                        : currentAiEntry.errorCategory === 'FIRST_CHUNK_TIMEOUT'
+                        ? 'Trạng thái AI: Hết thời gian chờ tín hiệu đầu tiên'
+                        : 'Trạng thái AI: Tạm thời gián đoạn kết nối Gemini API'}
                     </div>
-                    <div className="break-words font-mono text-[11px]">{currentAiEntry.error}</div>
+                    <div className="break-words text-[11px] leading-relaxed">{currentAiEntry.error}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -897,6 +989,30 @@ export default function InsightPanel({
                 </div>
               </div>
             )}
+
+            {currentAiEntry?.auditFlags &&
+              currentAiEntry.auditFlags.length > 0 &&
+              !aiPeriodLoading && (
+                <div className="rounded-lg p-3 border border-amber-500/45 bg-amber-950/20 text-xs space-y-1.5">
+                  <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Kiểm Chứng KP-3 ({currentAiEntry.auditFlags.length} cờ đối chiếu)</span>
+                  </div>
+                  <ul className="space-y-1 text-[11px]">
+                    {currentAiEntry.auditFlags.map((flag, idx) => (
+                      <li
+                        key={`${flag.code}-${idx}`}
+                        className={
+                          flag.severity === 'critical' ? 'text-rose-200' : 'text-amber-100'
+                        }
+                      >
+                        <span className="font-mono font-bold mr-1">[{flag.code}]</span>
+                        {flag.messageVi}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
             {currentAiEntry?.text ? (
               <div className="rounded-lg p-3.5 bg-[var(--t-surface)] border border-[var(--t-border)] text-xs sm:text-sm leading-relaxed">

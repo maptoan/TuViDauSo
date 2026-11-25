@@ -17,6 +17,10 @@ import {
   DossierChapterId,
   DossierChapterSpec,
   DossierChapterState,
+  DualFuseChapterResult,
+  DualFuseSummary,
+  Kp3AuditFlag,
+  ParsedAiFailureInfo,
   buildChartIdentityKey,
   buildDossierChapterCacheKey,
   buildDossierHeaderMetadata,
@@ -27,11 +31,17 @@ import {
   buildDossierStorageKey,
   buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
+  classifyDossierFailure,
+  createBestPartialSnapshot,
   formatDossierSourceBadge,
   getBrowserSessionStorage,
+  getDossierChapterContentLength,
+  normalizeKnownBareCitationTags,
   readDossierCacheEntry,
   resolveChapterDeterministicFactSheet,
+  resolveChapterWithBestPartial,
   resolveDossierChapterFromCaches,
+  runDossierSequentialWithDualFuse,
   saveDossierSectionToCache,
   setSharedDossierGenerating,
   simpleMarkdownToHtml,
@@ -155,10 +165,13 @@ export default function DetailedDossierModal({
     chapterState: DossierChapterState;
     periodEntryBackup?: AiPeriodEntry;
   } | null>(null);
+  const [autoRunPass, setAutoRunPass] = useState<1 | 2>(1);
+  const [autoRunSummary, setAutoRunSummary] = useState<DualFuseSummary | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const cancelAutoRef = useRef(false);
   const pauseAfterCurrentRef = useRef(false);
+  const bestPartialMapRef = useRef<Map<string, DossierChapterState>>(new Map());
   const aiPeriodCacheRef = useRef(aiPeriodCache);
   aiPeriodCacheRef.current = aiPeriodCache;
 
@@ -199,6 +212,7 @@ export default function DetailedDossierModal({
       setSelectedChapterId('chapter_overview');
       setConfirmDeleteChapterId(null);
       setDeletedChapterUndo(null);
+      setAutoRunSummary(null);
       if (isGeneratingRef.current) {
         stopAllGeneration();
       }
@@ -221,6 +235,7 @@ export default function DetailedDossierModal({
         interruptedReason?: string;
         error?: string;
         meta?: AiExecutionMeta;
+        auditFlags?: Kp3AuditFlag[];
       }> = [];
 
       for (const [k, val] of Object.entries(stored.sections)) {
@@ -243,6 +258,7 @@ export default function DetailedDossierModal({
               periodKey: buildPeriodCacheKeyForYear(chart, yr),
               text: val.text,
               meta: val.meta,
+              auditFlags: val.auditFlags,
             });
           }
         } else if (val.status === 'incomplete' && val.incompleteText?.trim()) {
@@ -260,6 +276,7 @@ export default function DetailedDossierModal({
               interruptedReason: val.interruptedReason,
               error: val.error,
               meta: val.meta,
+              auditFlags: val.auditFlags,
             });
           }
         }
@@ -300,6 +317,7 @@ export default function DetailedDossierModal({
               updated[patch.periodKey] = {
                 text: patch.text,
                 meta: patch.meta,
+                ...(patch.auditFlags?.length ? { auditFlags: patch.auditFlags } : {}),
               };
               changed = true;
             } else if (
@@ -314,6 +332,7 @@ export default function DetailedDossierModal({
                 interruptedReason: patch.interruptedReason,
                 error: patch.error,
                 meta: patch.meta,
+                ...(patch.auditFlags?.length ? { auditFlags: patch.auditFlags } : {}),
               };
               changed = true;
             }
@@ -427,7 +446,7 @@ export default function DetailedDossierModal({
 
   // Thực thi sinh 1 chương qua SSE (dùng lại /api/interpret-period hoặc /api/interpret-dossier-section)
   const executeSingleChapterStream = useCallback(
-    async (spec: DossierChapterSpec): Promise<'completed' | 'incomplete' | 'error' | 'aborted'> => {
+    async (spec: DossierChapterSpec): Promise<DualFuseChapterResult> => {
       const sectionCacheKey = buildDossierChapterCacheKey(
         chartIdentityKey,
         spec.id,
@@ -440,18 +459,115 @@ export default function DetailedDossierModal({
         ? buildPeriodCacheKeyForYear(chart, spec.year)
         : '';
 
-      if (isPeriod && !periodCtx) {
-        const msg = `Không thể tạo ngữ cảnh Lưu Niên cho năm ${spec.year}.`;
+      const existingSnapshot = bestPartialMapRef.current.get(sectionCacheKey) ?? null;
+      const currentBeforeRun = resolveDossierChapterFromCaches(
+        chart,
+        spec,
+        aiPeriodCacheRef.current,
+        localChaptersRef.current,
+      );
+      const candidateSnapshot = createBestPartialSnapshot(currentBeforeRun);
+      const bestSnapshot =
+        candidateSnapshot &&
+        getDossierChapterContentLength(candidateSnapshot) >=
+          getDossierChapterContentLength(existingSnapshot)
+          ? candidateSnapshot
+          : existingSnapshot;
+      if (bestSnapshot) {
+        bestPartialMapRef.current.set(sectionCacheKey, bestSnapshot);
+      }
+
+      const applyFailureWithBestPartial = (
+        incomingState: DossierChapterState,
+        failure: ParsedAiFailureInfo,
+      ): DualFuseChapterResult => {
+        const { resolvedState } = resolveChapterWithBestPartial(bestSnapshot, incomingState);
+        if (
+          resolvedState.status === 'completed' ||
+          (resolvedState.status === 'incomplete' && resolvedState.incompleteText?.trim())
+        ) {
+          bestPartialMapRef.current.set(sectionCacheKey, resolvedState);
+          persistSectionToStorage(spec.id, resolvedState);
+        }
+
+        if (isPeriod && periodKey) {
+          onAiPeriodCacheChange((prev) => {
+            if (resolvedState.status === 'completed' && resolvedState.text?.trim()) {
+              return {
+                ...prev,
+                [periodKey]: {
+                  text: resolvedState.text,
+                  meta: resolvedState.meta,
+                  ...(resolvedState.auditFlags?.length
+                    ? { auditFlags: resolvedState.auditFlags }
+                    : {}),
+                },
+              };
+            }
+            if (
+              resolvedState.status === 'incomplete' &&
+              resolvedState.incompleteText?.trim()
+            ) {
+              return {
+                ...prev,
+                [periodKey]: {
+                  incomplete: true,
+                  incompleteText: resolvedState.incompleteText,
+                  interruptedReason: resolvedState.interruptedReason,
+                  error: resolvedState.error,
+                  errorCode: resolvedState.errorCode,
+                  errorCategory: resolvedState.errorCategory,
+                  minRemainingCooldownSec: resolvedState.minRemainingCooldownSec,
+                  meta: resolvedState.meta,
+                  ...(resolvedState.auditFlags?.length
+                    ? { auditFlags: resolvedState.auditFlags }
+                    : {}),
+                },
+              };
+            }
+            return {
+              ...prev,
+              [periodKey]: {
+                notConfigured: failure.notConfigured,
+                errorCode: failure.errorCode,
+                errorCategory: failure.errorCategory,
+                minRemainingCooldownSec: failure.minRemainingCooldownSec,
+                error: resolvedState.error || failure.userMessageVi,
+              },
+            };
+          });
+        }
+
         setLocalChapters((prev) => ({
           ...prev,
-          [spec.id]: {
+          [spec.id]: resolvedState,
+        }));
+
+        return {
+          status: incomingState.status === 'incomplete' ? 'incomplete' : 'error',
+          failure,
+        };
+      };
+
+      if (isPeriod && !periodCtx) {
+        const msg = `Không thể tạo ngữ cảnh Lưu Niên cho năm ${spec.year}.`;
+        const failure = classifyDossierFailure({
+          error: 'AI_CALL_FAILED',
+          errorCategory: 'NETWORK_OR_5XX',
+          message: msg,
+        });
+        return applyFailureWithBestPartial(
+          {
             chapterId: spec.id,
             sectionCacheKey,
             status: 'error',
             error: msg,
+            errorCode: failure.errorCode,
+            errorCategory: failure.errorCategory,
+            updatedAt: Date.now(),
           },
-        }));
-        return 'error';
+          failure,
+        );
       }
 
       abortRef.current?.abort();
@@ -493,51 +609,59 @@ export default function DetailedDossierModal({
         });
 
         if (!res.ok) {
-          let errMsg =
-            'Chưa thể gọi Gemini API cho chương này (kho khóa chưa sẵn sàng hoặc đang nguội).';
-          let errCode = '';
+          let errJson: {
+            error?: string;
+            errorCategory?: string;
+            minRemainingCooldownSec?: number | null;
+            message?: string;
+          } | null = null;
           try {
-            const errJson = await res.json();
-            if (errJson?.message) errMsg = errJson.message;
-            if (errJson?.error) errCode = errJson.error;
+            errJson = await res.json();
           } catch {
             // ignore
           }
-          if (isPeriod && periodKey) {
-            onAiPeriodCacheChange((prev) => ({
-              ...prev,
-              [periodKey]: {
-                notConfigured: res.status === 503 && errCode === 'AI_NOT_CONFIGURED',
-                errorCode: errCode,
-                error: errMsg,
-              },
-            }));
-          }
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: {
+          const failure = classifyDossierFailure({
+            httpStatus: res.status,
+            error: errJson?.error,
+            errorCategory: errJson?.errorCategory,
+            minRemainingCooldownSec: errJson?.minRemainingCooldownSec ?? null,
+            message:
+              errJson?.message ||
+              'Chưa thể gọi Gemini API cho chương này (kho khóa chưa sẵn sàng hoặc đang nguội).',
+          });
+          return applyFailureWithBestPartial(
+            {
               chapterId: spec.id,
               sectionCacheKey,
               status: 'error',
-              errorCode: errCode,
-              error: errMsg,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              minRemainingCooldownSec: failure.minRemainingCooldownSec,
+              error: failure.userMessageVi,
+              updatedAt: Date.now(),
             },
-          }));
-          return 'error';
+            failure,
+          );
         }
 
         if (!res.body) {
-          const errMsg = 'Không nhận được luồng phản hồi SSE từ máy chủ.';
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: {
+          const failure = classifyDossierFailure({
+            error: 'AI_CALL_FAILED',
+            errorCategory: 'NETWORK_OR_5XX',
+            message: 'Không nhận được luồng phản hồi SSE từ máy chủ.',
+          });
+          return applyFailureWithBestPartial(
+            {
               chapterId: spec.id,
               sectionCacheKey,
               status: 'error',
-              error: errMsg,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              error: failure.userMessageVi,
+              updatedAt: Date.now(),
             },
-          }));
-          return 'error';
+            failure,
+          );
         }
 
         const reader = res.body.getReader();
@@ -546,9 +670,16 @@ export default function DetailedDossierModal({
         let accumulated = '';
         let receivedMeta: AiExecutionMeta | undefined;
         let streamError: string | null = null;
+        let streamErrorCode: string | null = null;
+        let streamErrorCategory: string | null = null;
+        let streamCooldownSec: number | null = null;
         let wasInterrupted = false;
         let interruptedMsg = '';
+        let interruptedCategory: string | null = null;
+        let interruptedCooldownSec: number | null = null;
         let scrubbedInvalidCitationIds: string[] = [];
+        let normalizedBareCitationIds: string[] = [];
+        let receivedAuditFlags: Kp3AuditFlag[] = [];
 
         const processLine = (line: string): boolean => {
           if (!line.startsWith('data: ')) return false;
@@ -582,20 +713,51 @@ export default function DetailedDossierModal({
               }
               return false;
             }
-            if (parsed?.citationAudit && Array.isArray(parsed.citationAudit.scrubbedInvalidIds)) {
-              scrubbedInvalidCitationIds = parsed.citationAudit.scrubbedInvalidIds.filter(
-                (x: unknown): x is string => typeof x === 'string' && x.trim().length > 0,
-              );
+            if (parsed?.citationAudit) {
+              if (Array.isArray(parsed.citationAudit.scrubbedInvalidIds)) {
+                scrubbedInvalidCitationIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+                  (x: unknown): x is string => typeof x === 'string' && x.trim().length > 0,
+                );
+              }
+              if (Array.isArray(parsed.citationAudit.normalizedBareIds)) {
+                normalizedBareCitationIds = parsed.citationAudit.normalizedBareIds.filter(
+                  (x: unknown): x is string => typeof x === 'string' && x.trim().length > 0,
+                );
+              }
+              if (Array.isArray(parsed.citationAudit.auditFlags)) {
+                receivedAuditFlags = parsed.citationAudit.auditFlags.filter(
+                  (f: unknown): f is Kp3AuditFlag =>
+                    Boolean(f) &&
+                    typeof f === 'object' &&
+                    typeof (f as Kp3AuditFlag).code === 'string' &&
+                    typeof (f as Kp3AuditFlag).messageVi === 'string',
+                );
+              }
               return false;
             }
             if (parsed?.interrupted) {
               wasInterrupted = true;
               interruptedMsg =
                 parsed.message || 'Luồng kết nối Gemini bị gián đoạn giữa chừng.';
+              if (typeof parsed.errorCategory === 'string') {
+                interruptedCategory = parsed.errorCategory;
+              }
+              if (typeof parsed.minRemainingCooldownSec === 'number') {
+                interruptedCooldownSec = parsed.minRemainingCooldownSec;
+              }
               return false;
             }
             if (parsed?.error) {
               streamError = parsed.message || 'Lời gọi Gemini API gặp lỗi.';
+              if (typeof parsed.error === 'string') {
+                streamErrorCode = parsed.error;
+              }
+              if (typeof parsed.errorCategory === 'string') {
+                streamErrorCategory = parsed.errorCategory;
+              }
+              if (typeof parsed.minRemainingCooldownSec === 'number') {
+                streamCooldownSec = parsed.minRemainingCooldownSec;
+              }
               return false;
             }
             const deltaText = parsed?.delta?.text ?? '';
@@ -648,8 +810,14 @@ export default function DetailedDossierModal({
         }
 
         // Pipeline chốt lớp 2 (idempotent) ngay sau vòng lặp SSE, trước cả nhánh đứt luồng lẫn nhánh hoàn tất:
-        // 1) sanitizeAiVietnameseOutput -> 2) scrubInvalidCitationTags (ĐN-5/ĐN-6) -> 3) verifyAndEnsureCompletePeriodSiHua (chương 5/6) -> 4) enforceCanonicalPalaceGroupHeadings (chương 2/3/4)
+        // 1) sanitizeAiVietnameseOutput -> 2) Z3 normalizeKnownBareCitationTags -> 3) scrubInvalidCitationTags -> 4) verifyAndEnsureCompletePeriodSiHua -> 5) enforceCanonicalPalaceGroupHeadings
         accumulated = sanitizeAiVietnameseOutput(accumulated);
+        if (normalizedBareCitationIds.length > 0 && accumulated) {
+          accumulated = normalizeKnownBareCitationTags(
+            accumulated,
+            normalizedBareCitationIds,
+          );
+        }
         if (scrubbedInvalidCitationIds.length > 0) {
           accumulated = scrubInvalidCitationTags(accumulated, {
             invalidIds: scrubbedInvalidCitationIds,
@@ -669,86 +837,75 @@ export default function DetailedDossierModal({
           accumulated = enforceCanonicalPalaceGroupHeadings(accumulated, chart);
         }
 
+        const persistedAuditFlags =
+          receivedAuditFlags.length > 0 ? receivedAuditFlags : undefined;
+
         if (wasInterrupted || streamError) {
-          const reason =
-            interruptedMsg ||
-            streamError ||
-            'Kết nối bị gián đoạn giữa chừng. Nội dung dở không được lưu làm bản hoàn tất.';
+          const failure = classifyDossierFailure({
+            error: streamErrorCode,
+            errorCategory: streamErrorCategory ?? interruptedCategory,
+            minRemainingCooldownSec: streamCooldownSec ?? interruptedCooldownSec,
+            message: interruptedMsg || streamError,
+            interrupted: wasInterrupted,
+          });
           const hasPartialText = accumulated.trim().length > 0;
           if (!hasPartialText) {
-            if (isPeriod && periodKey) {
-              onAiPeriodCacheChange((prev) => ({
-                ...prev,
-                [periodKey]: {
-                  error: reason,
-                },
-              }));
-            }
-            setLocalChapters((prev) => ({
-              ...prev,
-              [spec.id]: {
+            return applyFailureWithBestPartial(
+              {
                 chapterId: spec.id,
                 sectionCacheKey,
                 status: 'error',
-                error: reason,
+                error: failure.userMessageVi,
+                errorCode: failure.errorCode,
+                errorCategory: failure.errorCategory,
+                minRemainingCooldownSec: failure.minRemainingCooldownSec,
                 updatedAt: Date.now(),
               },
-            }));
-            return 'error';
+              failure,
+            );
           }
 
           const partialMeta = receivedMeta
             ? { ...receivedMeta, interrupted: true }
             : undefined;
-          if (isPeriod && periodKey) {
-            onAiPeriodCacheChange((prev) => ({
-              ...prev,
-              [periodKey]: {
-                incomplete: true,
-                incompleteText: accumulated,
-                interruptedReason: reason,
-                meta: partialMeta,
-                error: reason,
-              },
-            }));
-          }
-          const incompleteState: DossierChapterState = {
-            chapterId: spec.id,
-            sectionCacheKey,
-            status: 'incomplete',
-            incompleteText: accumulated,
-            interruptedReason: reason,
-            error: reason,
-            meta: partialMeta,
-            sourceBadge: formatDossierSourceBadge('generated'),
-            updatedAt: Date.now(),
-          };
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: incompleteState,
-          }));
-          persistSectionToStorage(spec.id, incompleteState);
-          return 'incomplete';
+          return applyFailureWithBestPartial(
+            {
+              chapterId: spec.id,
+              sectionCacheKey,
+              status: 'incomplete',
+              incompleteText: accumulated,
+              interruptedReason: failure.userMessageVi,
+              error: failure.userMessageVi,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              minRemainingCooldownSec: failure.minRemainingCooldownSec,
+              meta: partialMeta,
+              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              sourceBadge: formatDossierSourceBadge('generated'),
+              updatedAt: Date.now(),
+            },
+            failure,
+          );
         }
 
         if (!accumulated.trim()) {
-          const emptyMsg = 'Phản hồi từ AI trống. Vui lòng thử lại chương này.';
-          if (isPeriod && periodKey) {
-            onAiPeriodCacheChange((prev) => ({
-              ...prev,
-              [periodKey]: { error: emptyMsg },
-            }));
-          }
-          setLocalChapters((prev) => ({
-            ...prev,
-            [spec.id]: {
+          const failure = classifyDossierFailure({
+            error: 'AI_CALL_FAILED',
+            errorCategory: 'NETWORK_OR_5XX',
+            message: 'Phản hồi từ AI trống. Vui lòng thử lại chương này.',
+          });
+          return applyFailureWithBestPartial(
+            {
               chapterId: spec.id,
               sectionCacheKey,
               status: 'error',
-              error: emptyMsg,
+              error: failure.userMessageVi,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+              updatedAt: Date.now(),
             },
-          }));
-          return 'error';
+            failure,
+          );
         }
 
         const completedState: DossierChapterState = {
@@ -757,16 +914,19 @@ export default function DetailedDossierModal({
           status: 'completed',
           text: accumulated,
           meta: receivedMeta,
+          ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
           sourceBadge: formatDossierSourceBadge('generated'),
           updatedAt: Date.now(),
         };
 
+        bestPartialMapRef.current.set(sectionCacheKey, completedState);
         if (isPeriod && periodKey) {
           onAiPeriodCacheChange((prev) => ({
             ...prev,
             [periodKey]: {
               text: accumulated,
               meta: receivedMeta,
+              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
             },
           }));
         }
@@ -776,29 +936,43 @@ export default function DetailedDossierModal({
         }));
         persistSectionToStorage(spec.id, completedState);
 
-        return 'completed';
+        return { status: 'completed' };
       } catch (err) {
         if ((err as Error).name === 'AbortError') {
-          return 'aborted';
+          const failure = classifyDossierFailure({ aborted: true });
+          if (bestSnapshot) {
+            const { resolvedState } = resolveChapterWithBestPartial(bestSnapshot, {
+              chapterId: spec.id,
+              sectionCacheKey,
+              status: 'error',
+              error: failure.userMessageVi,
+              errorCode: failure.errorCode,
+              errorCategory: failure.errorCategory,
+            });
+            setLocalChapters((prev) => ({
+              ...prev,
+              [spec.id]: resolvedState,
+            }));
+          }
+          return { status: 'aborted', failure };
         }
-        const errMsg =
-          'Mất kết nối trong lúc sinh chương hồ sơ. Vui lòng thử lại.';
-        if (isPeriod && periodKey) {
-          onAiPeriodCacheChange((prev) => ({
-            ...prev,
-            [periodKey]: { error: errMsg },
-          }));
-        }
-        setLocalChapters((prev) => ({
-          ...prev,
-          [spec.id]: {
+        const failure = classifyDossierFailure({
+          error: 'AI_CALL_FAILED',
+          errorCategory: 'NETWORK_OR_5XX',
+          message: 'Mất kết nối trong lúc sinh chương hồ sơ. Vui lòng thử lại.',
+        });
+        return applyFailureWithBestPartial(
+          {
             chapterId: spec.id,
             sectionCacheKey,
             status: 'error',
-            error: errMsg,
+            error: failure.userMessageVi,
+            errorCode: failure.errorCode,
+            errorCategory: failure.errorCategory,
+            updatedAt: Date.now(),
           },
-        }));
-        return 'error';
+          failure,
+        );
       } finally {
         setActiveGeneratingId((curr) => (curr === spec.id ? null : curr));
       }
@@ -818,6 +992,7 @@ export default function DetailedDossierModal({
     if (!spec) return;
 
     setSelectedChapterId(spec.id);
+    setAutoRunSummary(null);
     setSharedDossierGenerating(true);
     onDossierGeneratingChange?.(true);
     try {
@@ -828,7 +1003,7 @@ export default function DetailedDossierModal({
     }
   };
 
-  // F6 + QĐ-H7: Chạy tự động tuần tự toàn bộ các chương chưa hoàn tất với giãn nhịp 1,200ms
+  // F6 + KP-6: Bộ điều phối tuần tự 2 cầu chì (Pass 1 chạy hết bỏ qua lỗi tạm thời -> Pass 2 thử lại đúng 1 vòng)
   const handleRunAllSequential = async () => {
     if (!isHydrated || autoRunning || activeGeneratingId !== null) return;
 
@@ -855,25 +1030,30 @@ export default function DetailedDossierModal({
     pauseAfterCurrentRef.current = false;
     setAutoRunning(true);
     setPauseRequested(false);
+    setAutoRunPass(1);
+    setAutoRunSummary(null);
     setSharedDossierGenerating(true);
     onDossierGeneratingChange?.(true);
 
     try {
-      for (let idx = 0; idx < specsToRun.length; idx += 1) {
-        if (cancelAutoRef.current || pauseAfterCurrentRef.current) break;
-
-        const spec = specsToRun[idx];
-        setSelectedChapterId(spec.id);
-        const outcome = await executeSingleChapterStream(spec);
-        if (outcome === 'error' || outcome === 'aborted' || cancelAutoRef.current) break;
-        if (pauseAfterCurrentRef.current) break;
-
-        if (idx < specsToRun.length - 1) {
-          await new Promise<void>((resolve) => {
-            const timer = window.setTimeout(
-              resolve,
-              DOSSIER_INTER_CHAPTER_PACING_MS,
-            );
+      const summary = await runDossierSequentialWithDualFuse({
+        specsToRun,
+        pacingMs: DOSSIER_INTER_CHAPTER_PACING_MS,
+        shouldStop: () => cancelAutoRef.current,
+        shouldPause: () => pauseAfterCurrentRef.current,
+        onPassChange: (pass) => {
+          setAutoRunPass(pass);
+        },
+        runChapter: async (spec) => {
+          setSelectedChapterId(spec.id);
+          return executeSingleChapterStream(spec);
+        },
+        waitBetweenChapters: (ms) =>
+          new Promise<void>((resolve) => {
+            const timer = window.setTimeout(() => {
+              window.clearInterval(checkInterval);
+              resolve();
+            }, ms);
             const checkInterval = window.setInterval(() => {
               if (cancelAutoRef.current || pauseAfterCurrentRef.current) {
                 window.clearTimeout(timer);
@@ -881,9 +1061,9 @@ export default function DetailedDossierModal({
                 resolve();
               }
             }, 150);
-          });
-        }
-      }
+          }),
+      });
+      setAutoRunSummary(summary);
     } finally {
       setAutoRunning(false);
       setPauseRequested(false);
@@ -968,6 +1148,8 @@ export default function DetailedDossierModal({
       : null;
     const periodEntryBackup = pKey ? aiPeriodCacheRef.current[pKey] : undefined;
 
+    const sectionCacheKey = buildDossierChapterCacheKey(chartIdentityKey, selectedSpec.id);
+    bestPartialMapRef.current.delete(sectionCacheKey);
     removeSingleDossierChapterFromLibrary(chart, selectedSpec.id);
     setLocalChapters((prev) => {
       const next = { ...prev };
@@ -999,6 +1181,10 @@ export default function DetailedDossierModal({
     }
     const { chapterId, chapterState, periodEntryBackup } = deletedChapterUndo;
     const restoredSpec = DOSSIER_CHAPTER_SPECS.find((s) => s.id === chapterId);
+    const snapshot = createBestPartialSnapshot(chapterState);
+    if (snapshot) {
+      bestPartialMapRef.current.set(chapterState.sectionCacheKey, snapshot);
+    }
     saveDossierSectionToCache(
       getBrowserSessionStorage(),
       chart,
@@ -1245,6 +1431,12 @@ export default function DetailedDossierModal({
                     }}
                   />
                 </div>
+
+                {autoRunning && autoRunPass === 2 && (
+                  <span className="text-[11px] font-semibold text-amber-300">
+                    Vòng 2/2: Đang thử lại các chương lỗi tạm thời...
+                  </span>
+                )}
               </div>
 
               {/* F1 Export Toolbar */}
@@ -1293,6 +1485,41 @@ export default function DetailedDossierModal({
                 </button>
               </div>
             </div>
+
+            {autoRunSummary &&
+              !autoRunning &&
+              (autoRunSummary.haltedReason === 'fatal_error' ||
+                autoRunSummary.retriedInPass2.length > 0 ||
+                autoRunSummary.remainingIncompleteOrError.length > 0) && (
+                <div
+                  className={`rounded-lg border px-3 py-2 text-xs flex flex-wrap items-center justify-between gap-2 ${
+                    autoRunSummary.haltedReason === 'fatal_error' ||
+                    autoRunSummary.remainingIncompleteOrError.length > 0
+                      ? 'border-amber-500/45 bg-amber-950/35 text-amber-200'
+                      : 'border-emerald-500/40 bg-emerald-950/30 text-emerald-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-amber-300" />
+                    <span>
+                      {autoRunSummary.haltedReason === 'fatal_error'
+                        ? `Đã dừng sớm vì lỗi hệ thống nghiêm trọng: ${autoRunSummary.fatalFailure?.userMessageVi || 'Không thể tiếp tục gọi AI.'}`
+                        : `Tổng kết tự động tạo: Vòng 1 xong ${autoRunSummary.completedInPass1.length} chương · Vòng 2 thử lại ${autoRunSummary.retriedInPass2.length} chương (khôi phục ${autoRunSummary.recoveredInPass2.length})${
+                            autoRunSummary.remainingIncompleteOrError.length > 0
+                              ? ` · Còn ${autoRunSummary.remainingIncompleteOrError.length} chương chưa hoàn tất.`
+                              : '.'
+                          }`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAutoRunSummary(null)}
+                    className="text-[11px] opacity-80 hover:opacity-100 cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              )}
           </header>
 
           {/* Two-column Workspace */}
@@ -1337,7 +1564,19 @@ export default function DetailedDossierModal({
                       </div>
                     </div>
 
-                    <div className="shrink-0 pt-0.5">
+                    <div className="shrink-0 pt-0.5 flex items-center gap-1.5">
+                      {st.auditFlags && st.auditFlags.length > 0 && (
+                        <span
+                          className={`text-[10px] font-mono px-1 py-0.5 rounded border ${
+                            st.auditFlags.some((f) => f.severity === 'critical')
+                              ? 'border-rose-500/50 bg-rose-950/50 text-rose-300'
+                              : 'border-amber-500/50 bg-amber-950/50 text-amber-300'
+                          }`}
+                          title={`Kiểm chứng KP-3: ${st.auditFlags.length} cờ`}
+                        >
+                          {st.auditFlags.length} cờ
+                        </span>
+                      )}
                       {isLoading ? (
                         <RefreshCw className="w-3.5 h-3.5 text-[var(--t-gold)] animate-spin" />
                       ) : isDone ? (
@@ -1393,7 +1632,7 @@ export default function DetailedDossierModal({
                           : isSelectedBusy
                             ? 'Đang sinh chương...'
                             : selectedState.status === 'completed'
-                              ? 'Tạo lại chương này'
+                              ? 'Sinh lại chương này'
                               : selectedState.status === 'incomplete' ||
                                   selectedState.status === 'error'
                                 ? 'Thử lại chương này'
@@ -1557,6 +1796,60 @@ export default function DetailedDossierModal({
                 </div>
               )}
 
+              {selectedState.auditFlags &&
+                selectedState.auditFlags.length > 0 &&
+                selectedState.status !== 'loading' && (
+                  <div className="rounded-xl p-3.5 border border-amber-500/45 bg-amber-950/20 text-xs space-y-2">
+                    <div className="flex items-center justify-between gap-2 font-semibold text-amber-300">
+                      <span className="inline-flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                        <span>
+                          Kiểm Chứng KP-3 ({selectedState.auditFlags.length} cờ đối chiếu · chỉ hiển thị trên màn hình)
+                        </span>
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5 text-[11px] leading-relaxed">
+                      {selectedState.auditFlags.map((flag, idx) => (
+                        <li
+                          key={`${flag.code}-${idx}`}
+                          className={`rounded-lg px-2.5 py-1.5 border ${
+                            flag.severity === 'critical'
+                              ? 'border-rose-500/40 bg-rose-950/30 text-rose-100'
+                              : 'border-amber-500/35 bg-amber-950/30 text-amber-100'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] mb-0.5">
+                            <span
+                              className={
+                                flag.severity === 'critical'
+                                  ? 'text-rose-300 font-bold'
+                                  : 'text-amber-300 font-bold'
+                              }
+                            >
+                              {flag.severity === 'critical' ? 'NGHIÊM TRỌNG' : 'TRUNG BÌNH'}
+                            </span>
+                            <span>·</span>
+                            <span>{flag.code}</span>
+                            {flag.palaceVi && (
+                              <>
+                                <span>·</span>
+                                <span>Cung {flag.palaceVi}</span>
+                              </>
+                            )}
+                            {flag.ageRange && (
+                              <>
+                                <span>·</span>
+                                <span>Đại Hạn {flag.ageRange}</span>
+                              </>
+                            )}
+                          </div>
+                          <div>{flag.messageVi}</div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
               {/* Chapter Main Body by State */}
               {selectedState.status === 'loading' && (
                 <div className="space-y-3">
@@ -1595,9 +1888,14 @@ export default function DetailedDossierModal({
                             ? 'Luồng sinh chương bị ngắt giữa chừng (không lưu cache hoàn chỉnh)'
                             : 'Không thể hoàn tất chương này'}
                         </div>
-                        <div className="font-mono text-[11px] break-words">
+                        <div className="text-[11px] leading-relaxed break-words">
                           {selectedState.interruptedReason || selectedState.error}
                         </div>
+                        {selectedState.restoredNoticeVi && (
+                          <div className="text-[11px] text-sky-300">
+                            {selectedState.restoredNoticeVi}
+                          </div>
+                        )}
                       </div>
                     </div>
 

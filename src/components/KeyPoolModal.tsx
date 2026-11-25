@@ -5,6 +5,7 @@ import {
   BatchCooldownProgress,
   BatchSingleProbeResponse,
   canTriggerBatchCooldownProbe,
+  evaluatePoolReadinessBanner,
   resolveNextModelSelection,
   runClientBatchCooldownProbe,
   shouldRefreshKeyPoolSnapshot,
@@ -17,6 +18,7 @@ import {
   RefreshCw,
   Activity,
   ShieldCheck,
+  ShieldAlert,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -26,6 +28,8 @@ import {
   Server,
   Sparkles,
   Square,
+  Download,
+  Upload,
 } from 'lucide-react';
 
 export interface KeyStatsView {
@@ -193,6 +197,12 @@ export default function KeyPoolModal({
   const [notice, setNotice] = useState<{ type: 'ok' | 'err' | 'warn'; text: string } | null>(null);
   const [showLogs, setShowLogs] = useState(false);
 
+  // Encrypted backup export/import state (KP-7 Tier 2)
+  const [backupPassphrase, setBackupPassphrase] = useState('');
+  const [backupExporting, setBackupExporting] = useState(false);
+  const [backupImporting, setBackupImporting] = useState(false);
+  const backupFileInputRef = useRef<HTMLInputElement | null>(null);
+
   // Batch cooldown re-check state (F3: Client-orchestrated)
   const [batchProgress, setBatchProgress] = useState<BatchCooldownProgress | null>(null);
   const batchStopRequestedRef = useRef(false);
@@ -269,6 +279,7 @@ export default function KeyPoolModal({
 
     if (!open) {
       abortBatchProbeImmediately();
+      setBackupPassphrase('');
       return;
     }
 
@@ -717,6 +728,119 @@ export default function KeyPoolModal({
     await persistModels(defaultModel, fallbackModel, customModelInput);
   };
 
+  const handleExportBackup = async () => {
+    if (isReadOnly || backupExporting) return;
+    if (!backupPassphrase.trim() || backupPassphrase.length < 8) {
+      setNotice({
+        type: 'err',
+        text: 'Mật khẩu bảo vệ gói sao lưu phải có ít nhất 8 ký tự.',
+      });
+      return;
+    }
+    setBackupExporting(true);
+    setNotice(null);
+    try {
+      const res = await fetch('/api/key-pool/backup/export', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ passphrase: backupPassphrase }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data?.backup) {
+        setNotice({ type: 'err', text: data?.message || 'Không thể xuất gói sao lưu Kho Khóa.' });
+        return;
+      }
+      const dateStr = new Date().toISOString().slice(0, 10);
+      const blob = new Blob([JSON.stringify(data.backup, null, 2)], {
+        type: 'application/json;charset=utf-8',
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tuvi-key-pool-backup-${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setBackupPassphrase('');
+      setNotice({
+        type: 'ok',
+        text: 'Đã xuất tệp sao lưu Kho Khóa mã hóa AES-256-GCM thành công. Hãy cất giữ mật khẩu cẩn thận để khôi phục khi cần.',
+      });
+    } catch {
+      setNotice({ type: 'err', text: 'Lỗi kết nối khi xuất gói sao lưu Kho Khóa.' });
+    } finally {
+      setBackupExporting(false);
+    }
+  };
+
+  const handleImportBackupFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || isReadOnly || backupImporting) return;
+    if (!backupPassphrase.trim() || backupPassphrase.length < 8) {
+      setNotice({
+        type: 'err',
+        text: 'Vui lòng nhập mật khẩu giải mã (tối thiểu 8 ký tự) trước khi chọn tệp sao lưu.',
+      });
+      return;
+    }
+    if (file.size > 256 * 1024) {
+      setNotice({
+        type: 'err',
+        text: 'Tệp sao lưu vượt quá giới hạn tối đa 256 KB.',
+      });
+      return;
+    }
+
+    setBackupImporting(true);
+    setNotice(null);
+    try {
+      const text = await file.text();
+      let parsedBackup: unknown;
+      try {
+        parsedBackup = JSON.parse(text);
+      } catch {
+        setNotice({ type: 'err', text: 'Tệp đã chọn không phải định dạng JSON hợp lệ.' });
+        return;
+      }
+
+      const res = await fetch('/api/key-pool/backup/import', {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({
+          backup: parsedBackup,
+          passphrase: backupPassphrase,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNotice({ type: 'err', text: data?.message || 'Khôi phục gói sao lưu thất bại.' });
+        return;
+      }
+      if (data?.pool) {
+        modelDirtyRef.current = false;
+        applySnapshot(data.pool, { forceSyncFromSave: true });
+      }
+      setBackupPassphrase('');
+      const parts: string[] = [`Đã khôi phục ${data.importedCount ?? 0} khóa mới`];
+      if (data.skippedDuplicate > 0) parts.push(`bỏ qua ${data.skippedDuplicate} khóa trùng`);
+      if (data.invalid > 0) parts.push(`${data.invalid} khóa không hợp lệ`);
+      if (data.truncated > 0) parts.push(`${data.truncated} khóa vượt trần kho`);
+      if (data.modelConfigApplied) parts.push('đã đồng bộ cấu hình Model');
+      setNotice({
+        type: 'ok',
+        text: `${parts.join(' · ')}. Tổng số khóa hiện tại: ${data.totalAfter ?? snapshot?.summary.total ?? 0}.`,
+      });
+    } catch {
+      setNotice({ type: 'err', text: 'Lỗi kết nối hoặc đọc tệp khi khôi phục gói sao lưu.' });
+    } finally {
+      setBackupImporting(false);
+    }
+  };
+
+  const readinessBanner = snapshot ? evaluatePoolReadinessBanner(snapshot.summary) : null;
+
   const modelChoices = Array.from(
     new Set([
       ...(snapshot?.modelConfig.supportedModels ?? [
@@ -855,6 +979,28 @@ export default function KeyPoolModal({
                 <div className="text-lg font-bold font-mono-tabular text-rose-400">
                   {snapshot.summary.disabled}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Readiness Banner (KP-7 Tầng 2 · Y1) */}
+          {readinessBanner && (
+            <div
+              data-readiness-code={readinessBanner.code}
+              className={`rounded-xl p-3.5 border text-xs flex items-start gap-2.5 ${
+                readinessBanner.severity === 'critical'
+                  ? 'border-rose-500/40 bg-rose-500/10 text-rose-200'
+                  : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+              }`}
+            >
+              <ShieldAlert
+                className={`w-4 h-4 shrink-0 mt-0.5 ${
+                  readinessBanner.severity === 'critical' ? 'text-rose-400' : 'text-amber-400'
+                }`}
+              />
+              <div className="space-y-0.5">
+                <div className="font-bold">{readinessBanner.title}</div>
+                <div className="text-[11px] leading-relaxed opacity-90">{readinessBanner.message}</div>
               </div>
             </div>
           )}
@@ -1060,6 +1206,75 @@ export default function KeyPoolModal({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Section 2B: Encrypted Pool Backup & Restore (KP-7 Tầng 2 · Y2) */}
+          <div className="rounded-xl p-4 border border-[var(--t-border)] bg-[var(--t-card)] space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-[var(--t-gold)]" />
+                <h3 className="text-xs sm:text-sm font-bold text-[var(--t-text)]">
+                  Sao Lưu &amp; Khôi Phục Kho Khóa (Mã Hóa Mật Khẩu)
+                </h3>
+              </div>
+              <span className="text-[11px] text-[var(--t-faint)]">
+                PBKDF2-SHA256 + AES-256-GCM · Di chuyển sang container/môi trường mới
+              </span>
+            </div>
+
+            <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
+              Xuất toàn bộ khóa, nhãn, Project GCP và cấu hình Model thành tệp <code>.json</code> được mã hóa độc lập bằng mật khẩu của bạn (tối thiểu 8 ký tự). Khi nhập lại ở môi trường mới, chỉ cần chọn tệp và nhập đúng mật khẩu đã đặt.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+              <input
+                type="password"
+                value={backupPassphrase}
+                onChange={(e) => setBackupPassphrase(e.target.value)}
+                disabled={isReadOnly || backupExporting || backupImporting}
+                autoComplete="new-password"
+                placeholder="Nhập mật khẩu sao lưu / giải mã (tối thiểu 8 ký tự)..."
+                className="flex-1 rounded-lg px-3 py-2 text-xs border bg-[var(--t-bg)] border-[var(--t-border)] text-[var(--t-text)] focus:outline-none focus:border-[var(--t-gold)] disabled:opacity-50"
+              />
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                <button
+                  type="button"
+                  onClick={handleExportBackup}
+                  disabled={
+                    isReadOnly ||
+                    backupExporting ||
+                    backupImporting ||
+                    backupPassphrase.length < 8
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-[var(--t-gold)] bg-[var(--t-gold)]/15 text-[var(--t-gold)] hover:bg-[var(--t-gold)] hover:text-slate-950 disabled:opacity-40 cursor-pointer whitespace-nowrap"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>{backupExporting ? 'Đang mã hóa...' : 'Xuất gói sao lưu (.json)'}</span>
+                </button>
+
+                <input
+                  ref={backupFileInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleImportBackupFile}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => backupFileInputRef.current?.click()}
+                  disabled={
+                    isReadOnly ||
+                    backupExporting ||
+                    backupImporting ||
+                    backupPassphrase.length < 8
+                  }
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border border-emerald-500/45 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25 disabled:opacity-40 cursor-pointer whitespace-nowrap"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{backupImporting ? 'Đang khôi phục...' : 'Khôi phục từ tệp (.json)'}</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Section 3: Keys Dashboard Table */}

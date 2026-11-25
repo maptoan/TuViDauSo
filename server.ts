@@ -29,7 +29,12 @@ import {
   verifyAndEnsureCompletePeriodSiHua,
 } from './src/lib/ziwei/text-sanitizer.ts';
 import { keyPoolManager } from './server/key-pool/index.ts';
-import { PoolExhaustedError } from './server/key-pool/executor.ts';
+import {
+  PoolExhaustedError,
+  type PoolFailureCategory,
+  TpmGuardSkipError,
+} from './server/key-pool/executor.ts';
+import { KEY_POOL_BACKUP_MAX_BYTES } from './server/key-pool/types.ts';
 import { initKnowledgeBase } from './server/knowledge-base/loader.ts';
 import {
   retrieveKnowledgeForChat,
@@ -153,29 +158,68 @@ function startSseHeartbeat(res: express.Response): () => void {
   };
 }
 
-function buildLocalHemingServerFallback(chartA: ZiweiChart, chartB: ZiweiChart): string {
-  const mingA = chartA.palaces.find((p) => p.isMingGong);
-  const mingB = chartB.palaces.find((p) => p.isMingGong);
-  const getMajors = (p?: typeof mingA) => {
-    const majors = p?.stars.filter((s) => s.type === 'major') ?? [];
-    if (majors.length > 0) return majors.map((s) => translateStarName(s.name)).join(', ');
-    if (p?.borrowedStars?.length) {
-      return `Vô chính diệu (mượn ${p.borrowedStars.map((s) => translateStarName(s)).join(', ')})`;
-    }
-    return 'Vô chính diệu';
+export interface StructuredStreamErrorPayload {
+  httpStatus: number;
+  error: 'AI_NOT_CONFIGURED' | 'AI_POOL_EXHAUSTED' | 'TPM_GUARD_SKIP' | 'AI_CALL_FAILED';
+  errorCategory: PoolFailureCategory | 'FIRST_CHUNK_TIMEOUT';
+  minRemainingCooldownSec: number | null;
+  message: string;
+}
+
+export function buildStructuredStreamErrorPayload(
+  err: unknown,
+): StructuredStreamErrorPayload {
+  if (err instanceof PoolExhaustedError) {
+    return {
+      httpStatus: 503,
+      error: err.code,
+      errorCategory: err.errorCategory,
+      minRemainingCooldownSec: err.minRemainingCooldownSec,
+      message: keyPoolManager.sanitize(err.message).replace(/^Error:\s*/i, ''),
+    };
+  }
+  if (err instanceof TpmGuardSkipError) {
+    return {
+      httpStatus: 429,
+      error: err.code,
+      errorCategory: err.errorCategory,
+      minRemainingCooldownSec: err.minRemainingCooldownSec,
+      message: keyPoolManager.sanitize(err.message).replace(/^Error:\s*/i, ''),
+    };
+  }
+
+  const safeDetail = keyPoolManager.sanitize(err);
+  const rawClientMsg =
+    err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
+  const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
+
+  if (clientMessage.includes('TPM_GUARD_SKIP')) {
+    return {
+      httpStatus: 429,
+      error: 'TPM_GUARD_SKIP',
+      errorCategory: 'TPM_GUARD_SKIP',
+      minRemainingCooldownSec: null,
+      message: clientMessage,
+    };
+  }
+  if (clientMessage.includes('FIRST_CHUNK_TIMEOUT')) {
+    return {
+      httpStatus: 503,
+      error: 'AI_CALL_FAILED',
+      errorCategory: 'FIRST_CHUNK_TIMEOUT',
+      minRemainingCooldownSec: null,
+      message: clientMessage,
+    };
+  }
+
+  const classified = keyPoolManager.classifyError(err);
+  return {
+    httpStatus: 503,
+    error: 'AI_CALL_FAILED',
+    errorCategory: classified.category,
+    minRemainingCooldownSec: classified.retryDelaySec,
+    message: clientMessage,
   };
-
-  return `## Luận Giải Hợp Bàn Tử Vi (${chartA.birthInfo.name || 'Bên A'} & ${chartB.birthInfo.name || 'Bên B'})
-
-### 1. Tổng Quan Tương Hợp Bản Mệnh
-- **Đương số A (${chartA.birthInfo.name || 'Bên A'}):** ${translateWuxingJu(chartA.wuxingJuName)}, Mệnh tọa cung **${VI_BRANCHES[mingA?.branch ?? 0]}** (${getMajors(mingA)}).
-- **Đương số B (${chartB.birthInfo.name || 'Bên B'}):** ${translateWuxingJu(chartB.wuxingJuName)}, Mệnh tọa cung **${VI_BRANCHES[mingB?.branch ?? 0]}** (${getMajors(mingB)}).
-
-${generateLocalInterpretationVi(chartA, 'tình duyên Phu Thê')}
-
----
-### 2. Đối Chiếu Lá Số Thứ Hai
-${generateLocalInterpretationVi(chartB, 'tình duyên Phu Thê')}`;
 }
 
 function formatKnowledgeInjectionBlock(kb: KnowledgeRetrievalResult): string {
@@ -222,7 +266,7 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
 4. Phân biệt rõ tính chất kỳ hạn:
     - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
     - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
-    - Đối với chương LƯU NIÊN: độ dài thân bài mục tiêu **900–1.300 từ**, phân tích đủ Tam Phương Tứ Chính của Lưu Mệnh (Lưu Mệnh – Lưu Tài – Lưu Quan – Lưu Di) và giao thoa với Đại Hạn gốc chi phối hiện hành (đọc từ Bảng dữ kiện kỳ hạn).
+    - Chương LƯU NIÊN: viết 900–1.300 từ cho thân bài (không tính tiêu đề, dòng dữ kiện Tứ Hóa, khối tham chiếu); dừng luận giải khi đủ ý, không kéo dài thêm; phân tích đủ Tam Phương Tứ Chính của Lưu Mệnh và Đại Hạn gốc hiện hành.
     - Mỗi dòng Lưu Tứ Hóa BẮT BUỘC nêu đủ **tên Hóa + tên sao + độ sáng** (ví dụ: "Lưu Hóa Khoa → Sao Văn Xương [Miếu]"); mỗi lần nêu sao lưu (Lưu Lộc Tồn, Lưu Thiên Mã, Lưu Văn Xương, Lưu Văn Khúc…) BẮT BUỘC kèm tên cung Bản Mệnh gốc trong ngoặc.
     - Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
@@ -737,6 +781,69 @@ export function registerApiRoutes(app: express.Express) {
     }
   });
 
+  app.post('/api/key-pool/backup/export', (req, res) => {
+    if (!requireKeyPoolWriteAccess(req, res)) return;
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const { passphrase } = (req.body ?? {}) as { passphrase?: unknown };
+      const envelope = keyPoolManager.exportEncryptedBackup(passphrase as string);
+      res.json({
+        backup: envelope,
+        exportedAt: envelope.exportedAt,
+      });
+    } catch (err) {
+      res.status(400).json({
+        error: 'BACKUP_EXPORT_FAILED',
+        message: keyPoolManager.sanitize(err),
+      });
+    }
+  });
+
+  app.post('/api/key-pool/backup/import', (req, res) => {
+    if (!requireKeyPoolWriteAccess(req, res)) return;
+    res.setHeader('Cache-Control', 'no-store');
+    try {
+      const { backup, passphrase } = (req.body ?? {}) as {
+        backup?: unknown;
+        passphrase?: unknown;
+      };
+      if (backup === undefined || backup === null) {
+        res.status(400).json({
+          error: 'INVALID_INPUT',
+          message: 'Thiếu dữ liệu tệp sao lưu Kho Khóa.',
+        });
+        return;
+      }
+      const backupBytes = Buffer.byteLength(JSON.stringify(backup), 'utf8');
+      if (backupBytes > KEY_POOL_BACKUP_MAX_BYTES) {
+        res.status(413).json({
+          error: 'PAYLOAD_TOO_LARGE',
+          message: 'Gói sao lưu vượt quá giới hạn tối đa 256 KB.',
+        });
+        return;
+      }
+
+      const result = keyPoolManager.importEncryptedBackup(backup, passphrase as string);
+      const sec = getRequestSecurityContext(req);
+      res.json({
+        ...result,
+        pool: keyPoolManager.getPublicSnapshot({
+          isReadOnly: sec.isReadOnly,
+          isSharedOrigin: sec.isSharedOrigin,
+          adminPinRequired: sec.adminPinRequired,
+          hasAdminPinConfigured: sec.hasAdminPinConfigured,
+        }),
+      });
+    } catch (err) {
+      const msg = keyPoolManager.sanitize(err);
+      const status = msg.includes('256 KB') ? 413 : 400;
+      res.status(status).json({
+        error: status === 413 ? 'PAYLOAD_TOO_LARGE' : 'BACKUP_IMPORT_FAILED',
+        message: msg,
+      });
+    }
+  });
+
   // ─── CÁC ENDPOINT AI SỬ DỤNG CHUNG KEY POOL & MODEL CONFIG (QĐ-2) ────────────
 
   // POST /api/interpret-period — Gemini AI interpretation strictly grounded on deterministic YunxianPeriodContext
@@ -809,6 +916,7 @@ export function registerApiRoutes(app: express.Express) {
             message: ev.reason,
             errorCategory: ev.errorCategory,
             partialLength: ev.partialLength,
+            minRemainingCooldownSec: ev.minRemainingCooldownSec ?? null,
           });
         },
       });
@@ -840,23 +948,39 @@ export function registerApiRoutes(app: express.Express) {
         }
       }
       if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
+        const periodSectionId =
+          periodContext.mode === 'liunian' &&
+          (periodContext.cacheKey === 'liunian_2026' || periodContext.cacheKey === 'liunian_2027')
+            ? (`year_${periodContext.cacheKey.slice(-4)}` as 'year_2026' | 'year_2027')
+            : undefined;
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
-          { palaceGanZhiMap: buildPalaceGanZhiMap(chart) },
+          {
+            chart,
+            sectionId: periodSectionId,
+            chapterMode: 'period',
+            periodContext,
+            palaceGanZhiMap: buildPalaceGanZhiMap(chart),
+          },
         );
-        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+        const criticalFlags = citationAudit.auditFlags.filter(
+          (f) => f.severity === 'critical',
+        );
+        if (criticalFlags.length > 0) {
           console.warn(
-            `[interpret-period] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
-            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+            `[interpret-period] KP-3 critical flags (${criticalFlags.length}):`,
+            JSON.stringify(criticalFlags),
           );
         }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            normalizedBareIds: citationAudit.normalizedBareIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
             palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
+            auditFlags: citationAudit.auditFlags,
           },
         });
         const tailBlock = [
@@ -882,25 +1006,25 @@ export function registerApiRoutes(app: express.Express) {
         res.end();
       }
     } catch (err) {
-      if (err instanceof PoolExhaustedError && !sseStarted) {
-        res.status(503).json({
-          error: err.code,
-          message: err.message,
-          minRemainingCooldownSec: err.minRemainingCooldownSec,
+      const payload = buildStructuredStreamErrorPayload(err);
+      if (!sseStarted) {
+        res.status(payload.httpStatus).json({
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
         });
         return;
       }
 
-      const safeDetail = keyPoolManager.sanitize(err);
-      const rawClientMsg =
-        err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
-      console.log(`[interpret-period] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
+      console.log(`[interpret-period] KeyPool notice: ${payload.message.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
-        error: 'AI_CALL_FAILED',
-        message: clientMessage,
-        detail: clientMessage,
+        error: payload.error,
+        errorCategory: payload.errorCategory,
+        minRemainingCooldownSec: payload.minRemainingCooldownSec,
+        message: payload.message,
+        detail: payload.message,
       });
       if (!res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -975,27 +1099,47 @@ export function registerApiRoutes(app: express.Express) {
             message: ev.reason,
             errorCategory: ev.errorCategory,
             partialLength: ev.partialLength,
+            minRemainingCooldownSec: ev.minRemainingCooldownSec ?? null,
           });
         },
       });
       if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
+        const chapterMode =
+          validated.sectionId === 'palaces_core' ||
+          validated.sectionId === 'palaces_family' ||
+          validated.sectionId === 'palaces_social_health'
+            ? 'palace_group'
+            : validated.sectionId === 'horizon_5y' ||
+                validated.sectionId === 'horizon_10y'
+              ? 'horizon'
+              : 'overview';
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
-          { palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart) },
+          {
+            chart: validated.chart,
+            sectionId: validated.sectionId,
+            chapterMode,
+            palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart),
+          },
         );
-        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+        const criticalFlags = citationAudit.auditFlags.filter(
+          (f) => f.severity === 'critical',
+        );
+        if (criticalFlags.length > 0) {
           console.warn(
-            `[interpret-dossier-section] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
-            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+            `[interpret-dossier-section] KP-3 critical flags (${criticalFlags.length}):`,
+            JSON.stringify(criticalFlags),
           );
         }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            normalizedBareIds: citationAudit.normalizedBareIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
             palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
+            auditFlags: citationAudit.auditFlags,
           },
         });
         const tailBlock = [
@@ -1021,25 +1165,25 @@ export function registerApiRoutes(app: express.Express) {
         res.end();
       }
     } catch (err) {
-      if (err instanceof PoolExhaustedError && !sseStarted) {
-        res.status(503).json({
-          error: err.code,
-          message: err.message,
-          minRemainingCooldownSec: err.minRemainingCooldownSec,
+      const payload = buildStructuredStreamErrorPayload(err);
+      if (!sseStarted) {
+        res.status(payload.httpStatus).json({
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
         });
         return;
       }
 
-      const safeDetail = keyPoolManager.sanitize(err);
-      const rawClientMsg =
-        err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
-      console.log(`[interpret-dossier-section] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
+      console.log(`[interpret-dossier-section] KeyPool notice: ${payload.message.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
-        error: 'AI_CALL_FAILED',
-        message: clientMessage,
-        detail: clientMessage,
+        error: payload.error,
+        errorCategory: payload.errorCategory,
+        minRemainingCooldownSec: payload.minRemainingCooldownSec,
+        message: payload.message,
+        detail: payload.message,
       });
       if (!res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1120,6 +1264,7 @@ export function registerApiRoutes(app: express.Express) {
             message: ev.reason,
             errorCategory: ev.errorCategory,
             partialLength: ev.partialLength,
+            minRemainingCooldownSec: ev.minRemainingCooldownSec ?? null,
           });
         },
       });
@@ -1127,20 +1272,30 @@ export function registerApiRoutes(app: express.Express) {
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
-          { palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart) },
+          {
+            chart: validated.chart,
+            chapterMode: 'chat',
+            periodContext: validated.periodContext,
+            palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart),
+          },
         );
-        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+        const criticalFlags = citationAudit.auditFlags.filter(
+          (f) => f.severity === 'critical',
+        );
+        if (criticalFlags.length > 0) {
           console.warn(
-            `[interpret-chat] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
-            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+            `[interpret-chat] KP-3 critical flags (${criticalFlags.length}):`,
+            JSON.stringify(criticalFlags),
           );
         }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
+            normalizedBareIds: citationAudit.normalizedBareIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
             palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
+            auditFlags: citationAudit.auditFlags,
           },
         });
         if (citationAudit.chatFooterMarkdown) {
@@ -1160,25 +1315,25 @@ export function registerApiRoutes(app: express.Express) {
         res.end();
       }
     } catch (err) {
-      if (err instanceof PoolExhaustedError && !sseStarted) {
-        res.status(503).json({
-          error: err.code,
-          message: err.message,
-          minRemainingCooldownSec: err.minRemainingCooldownSec,
+      const payload = buildStructuredStreamErrorPayload(err);
+      if (!sseStarted) {
+        res.status(payload.httpStatus).json({
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
         });
         return;
       }
 
-      const safeDetail = keyPoolManager.sanitize(err);
-      const rawClientMsg =
-        err instanceof Error ? keyPoolManager.sanitize(err.message) : safeDetail;
-      const clientMessage = rawClientMsg.replace(/^Error:\s*/i, '');
-      console.log(`[interpret-chat] KeyPool notice: ${clientMessage.split(/\r?\n/)[0]}`);
+      console.log(`[interpret-chat] KeyPool notice: ${payload.message.split(/\r?\n/)[0]}`);
       ensureSseStarted();
       sendSseJson(res, {
-        error: 'AI_CALL_FAILED',
-        message: clientMessage,
-        detail: clientMessage,
+        error: payload.error,
+        errorCategory: payload.errorCategory,
+        minRemainingCooldownSec: payload.minRemainingCooldownSec,
+        message: payload.message,
+        detail: payload.message,
       });
       if (!res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1307,17 +1462,16 @@ Hãy trình bày bài luận giải bằng tiếng Việt chuẩn mực, rõ rà
 
   // POST /api/heming — SSE streaming Synastry / Compatibility interpretation in Vietnamese
   app.post('/api/heming', async (req, res) => {
-    applySseHeaders(res);
-
     const { chartA, chartB } = req.body as {
       chartA?: ZiweiChart;
       chartB?: ZiweiChart;
     };
 
     if (!chartA || !chartB) {
-      sendSseText(res, 'Vui lòng cung cấp đầy đủ hai lá số để tiến hành Hợp Bàn.');
-      res.write('data: [DONE]\n\n');
-      res.end();
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: 'Vui lòng cung cấp đầy đủ hai lá số để tiến hành Hợp Bàn.',
+      });
       return;
     }
 
@@ -1341,13 +1495,23 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
 5. **Lời Khuyên Đồng Hành Bền Vững**: Nguyên tắc ứng xử và phân công vai trò trong gia đình / sự nghiệp.`;
 
     const abortController = new AbortController();
-    const stopHeartbeat = startSseHeartbeat(res);
+    let sseStarted = false;
+    let stopHeartbeat: () => void = () => {};
+
     res.on('close', () => {
       stopHeartbeat();
       if (!res.writableEnded) {
         abortController.abort();
       }
     });
+
+    const ensureSseStarted = () => {
+      if (!sseStarted) {
+        sseStarted = true;
+        applySseHeaders(res);
+        stopHeartbeat = startSseHeartbeat(res);
+      }
+    };
 
     let anyChunkSent = false;
     let interruptedEmitted = false;
@@ -1356,42 +1520,69 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
       const finalMeta = await keyPoolManager.executeStream({
         prompt,
         signal: abortController.signal,
+        onSseKeepAliveRequired: ensureSseStarted,
         onMeta: (meta) => {
+          ensureSseStarted();
           sendSseJson(res, { meta });
         },
         onChunk: (text) => {
           anyChunkSent = true;
+          ensureSseStarted();
           sendSseText(res, text);
         },
         onInterrupted: (ev) => {
           interruptedEmitted = true;
+          ensureSseStarted();
           sendSseJson(res, {
             interrupted: true,
             message: ev.reason,
             errorCategory: ev.errorCategory,
             partialLength: ev.partialLength,
+            minRemainingCooldownSec: ev.minRemainingCooldownSec ?? null,
           });
         },
       });
-      if (!res.writableEnded) {
+      if (sseStarted && !res.writableEnded) {
         sendSseJson(res, { meta: finalMeta, done: true });
       }
+      if (sseStarted && !res.writableEnded) {
+        res.write('data: [DONE]\n\n');
+        res.end();
+      }
     } catch (err) {
+      const payload = buildStructuredStreamErrorPayload(err);
+      if (!sseStarted) {
+        res.status(payload.httpStatus).json({
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
+        });
+        return;
+      }
+
       if (!anyChunkSent) {
-        sendSseText(res, buildLocalHemingServerFallback(chartA, chartB));
+        sendSseJson(res, {
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
+          detail: payload.message,
+        });
       } else if (!interruptedEmitted) {
         sendSseJson(res, {
           interrupted: true,
-          message: err instanceof Error ? keyPoolManager.sanitize(err.message) : keyPoolManager.sanitize(err),
-          errorCategory: 'NETWORK_OR_5XX',
+          message: payload.message,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
         });
       }
-    } finally {
-      stopHeartbeat();
       if (!res.writableEnded) {
         res.write('data: [DONE]\n\n');
         res.end();
       }
+    } finally {
+      stopHeartbeat();
     }
   });
 }

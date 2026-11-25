@@ -2,12 +2,35 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.5` *(đồng bộ với `/VERSION`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.5.6` *(đồng bộ với `/VERSION`)*
 - **Cập nhật lần cuối**: `25/11/2026`
-- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`)
+- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.5.6] — 25/11/2026
+
+### Hoàn Thiện Lớp Hậu Kiểm KP-3, Điều Phối KP-6, Kho Khóa KP-7 Tầng 2 & Làm Sạch Văn Bản (`BRIEF 1.5.6 v2` — Nhóm W / X / Y / Z)
+- **Nhóm W (+ Z3) — Hậu kiểm KP-3 đầy đủ trong `verifier.ts` (`P01–P05`)**:
+  - **W1 (`PALACE_GANZHI_MISMATCH`)**: Kế thừa KP-3-lite đối chiếu `Cung X (Can Chi)` / `Cung X tại Can Chi` đúng tầng bản đồ (Bản Mệnh vs Đại Hạn/Lưu Niên) và miễn trừ Can Chi năm đơn lẻ (như `Canh Ngọ 1990`).
+  - **W2 (`P04`, `DAXIAN_STEM_MISMATCH`)**: Phân đoạn block `### Cung ...` sau chuẩn hóa tiêu đề, đối chiếu cặp `(khoảng tuổi, Can)` ở cấp câu/mệnh đề trong ngữ cảnh Đại Hạn (hỗ trợ `-`, `–`, `—`, `~`, `từ X đến Y tuổi`); chương Horizon kiểm đối chiếu tập `governingDaXian` trong cửa sổ năm.
+  - **W3**: Chỉ áp đặt neo thực thể cụ thể khi mục KB có thực thể (sao/mẫu/Tứ Hóa cụ thể), miễn cho mục phương pháp luận tổng quát.
+  - **W4 (`P01–P02`, `ILLEGAL_STAR_PAIR_KHONG_KIEP`)**: Quét mọi biến thể gọi `Không Kiếp` (thuận/đảo, có/không `Địa`, `-`/`/`/`và`), hợp lệ chỉ khi cả `Địa Không` và `Địa Kiếp` nằm trong tập bản cung + Tam Phương Tứ Chính của cung đang luận (chương kỳ hạn phân giải theo cung nhắc đích danh); miễn trừ câu phủ định và trích dẫn khẩu quyết trong ngoặc kép kèm `[Nguồn: ...]` hợp lệ.
+  - **W5 (`P03`, `ZERO_CITATIONS_IN_CHAPTER`)**: Gắn cờ mức trung bình khi chương `2–6` có `allowedEntries.length > 0` nhưng `0` thẻ `[Nguồn: ...]` hợp lệ trên thân bài (sau bước chuẩn hóa Z3 `normalizeKnownBareCitationTags`, loại trừ khối cảnh báo/tham chiếu); **tuyệt đối không** bật `hasUncitedClaims` và không chèn `warningBlockMarkdown`.
+  - **W6 (`P05`)**: Gộp cờ KP-3 vào `citationAudit.kp3Flags` / `auditFlags`, lưu bền vào IndexedDB (`chart-library.ts`) và `aiPeriodCache` (`DetailedDossierModal.tsx`, `InsightPanel.tsx`), hiển thị danh sách cờ theo chương trên UI mà không xuất ra `.MD`/`.HTML`/`.TXT` hoặc bản in.
+- **Nhóm X — KP-6 điều phối cầu chì kép & X0 phân loại lỗi (`P06–P09`)**:
+  - **X0**: Chuẩn hóa phân loại lỗi SSE và pre-SSE (`classifyDossierFailure`, `sanitizeClientErrorDisplayText`) ở cả `server.ts`, `server/key-pool/executor.ts` (`PoolExhaustedError`), `DetailedDossierModal.tsx`, `InsightPanel.tsx`, `ContextualChatDrawer.tsx`, `HemingView.tsx` (loại bỏ trạng thái ngắt giả cho `AI_NOT_CONFIGURED` / `AI_POOL_EXHAUSTED` / `4xx`).
+  - **KP-6 (`runDossierSequentialWithDualFuse`, `createBestPartialSnapshot`, `resolveChapterWithBestPartial`)**: Điều phối tuần tự 8 chương với khoảng nghỉ `1.200ms` (`DOSSIER_INTER_CHAPTER_PACING_MS`), cơ chế cầu chì kép (một lượt thử Pass 2 sau khi ngắt/thất bại tạm thời, bảo toàn `bestPartialSoFar` theo độ dài nội dung tốt nhất để không ghi đè bản tốt hơn bằng bản ngắn/lỗi, phục vụ nút `Sinh lại chương này`).
+- **Nhóm Y — KP-7 Tầng 2 (`evaluatePoolReadinessBanner` & Sao lưu mã hóa `ĐK-NT-7`)**:
+  - **Y1**: Bổ sung `evaluatePoolReadinessBanner` (`src/lib/key-pool-ui.ts`) và banner dưới Summary Strip trong `KeyPoolModal.tsx`, phân biệt rõ `LOW_TOTAL_KEYS` (`total < 3`, `"Kho có ít hơn 3 khóa"`) với `LOW_READY_KEYS` (`total >= 3 && ready < 3`, `"Chỉ còn X/Y khóa sẵn sàng"`).
+  - **Y2 (`ĐK-NT-7`)**: Bổ sung `encryptPoolBackup` / `decryptPoolBackup` (`server/key-pool/crypto-store.ts`), `exportEncryptedBackup` / `importEncryptedBackup` (`server/key-pool/index.ts`), các route `POST /api/key-pool/backup/export` & `POST /api/key-pool/backup/import` (`server.ts`, chặn `requireKeyPoolWriteAccess`, `Cache-Control: no-store`, giới hạn `256 KB` trả `413 PAYLOAD_TOO_LARGE`), và Mục 2B trong `KeyPoolModal.tsx`. Dùng `PBKDF2-HMAC-SHA256` (`210.000` vòng, salt 16B) + `AES-256-GCM` (IV 12B, tag 16B, AAD JSON header chuẩn hóa), độc lập `.pool-master.key` để di chuyển/khôi phục xuyên container.
+- **Nhóm Z — Chuẩn hóa tiêu đề, chính tả & prompt Lưu Niên**:
+  - **Z1 (`enforceCanonicalPalaceGroupHeadings`)**: Thu gọn các dòng tiêu đề `### Cung ...` chuẩn hóa giống hệt nhau liên tiếp (kể cả khi xen giữa bằng dòng trống) thành 1 dòng tiêu đề, bảo toàn lũy đẳng và các tiêu đề khác cung / không liên tiếp.
+  - **Z2 (`sanitizeAiVietnameseOutput`, `yunxian-context.ts`)**: Sửa `"Đóng nhờ trên"` → `"Đóng tại"` trong `factTableMarkdown`; bổ sung bộ lọc biên chữ Unicode cho `thủ mì` → `thủ Mệnh`, `đóng nhờ trên` → `đóng tại`, `trinhtrạng` / `trinh trạng` → `tình trạng` (bảo toàn `"trình trạng"`, `"thủ Mệnh"`, `"Bảo Ninh"`).
+  - **Z4 (`server.ts`)**: Siết hướng dẫn độ dài chương Lưu Niên trong `buildStrictPeriodAiPrompt` (`viết 900–1.300 từ cho thân bài (không tính tiêu đề, dòng dữ kiện Tứ Hóa, khối tham chiếu); dừng luận giải khi đủ ý, không kéo dài thêm`), giữ `systemInstruction.length` trong ngân sách `<= +35` ký tự (`3825 → 3817`).
 
 ---
 

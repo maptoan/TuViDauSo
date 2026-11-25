@@ -2679,6 +2679,7 @@ export function buildPeriodCachePatchesFromLibrary(
       patches[periodKey] = {
         text: sec.text,
         meta: sec.meta,
+        ...(sec.auditFlags?.length ? { auditFlags: sec.auditFlags } : {}),
       };
     } else if (sec.status === 'incomplete' && sec.incompleteText?.trim()) {
       patches[periodKey] = {
@@ -2687,6 +2688,7 @@ export function buildPeriodCachePatchesFromLibrary(
         interruptedReason: sec.interruptedReason,
         meta: sec.meta,
         error: sec.error,
+        ...(sec.auditFlags?.length ? { auditFlags: sec.auditFlags } : {}),
       };
     }
   }

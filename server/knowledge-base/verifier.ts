@@ -1,15 +1,32 @@
 import {
   CN_TO_VI_PALACE,
   CN_TO_VI_STAR,
+  VI_BRANCHES,
+  VI_STEMS,
+  translatePalaceName,
+  translateStarName,
 } from '../../src/lib/ziwei/vi-i18n.ts';
+import type { ZiweiChart } from '../../src/lib/ziwei/types.ts';
+import { buildMultiYearHorizonContext } from '../../src/lib/ziwei/dossier-context.ts';
 import {
+  buildYunxianPeriodContext,
+  type YunxianPeriodContext,
+} from '../../src/lib/ziwei/yunxian-context.ts';
+import {
+  CITATION_ID_SYNTAX_RE,
+  enforceCanonicalPalaceGroupHeadings,
   parseCitationTagInner,
   scrubInvalidCitationTags,
 } from '../../src/lib/ziwei/text-sanitizer.ts';
+import {
+  getKnowledgeBaseSnapshot,
+  loadKnowledgeBase,
+} from './loader.ts';
 import type {
   CitationAuditResult,
   CitationViolation,
   DistilledKnowledgeEntry,
+  Kp3AuditFlag,
   PalaceGanZhiMismatch,
 } from './types.ts';
 
@@ -202,10 +219,21 @@ function collectEntryCheckTerms(entry: DistilledKnowledgeEntry): string[] {
     .filter((t) => t.length >= 2);
 }
 
+function hasConcreteEntityAnchor(entry: DistilledKnowledgeEntry): boolean {
+  if (entry.category === '07-methodology') return false;
+  const rk = entry.retrievalKeys;
+  if ((rk.starsVi ?? []).some((s) => Boolean(s && s.trim()))) return true;
+  if ((rk.patternsVi ?? []).some((p) => Boolean(p && p.trim()))) return true;
+  if ((rk.sihuaCombos ?? []).some((sh) => Boolean(sh.starVi && sh.starVi.trim()))) return true;
+  return false;
+}
+
 function hasEntityOverlapWithEntry(
   blockTextWithoutTags: string,
   entry: DistilledKnowledgeEntry,
 ): boolean {
+  // W3: Mục phương pháp luận tổng quát (07-methodology) hoặc mục không có neo thực thể cụ thể được miễn V3.
+  if (!hasConcreteEntityAnchor(entry)) return true;
   const lower = blockTextWithoutTags.normalize('NFC').toLowerCase();
   const terms = collectEntryCheckTerms(entry);
   if (terms.length === 0) return true;
@@ -261,193 +289,872 @@ export function buildChatCitationFooter(params: {
   return parts.join('\n\n');
 }
 
-const NATAL_PALACE_CANONICAL_BY_LOWER = new Map<string, string>([
+const PERIOD_ROLE_CANONICAL_BY_LOWER = new Map<string, string>([
   ['mệnh cung', 'Mệnh Cung'],
   ['mệnh', 'Mệnh Cung'],
   ['huynh đệ', 'Huynh Đệ'],
   ['phu thê', 'Phu Thê'],
   ['tử nữ', 'Tử Nữ'],
+  ['tử tức', 'Tử Nữ'],
   ['tài bạch', 'Tài Bạch'],
   ['tật ách', 'Tật Ách'],
   ['thiên di', 'Thiên Di'],
   ['giao hữu', 'Giao Hữu'],
+  ['nô bộc', 'Giao Hữu'],
   ['quan lộc', 'Quan Lộc'],
   ['điền trạch', 'Điền Trạch'],
   ['phúc đức', 'Phúc Đức'],
   ['phụ mẫu', 'Phụ Mẫu'],
 ]);
 
+const NATAL_PALACE_CANONICAL_BY_LOWER = PERIOD_ROLE_CANONICAL_BY_LOWER;
+
 const STEM_CANONICAL_BY_LOWER = new Map<string, string>(
-  ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'].map((s) => [
-    s.toLowerCase(),
-    s,
-  ]),
+  VI_STEMS.map((s) => [s.toLowerCase(), s]),
 );
 
-const BRANCH_CANONICAL_BY_LOWER = new Map<string, string>(
-  ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'].map((b) => [
-    b.toLowerCase(),
-    b,
-  ]),
+const BRANCH_CANONICAL_BY_LOWER = new Map<string, string>([
+  ...VI_BRANCHES.map((b) => [b.toLowerCase(), b] as [string, string]),
+  ['tị', 'Tỵ'],
+]);
+
+function splitRawBlockIntoSentences(block: string): string[] {
+  if (!block || !block.trim()) return [];
+  const lines = block.normalize('NFC').split(/\r?\n/);
+  const sentences: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/(?<=(?<!\d)[.!?])\s+/u);
+    for (const part of parts) {
+      const s = part.trim();
+      if (s) sentences.push(s);
+    }
+  }
+  return sentences;
+}
+
+const STEM_NAMES_PATTERN = 'Giáp|Ất|Bính|Đinh|Mậu|Kỷ|Canh|Tân|Nhâm|Quý';
+const BRANCH_NAMES_PATTERN = 'Tý|Sửu|Dần|Mão|Thìn|Tỵ|Tị|Ngọ|Mùi|Thân|Dậu|Tuất|Hợi';
+const PALACE_NAMES_PATTERN =
+  'Mệnh\\s+Cung|Mệnh|Huynh\\s+Đệ|Phu\\s+Thê|Tử\\s+Nữ|Tử\\s+Tức|Tài\\s+Bạch|Tật\\s+Ách|Thiên\\s+Di|Giao\\s+Hữu|Nô\\s+Bộc|Quan\\s+Lộc|Điền\\s+Trạch|Phúc\\s+Đức|Phụ\\s+Mẫu';
+
+const PALACE_GANZHI_MENTION_RE = new RegExp(
+  `(?<!\\p{L})Cung\\s+(?!Lưu\\b|Đại\\s+Hạn\\b|Tiểu\\s+Hạn\\b)(${PALACE_NAMES_PATTERN})\\s*(?:\\(\\s*(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})\\s*\\)|(?:tại|ở|đóng\\s+(?:tại|ở))\\s+(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})(?!\\p{L}))`,
+  'giu',
 );
 
-const PALACE_GANZHI_MENTION_RE =
-  /(?<!\p{L})Cung\s+(?:(Lưu|Đại\s+Hạn)\s+)?(Mệnh\s+Cung|Mệnh|Huynh\s+Đệ|Phu\s+Thê|Tử\s+Nữ|Tài\s+Bạch|Tật\s+Ách|Thiên\s+Di|Giao\s+Hữu|Quan\s+Lộc|Điền\s+Trạch|Phúc\s+Đức|Phụ\s+Mẫu)(?:\s*\(\s*(Giáp|Ất|Bính|Đinh|Mậu|Kỷ|Canh|Tân|Nhâm|Quý)\s+(Tý|Sửu|Dần|Mão|Thìn|Tỵ|Ngọ|Mùi|Thân|Dậu|Tuất|Hợi)\s*\)|\s+tại\s+(Giáp|Ất|Bính|Đinh|Mậu|Kỷ|Canh|Tân|Nhâm|Quý)\s+(Tý|Sửu|Dần|Mão|Thìn|Tỵ|Ngọ|Mùi|Thân|Dậu|Tuất|Hợi)(?!\p{L}))/giu;
-
-/**
- * KP-3-lite (C1): Soát lỗi gán sai Can Chi của 12 cung Bản Mệnh trong văn bản luận giải.
- * - Chỉ khớp mẫu `Cung {TênCung} ({Can} {Chi})` và `Cung {TênCung} tại {Can} {Chi}`.
- * - Bỏ qua các nhắc tới đứng ngay sau "Lưu" hoặc "Đại Hạn" (VD: Cung Lưu Quan Lộc, Cung Đại Hạn Tài Bạch).
- * - Bỏ qua Can Chi đứng độc lập (VD: "năm Canh Ngọ 1990").
- */
 export function verifyPalaceGanZhiMentions(
   text: string,
   palaceGanZhiMap: Record<string, string>,
 ): PalaceGanZhiMismatch[] {
   if (!text || !palaceGanZhiMap) return [];
-  const normalized = text.normalize('NFC');
-  const results: PalaceGanZhiMismatch[] = [];
+  const blocks = splitNonMetaBodyBlocks(text);
+  const mismatches: PalaceGanZhiMismatch[] = [];
   const seen = new Set<string>();
 
-  PALACE_GANZHI_MENTION_RE.lastIndex = 0;
-  let match: RegExpExecArray | null;
-  while ((match = PALACE_GANZHI_MENTION_RE.exec(normalized)) !== null) {
-    if (match[1]) {
-      // Đứng ngay sau "Lưu" hoặc "Đại Hạn" -> thuộc kỳ hạn, bỏ qua
-      continue;
+  for (const block of blocks) {
+    PALACE_GANZHI_MENTION_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = PALACE_GANZHI_MENTION_RE.exec(block)) !== null) {
+      const rawPalace = (m[1] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const palaceVi = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace);
+      if (!palaceVi) continue;
+
+      const expectedGanZhi = palaceGanZhiMap[palaceVi];
+      if (!expectedGanZhi) continue;
+
+      const rawStem = (m[2] ?? m[4] ?? '').trim().toLowerCase();
+      const rawBranch = (m[3] ?? m[5] ?? '').trim().toLowerCase();
+      const foundStem = STEM_CANONICAL_BY_LOWER.get(rawStem);
+      const foundBranch = BRANCH_CANONICAL_BY_LOWER.get(rawBranch);
+      if (!foundStem || !foundBranch) continue;
+
+      const foundGanZhi = `${foundStem} ${foundBranch}`;
+      if (foundGanZhi.toLowerCase() !== expectedGanZhi.trim().toLowerCase()) {
+        const dedup = `${palaceVi}::${foundGanZhi}::${expectedGanZhi}`;
+        if (seen.has(dedup)) continue;
+        seen.add(dedup);
+        mismatches.push({
+          type: 'PALACE_GANZHI_MISMATCH',
+          palaceVi,
+          foundGanZhi,
+          expectedGanZhi,
+        });
+      }
     }
-
-    const beforeWindow = normalized.slice(Math.max(0, match.index - 16), match.index);
-    if (/(?:Lưu|Đại\s+Hạn)\s+$/iu.test(beforeWindow)) {
-      continue;
-    }
-
-    const rawPalace = (match[2] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
-    const canonicalPalace = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace);
-    if (!canonicalPalace) continue;
-
-    const expectedRaw =
-      palaceGanZhiMap[canonicalPalace] ??
-      (canonicalPalace === 'Mệnh Cung' ? palaceGanZhiMap['Mệnh'] : undefined);
-    if (!expectedRaw) continue;
-    const expectedGanZhi = expectedRaw.normalize('NFC').replace(/\s+/g, ' ').trim();
-
-    const rawStem = (match[3] ?? match[5] ?? '').trim().toLowerCase();
-    const rawBranch = (match[4] ?? match[6] ?? '').trim().toLowerCase();
-    const foundStem = STEM_CANONICAL_BY_LOWER.get(rawStem);
-    const foundBranch = BRANCH_CANONICAL_BY_LOWER.get(rawBranch);
-    if (!foundStem || !foundBranch) continue;
-
-    const foundGanZhi = `${foundStem} ${foundBranch}`;
-    if (foundGanZhi.toLowerCase() === expectedGanZhi.toLowerCase()) continue;
-
-    const dedupKey = `${canonicalPalace}::${foundGanZhi}`;
-    if (seen.has(dedupKey)) continue;
-    seen.add(dedupKey);
-
-    results.push({
-      type: 'PALACE_GANZHI_MISMATCH',
-      palaceVi: canonicalPalace,
-      foundGanZhi,
-      expectedGanZhi,
-    });
   }
 
-  return results;
+  return mismatches;
+}
+
+const CANONICAL_PALACE_HEADING_RE = new RegExp(
+  `^\\s*#{2,4}\\s+(?:\\d+[.)]\\s*)?Cung\\s+(${PALACE_NAMES_PATTERN})(?=$|[\\s(\\[,:–—-])`,
+  'iu',
+);
+
+const BARE_CITATION_ID_RE = /(?<!\[)(?<!`)\[([A-Za-z0-9_-]{4,24})\](?!\()(?!`)(?!\])/g;
+
+function getLoadedKnowledgeBaseIdSetUpper(): Set<string> {
+  const ids = new Set<string>();
+  try {
+    const snap = getKnowledgeBaseSnapshot();
+    const resolved = snap.loaded ? snap : loadKnowledgeBase();
+    for (const key of resolved.indices.byId.keys()) {
+      const upper = key.trim().toUpperCase();
+      if (upper) ids.add(upper);
+    }
+  } catch {
+    // Bỏ qua nếu không đọc được thư mục KB trên đĩa
+  }
+  return ids;
 }
 
 /**
- * Z5 (P9): Tách khối ngữ nghĩa THÔ (chưa xóa thẻ `[Nguồn: ...]`) thành từng câu để kiểm V2 theo câu.
- * - Không cắt bên trong cặp `[...]` (bảo toàn thẻ `[Nguồn: ...]` dù chứa dấu `.`, `;`, `,`).
- * - Tách theo `\n`, `;`, hoặc dấu kết câu `.` `!` `?` `…` theo sau bởi khoảng trắng / hết chuỗi / `[`.
- * - Không cắt dấu chấm giữa 2 chữ số (`1.2`, `1.000`, `105.85`), tên file (`.ts`), hoặc số thứ tự đầu dòng (`^\s*\d+\.`).
+ * Z3 (P16): Chuẩn hóa thẻ `[ID]` trần thành `[Nguồn: ID]` trên thân bài TRƯỚC bước V1/V3/W5.
+ * Chỉ chuyển đổi nếu nằm ngoài khối meta/tham chiếu, không đứng sau `[Nguồn:`, không phải Markdown link `[text](url)`,
+ * khớp `CITATION_ID_SYNTAX_RE` và tồn tại trong `allowedById` HOẶC kho KB đã nạp.
  */
-export function splitRawBlockIntoSentences(rawBlock: string): string[] {
-  if (!rawBlock || !rawBlock.trim()) return [];
-  const sentences: string[] = [];
-  let bracketDepth = 0;
-  let start = 0;
-  let lineStart = 0;
+export function normalizeBareCitationTagsInBody(
+  text: string,
+  knownIdsUpper: ReadonlySet<string>,
+): { text: string; normalizedBareIds: string[] } {
+  if (!text || knownIdsUpper.size === 0) {
+    return { text, normalizedBareIds: [] };
+  }
 
-  for (let i = 0; i < rawBlock.length; i += 1) {
-    const ch = rawBlock[i];
-    if (ch === '[') {
-      bracketDepth += 1;
-      continue;
-    }
-    if (ch === ']') {
-      if (bracketDepth > 0) bracketDepth -= 1;
-      continue;
-    }
-    if (bracketDepth > 0) continue;
+  const lines = text.split(/\r?\n/);
+  const normalizedIdsSet = new Set<string>();
+  let inMetaBlock = false;
 
-    if (ch === '\n') {
-      const part = rawBlock.slice(start, i).trim();
-      if (part) sentences.push(part);
-      start = i + 1;
-      lineStart = i + 1;
-      continue;
+  const updatedLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (
+      trimmed.startsWith('> 📚') ||
+      trimmed.startsWith('> ⚠️') ||
+      trimmed.startsWith('> 📌')
+    ) {
+      inMetaBlock = true;
+      return line;
     }
-
-    if (ch === ';') {
-      const part = rawBlock.slice(start, i + 1).trim();
-      if (part) sentences.push(part);
-      start = i + 1;
-      continue;
+    if (inMetaBlock) {
+      if (trimmed.startsWith('>')) return line;
+      inMetaBlock = false;
+    }
+    if (/^\*?📚\s*Nguồn đối chiếu:/iu.test(trimmed)) {
+      return line;
     }
 
-    if (ch === '.' || ch === '!' || ch === '?' || ch === '…') {
-      if (ch === '.') {
-        const prevCh = i > 0 ? rawBlock[i - 1] : '';
-        const nextCh = i + 1 < rawBlock.length ? rawBlock[i + 1] : '';
-        if (/\d/.test(prevCh) && /\d/.test(nextCh)) {
-          continue;
-        }
-        if (/^\s*\d+$/.test(rawBlock.slice(lineStart, i))) {
-          continue;
-        }
-        if (nextCh === '.') {
-          continue;
-        }
+    return line.replace(
+      BARE_CITATION_ID_RE,
+      (fullMatch, rawInner: string, offset: number, fullLine: string) => {
+        const before = fullLine.slice(Math.max(0, offset - 12), offset);
+        if (/\[Nguồn:\s*$/iu.test(before)) return fullMatch;
+        const idUpper = rawInner.trim().toUpperCase();
+        if (!CITATION_ID_SYNTAX_RE.test(idUpper)) return fullMatch;
+        if (!knownIdsUpper.has(idUpper)) return fullMatch;
+        normalizedIdsSet.add(idUpper);
+        return `[Nguồn: ${idUpper}]`;
+      },
+    );
+  });
+
+  return {
+    text: updatedLines.join('\n'),
+    normalizedBareIds: Array.from(normalizedIdsSet),
+  };
+}
+
+function derivePalaceGanZhiMapFromChart(chart: ZiweiChart): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const p of chart.palaces) {
+    const palaceVi = translatePalaceName(p.name);
+    const stemVi = VI_STEMS[p.stem] ?? '';
+    const branchVi = VI_BRANCHES[p.branch] ?? '';
+    if (palaceVi && stemVi && branchVi) {
+      map[palaceVi] = `${stemVi} ${branchVi}`;
+    }
+  }
+  return map;
+}
+
+function splitNonMetaBodyBlocks(text: string): string[] {
+  if (!text || !text.trim()) return [];
+  const lines = text.normalize('NFC').split(/\r?\n/);
+  const rawBlocks: string[] = [];
+  let buffer: string[] = [];
+
+  const flushBuffer = () => {
+    if (buffer.length > 0) {
+      const joined = buffer.join('\n').trim();
+      if (joined && !isGeneratedMetaOrNoticeBlock(joined)) {
+        rawBlocks.push(joined);
       }
+      buffer = [];
+    }
+  };
 
-      let j = i + 1;
-      while (j < rawBlock.length && /["'”’»)*]/.test(rawBlock[j])) {
-        j += 1;
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      flushBuffer();
+      continue;
+    }
+    if (/^#{1,6}\s+/.test(trimmed)) {
+      flushBuffer();
+      rawBlocks.push(trimmed);
+      continue;
+    }
+    if (/^(?:[-*•]|\d+[.)])\s+/.test(trimmed)) {
+      flushBuffer();
+      buffer.push(line);
+      continue;
+    }
+    if (/^>\s*/.test(trimmed)) {
+      if (buffer.length > 0 && !buffer[0].trim().startsWith('>')) {
+        flushBuffer();
       }
-      const atBoundary =
-        j >= rawBlock.length || /\s/.test(rawBlock[j]) || rawBlock[j] === '[';
-      if (atBoundary) {
-        const part = rawBlock.slice(start, j).trim();
-        if (part) sentences.push(part);
-        start = j;
-        i = j - 1;
+      buffer.push(line);
+      continue;
+    }
+    buffer.push(line);
+  }
+  flushBuffer();
+
+  const finalBlocks: string[] = [];
+  for (const raw of rawBlocks) {
+    if (isGeneratedMetaOrNoticeBlock(raw)) continue;
+    finalBlocks.push(...splitLongParagraphToMaxChars(raw, MAX_SEMANTIC_BLOCK_CHARS));
+  }
+  return finalBlocks;
+}
+
+interface PalaceBlockSegment {
+  palaceVi: string | null;
+  text: string;
+}
+
+function segmentTextByCanonicalPalaceHeadings(
+  text: string,
+  chart?: ZiweiChart,
+): PalaceBlockSegment[] {
+  const workingText = chart ? enforceCanonicalPalaceGroupHeadings(text, chart) : text;
+  const lines = workingText.normalize('NFC').split(/\r?\n/);
+  const segments: PalaceBlockSegment[] = [];
+  let currentPalace: string | null = null;
+  let currentLines: string[] = [];
+
+  const flush = () => {
+    const joined = currentLines.join('\n').trim();
+    if (joined) {
+      segments.push({ palaceVi: currentPalace, text: joined });
+    }
+    currentLines = [];
+  };
+
+  for (const line of lines) {
+    const m = line.match(CANONICAL_PALACE_HEADING_RE);
+    if (m) {
+      flush();
+      const rawPal = m[1].replace(/\s+/g, ' ').trim().toLowerCase();
+      currentPalace = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPal) ?? null;
+      currentLines.push(line);
+    } else {
+      currentLines.push(line);
+    }
+  }
+  flush();
+
+  return segments;
+}
+
+interface DaXianPeriodRuleInfo {
+  ageKey: string;
+  ageLabel: string;
+  stemVi: string;
+  palaceVi: string;
+}
+
+function buildDaXianPeriodLookup(chart: ZiweiChart): {
+  byAgeKey: Map<string, DaXianPeriodRuleInfo>;
+  currentPeriod: DaXianPeriodRuleInfo | null;
+} {
+  const byAgeKey = new Map<string, DaXianPeriodRuleInfo>();
+  let currentPeriod: DaXianPeriodRuleInfo | null = null;
+
+  for (let i = 0; i < (chart.daXians?.length ?? 0); i++) {
+    const dx = chart.daXians[i];
+    const pal = chart.palaces.find((p) => p.branch === dx.palaceBranch);
+    if (!pal) continue;
+    const stemVi = VI_STEMS[pal.stem] ?? '';
+    const palaceVi = translatePalaceName(pal.name);
+    if (!stemVi) continue;
+    const ageKey = `${dx.startAge}-${dx.endAge}`;
+    const info: DaXianPeriodRuleInfo = {
+      ageKey,
+      ageLabel: `${dx.startAge}–${dx.endAge}`,
+      stemVi,
+      palaceVi,
+    };
+    byAgeKey.set(ageKey, info);
+    if (i === chart.currentDaXianIndex) {
+      currentPeriod = info;
+    }
+  }
+
+  return { byAgeKey, currentPeriod };
+}
+
+const AGE_RANGE_WITH_PREFIX_RE =
+  /(?:từ\s+)?(\d{1,3})\s*(?:[-–—~]|đến|tới)\s*(\d{1,3})(?:\s*tuổi)?/giu;
+
+const EXPLICIT_DAXIAN_BRACKET_RE = new RegExp(
+  `\\[Tứ\\s+Hóa\\s+Đại\\s+Hạn[^\\]]*?(?:Kỳ\\s*)?(?:(\\d{1,3})\\s*(?:[-–—~]|đến|tới)\\s*(\\d{1,3})[^\\]]*?)?Can\\s+(${STEM_NAMES_PATTERN})(?!\\p{L})[^\\]]*?\\]`,
+  'giu',
+);
+
+const EXPLICIT_DAXIAN_PARENS_RE = new RegExp(
+  `Đại\\s+Hạn(?:\\s+hiện\\s+tại)?(?:\\s+Kỳ)?\\s*(?:từ\\s+)?(\\d{1,3})\\s*(?:[-–—~]|đến|tới)\\s*(\\d{1,3})(?:\\s*tuổi)?[^.!?\n;]{0,65}?\\(\\s*(?:[^()]*?[·,;]\\s*)?(?:Can\\s+)?(${STEM_NAMES_PATTERN})(?:\\s+(?:${BRANCH_NAMES_PATTERN}))?\\s*\\)`,
+  'giu',
+);
+
+const DAXIAN_CONTEXT_RE = /Đại\s+Hạn|Tứ\s+Hóa\s+Đại\s+Hạn/iu;
+const DAXIAN_CAN_STEM_RE = new RegExp(`(?<!\\p{L})Can\\s+(${STEM_NAMES_PATTERN})(?!\\p{L})`, 'giu');
+
+function stripMatchedSpans(sentence: string, ranges: Array<[number, number]>): string {
+  if (ranges.length === 0) return sentence;
+  const sorted = [...ranges].sort((a, b) => a[0] - b[0]);
+  let out = '';
+  let cursor = 0;
+  for (const [s, e] of sorted) {
+    if (s > cursor) out += sentence.slice(cursor, s);
+    out += ' '.repeat(Math.max(1, e - s));
+    cursor = Math.max(cursor, e);
+  }
+  if (cursor < sentence.length) out += sentence.slice(cursor);
+  return out;
+}
+
+/**
+ * W2 (P04): Soát lỗi gán sai Thiên Can Đại Hạn theo cặp (khoảng tuổi, can) ở cấp CÂU/MỆNH ĐỀ.
+ * - Phân đoạn theo block `### Cung ...` sau chuẩn hóa tiêu đề.
+ * - Horizon: tập can hợp lệ = tập governingDaXian trong cửa sổ năm.
+ */
+export function verifyDaXianStemsInText(
+  text: string,
+  chart: ZiweiChart,
+  options?: {
+    isHorizon?: boolean;
+    horizonYears?: number;
+  },
+): Kp3AuditFlag[] {
+  if (!text || !chart?.daXians?.length) return [];
+
+  const { byAgeKey, currentPeriod } = buildDaXianPeriodLookup(chart);
+  const flags: Kp3AuditFlag[] = [];
+  const seen = new Set<string>();
+
+  const validHorizonStems = new Set<string>();
+  if (options?.isHorizon) {
+    const yearsCount = options.horizonYears ?? 10;
+    const hCtx = buildMultiYearHorizonContext(chart, 2026, 2026 + yearsCount - 1);
+    for (const row of hCtx.rows) {
+      if (row.governingDaXian && !row.governingDaXian.isPreDaXian) {
+        const dx = chart.daXians[row.governingDaXian.daXianIndex];
+        const dxPalace = dx
+          ? chart.palaces.find((p) => p.branch === dx.palaceBranch)
+          : undefined;
+        const stem =
+          (dxPalace ? VI_STEMS[dxPalace.stem] : '') ||
+          row.governingDaXian.ganZhiVi.trim().split(/\s+/)[0] ||
+          '';
+        if (stem && STEM_CANONICAL_BY_LOWER.has(stem.toLowerCase())) {
+          validHorizonStems.add(stem.toLowerCase());
+        }
       }
     }
   }
 
-  const tail = rawBlock.slice(start).trim();
-  if (tail) sentences.push(tail);
-  return sentences;
+  const pushFlag = (
+    ageLabel: string,
+    foundStem: string,
+    expectedDesc: string,
+    palaceVi: string | null,
+    excerpt: string,
+  ) => {
+    const dedup = `${ageLabel}::${foundStem.toLowerCase()}::${expectedDesc}::${palaceVi ?? ''}`;
+    if (seen.has(dedup)) return;
+    seen.add(dedup);
+    flags.push({
+      code: 'DAXIAN_STEM_MISMATCH',
+      severity: 'critical',
+      ...(palaceVi ? { palaceVi } : {}),
+      ...(ageLabel ? { ageRange: ageLabel } : {}),
+      excerpt: excerpt.slice(0, 140),
+      messageVi: ageLabel
+        ? `Đại Hạn ${ageLabel} ghi Thiên Can "${foundStem}" không khớp lá số (đúng là Can ${expectedDesc}).`
+        : `Ngữ cảnh Đại Hạn ghi Thiên Can "${foundStem}" nằm ngoài kỳ Đại Hạn hợp lệ (${expectedDesc}).`,
+    });
+  };
+
+  const segments = segmentTextByCanonicalPalaceHeadings(text, chart);
+
+  for (const seg of segments) {
+    const blocks = splitNonMetaBodyBlocks(seg.text);
+    for (const block of blocks) {
+      const sentences = splitRawBlockIntoSentences(block);
+      for (const sentence of sentences) {
+        const matchedSpans: Array<[number, number]> = [];
+
+        // 1) Bắt các thẻ tường minh dạng `[Tứ Hóa Đại Hạn ... (X–Y · Can Z)]`
+        EXPLICIT_DAXIAN_BRACKET_RE.lastIndex = 0;
+        let bMatch: RegExpExecArray | null;
+        while ((bMatch = EXPLICIT_DAXIAN_BRACKET_RE.exec(sentence)) !== null) {
+          matchedSpans.push([bMatch.index, bMatch.index + bMatch[0].length]);
+          const foundStem = STEM_CANONICAL_BY_LOWER.get((bMatch[3] ?? '').toLowerCase());
+          if (!foundStem) continue;
+          if (bMatch[1] && bMatch[2]) {
+            const ageKey = `${Number(bMatch[1])}-${Number(bMatch[2])}`;
+            const periodInfo = byAgeKey.get(ageKey);
+            if (periodInfo && periodInfo.stemVi.toLowerCase() !== foundStem.toLowerCase()) {
+              pushFlag(
+                periodInfo.ageLabel,
+                foundStem,
+                periodInfo.stemVi,
+                seg.palaceVi ?? periodInfo.palaceVi,
+                sentence,
+              );
+            }
+          } else if (options?.isHorizon && validHorizonStems.size > 0) {
+            if (!validHorizonStems.has(foundStem.toLowerCase())) {
+              const expectedList = Array.from(validHorizonStems)
+                .map((s) => STEM_CANONICAL_BY_LOWER.get(s) ?? s)
+                .join('/');
+              pushFlag('', foundStem, expectedList, seg.palaceVi, sentence);
+            }
+          }
+        }
+
+        // 2) Bắt mẫu `Đại Hạn X–Y tuổi (Can Z)` / `Đại Hạn X–Y tuổi (Z Chi)`
+        EXPLICIT_DAXIAN_PARENS_RE.lastIndex = 0;
+        let pMatch: RegExpExecArray | null;
+        while ((pMatch = EXPLICIT_DAXIAN_PARENS_RE.exec(sentence)) !== null) {
+          matchedSpans.push([pMatch.index, pMatch.index + pMatch[0].length]);
+          const ageKey = `${Number(pMatch[1])}-${Number(pMatch[2])}`;
+          const foundStem = STEM_CANONICAL_BY_LOWER.get((pMatch[3] ?? '').toLowerCase());
+          if (!foundStem) continue;
+          const periodInfo = byAgeKey.get(ageKey);
+          if (periodInfo && periodInfo.stemVi.toLowerCase() !== foundStem.toLowerCase()) {
+            pushFlag(
+              periodInfo.ageLabel,
+              foundStem,
+              periodInfo.stemVi,
+              seg.palaceVi ?? periodInfo.palaceVi,
+              sentence,
+            );
+          }
+        }
+
+        // 3) Quét cấp mệnh đề trong phần còn lại của câu (chỉ bắt Can đi kèm ngữ cảnh Đại Hạn)
+        const remainder = stripMatchedSpans(sentence, matchedSpans);
+        if (!DAXIAN_CONTEXT_RE.test(remainder)) continue;
+
+        const clauses = remainder.split(
+          /(?:\s*;\s*|\s+[—–]\s+|\s+(?:chuyển\s+sang|bước\s+sang|sang\s+đến|trong\s+khi)\s+)/iu,
+        );
+
+        let lastAgeInSentence: DaXianPeriodRuleInfo | null = null;
+        for (const clause of clauses) {
+          if (!clause.trim()) continue;
+          const ageMatches: Array<{ idx: number; info: DaXianPeriodRuleInfo }> = [];
+          AGE_RANGE_WITH_PREFIX_RE.lastIndex = 0;
+          let am: RegExpExecArray | null;
+          while ((am = AGE_RANGE_WITH_PREFIX_RE.exec(clause)) !== null) {
+            const ageKey = `${Number(am[1])}-${Number(am[2])}`;
+            const info = byAgeKey.get(ageKey);
+            if (info) {
+              ageMatches.push({ idx: am.index, info });
+              lastAgeInSentence = info;
+            }
+          }
+
+          if (!DAXIAN_CONTEXT_RE.test(clause) && ageMatches.length === 0) {
+            continue;
+          }
+
+          DAXIAN_CAN_STEM_RE.lastIndex = 0;
+          let cm: RegExpExecArray | null;
+          while ((cm = DAXIAN_CAN_STEM_RE.exec(clause)) !== null) {
+            const beforeCtx = clause.slice(Math.max(0, cm.index - 28), cm.index);
+            // Bỏ qua nếu đây là Thiên Can Bản Mệnh / Lưu Niên / Phi Tinh / Tự Hóa / Can Cung
+            if (/(?:Bản\s+Mệnh|Lưu\s+Niên|năm\s+sinh|Phi\s+Tinh|Tự\s+Hóa|Can\s+Cung|cung\s+gốc)[^.]{0,12}$/iu.test(beforeCtx)) {
+              continue;
+            }
+            const foundStem = STEM_CANONICAL_BY_LOWER.get((cm[1] ?? '').toLowerCase());
+            if (!foundStem) continue;
+
+            // Chọn khoảng tuổi gần nhất trong mệnh đề (ưu tiên đứng trước vị trí Can)
+            let pairedAge: DaXianPeriodRuleInfo | null = null;
+            if (ageMatches.length > 0) {
+              const beforeAges = ageMatches.filter((a) => a.idx <= cm!.index);
+              pairedAge =
+                beforeAges.length > 0
+                  ? beforeAges[beforeAges.length - 1].info
+                  : ageMatches[0].info;
+            } else if (lastAgeInSentence) {
+              pairedAge = lastAgeInSentence;
+            }
+
+            if (pairedAge) {
+              if (pairedAge.stemVi.toLowerCase() !== foundStem.toLowerCase()) {
+                pushFlag(
+                  pairedAge.ageLabel,
+                  foundStem,
+                  pairedAge.stemVi,
+                  seg.palaceVi ?? pairedAge.palaceVi,
+                  sentence,
+                );
+              }
+            } else if (options?.isHorizon && validHorizonStems.size > 0) {
+              if (!validHorizonStems.has(foundStem.toLowerCase())) {
+                const expectedList = Array.from(validHorizonStems)
+                  .map((s) => STEM_CANONICAL_BY_LOWER.get(s) ?? s)
+                  .join('/');
+                pushFlag('', foundStem, expectedList, seg.palaceVi, sentence);
+              }
+            } else if (
+              /Đại\s+Hạn\s+hiện\s+tại/iu.test(clause) &&
+              currentPeriod &&
+              currentPeriod.stemVi.toLowerCase() !== foundStem.toLowerCase()
+            ) {
+              pushFlag(
+                currentPeriod.ageLabel,
+                foundStem,
+                currentPeriod.stemVi,
+                seg.palaceVi ?? currentPeriod.palaceVi,
+                sentence,
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return flags;
+}
+
+const KHONG_KIEP_PAIR_RE =
+  /(?<!\p{L})(?:(?:bộ\s+đôi|bộ|cặp)\s+)?(?:(?:địa\s+)?không(?:\s*[-/–—]\s*|\s+và\s+|\s+)(?:địa\s+)?kiếp(?:\s*\/\s*(?:địa\s+)?không)?|(?:địa\s+)?kiếp(?:\s*[-/–—]\s*|\s+và\s+|\s+)(?:địa\s+)?không(?:\s*\/\s*(?:địa\s+)?kiếp)?)(?!\p{L})/giu;
+
+const KHONG_KIEP_NEGATION_RE =
+  /(?:không\s+(?:phải(?:\s+là)?|tạo(?:\s+thành)?|kết\s+hợp(?:\s+thành)?|gọi(?:\s+là)?|xem\s+là|coi\s+là|hình\s+thành)\s+(?:bộ\s+đôi\s+|bộ\s+|cặp\s+|cách\s+)?(?:địa\s+)?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không)|tránh\s+gọi(?:\s+là)?\s+[^.!?\n]{0,20}?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không)|không\s+được\s+gọi\s+(?:là\s+)?['"\u201C\u2018]?(?:bộ\s+|cặp\s+)?(?:địa\s+)?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không))/iu;
+
+const QUOTED_SPAN_RE = /["\u201C\u201D'\u2018\u2019«„]([^"\u201C\u201D'\u2018\u2019»\n]{2,200})["\u201C\u201D'\u2018\u2019»]/gu;
+
+const EXPLICIT_NATAL_TRUNG_RE = new RegExp(
+  `trùng\\s+(?:cung\\s+)?(?:Bản\\s+Mệnh\\s+gốc\\s*:?\\s*)?(${PALACE_NAMES_PATTERN})(?!\\p{L})`,
+  'giu',
+);
+
+const EXPLICIT_NATAL_PALACE_RE = new RegExp(
+  `(?<!\\p{L})(?:Cung\\s+(?!Lưu\\b|Đại\\s+Hạn\\b)|tại\\s+(?:cung\\s+)?(?:Bản\\s+Mệnh\\s+gốc\\s*:?\\s*)?)(${PALACE_NAMES_PATTERN})(?!\\p{L})`,
+  'giu',
+);
+
+const PERIOD_ROLE_PALACE_RE = new RegExp(
+  `(?<!\\p{L})Cung\\s+(?:Lưu|Đại\\s+Hạn)\\s+(${PALACE_NAMES_PATTERN})(?!\\p{L})`,
+  'giu',
+);
+
+function buildKhongKiepSanFangMap(chart: ZiweiChart): Map<string, boolean> {
+  const byBranch = new Map<number, Set<string>>();
+  for (const p of chart.palaces) {
+    const names = new Set<string>();
+    for (const s of p.stars) {
+      names.add(translateStarName(s.name));
+    }
+    byBranch.set(p.branch, names);
+  }
+
+  const result = new Map<string, boolean>();
+  for (const p of chart.palaces) {
+    const natalName = translatePalaceName(p.name);
+    if (!natalName) continue;
+    const branches = [
+      p.branch,
+      (p.branch + 4) % 12,
+      (p.branch + 8) % 12,
+      (p.branch + 6) % 12,
+    ];
+    let hasDiaKhong = false;
+    let hasDiaKiep = false;
+    for (const b of branches) {
+      const stars = byBranch.get(b);
+      if (!stars) continue;
+      if (stars.has('Địa Không')) hasDiaKhong = true;
+      if (stars.has('Địa Kiếp')) hasDiaKiep = true;
+    }
+    result.set(natalName, hasDiaKhong && hasDiaKiep);
+  }
+  return result;
+}
+
+function resolvePeriodRoleToNatalMap(
+  chart: ZiweiChart,
+  periodContext?: YunxianPeriodContext | null,
+  sectionId?: string,
+): { roleMap: Map<string, string>; activatedNatalPalace: string | null } {
+  const roleMap = new Map<string, string>();
+  let ctx = periodContext ?? null;
+  if (!ctx && (sectionId === 'year_2026' || sectionId === 'year_2027')) {
+    const year = sectionId === 'year_2026' ? 2026 : 2027;
+    ctx = buildYunxianPeriodContext(chart, { mode: 'liunian', year });
+  }
+  if (!ctx) {
+    return { roleMap, activatedNatalPalace: null };
+  }
+
+  const branchIndex = ctx.branchIndex;
+  const roleOrder = [
+    'Mệnh Cung',
+    'Huynh Đệ',
+    'Phu Thê',
+    'Tử Nữ',
+    'Tài Bạch',
+    'Tật Ách',
+    'Thiên Di',
+    'Giao Hữu',
+    'Quan Lộc',
+    'Điền Trạch',
+    'Phúc Đức',
+    'Phụ Mẫu',
+  ];
+  for (let offset = 0; offset < 12; offset++) {
+    const targetBranch = ((branchIndex - offset) % 12 + 12) % 12;
+    const pal = chart.palaces.find((p) => p.branch === targetBranch);
+    if (!pal) continue;
+    const natalName = translatePalaceName(pal.name);
+    const roleCanonical = PERIOD_ROLE_CANONICAL_BY_LOWER.get(roleOrder[offset].toLowerCase());
+    if (natalName && roleCanonical) {
+      roleMap.set(roleCanonical, natalName);
+    }
+  }
+  return {
+    roleMap,
+    activatedNatalPalace: ctx.activatedPalace?.natalPalaceNameVi ?? null,
+  };
+}
+
+function resolveSentenceTargetPalace(
+  sentence: string,
+  matchIndex: number,
+  roleMap: Map<string, string>,
+): string | null {
+  const candidates: Array<{ idx: number; palaceVi: string }> = [];
+
+  EXPLICIT_NATAL_TRUNG_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = EXPLICIT_NATAL_TRUNG_RE.exec(sentence)) !== null) {
+    const raw = (m[1] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const canon = PERIOD_ROLE_CANONICAL_BY_LOWER.get(raw);
+    if (canon) candidates.push({ idx: m.index, palaceVi: canon });
+  }
+
+  EXPLICIT_NATAL_PALACE_RE.lastIndex = 0;
+  while ((m = EXPLICIT_NATAL_PALACE_RE.exec(sentence)) !== null) {
+    const raw = (m[1] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const canon = PERIOD_ROLE_CANONICAL_BY_LOWER.get(raw);
+    if (canon) candidates.push({ idx: m.index, palaceVi: canon });
+  }
+
+  if (roleMap.size > 0) {
+    PERIOD_ROLE_PALACE_RE.lastIndex = 0;
+    while ((m = PERIOD_ROLE_PALACE_RE.exec(sentence)) !== null) {
+      const rawRole = (m[1] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const roleCanon = PERIOD_ROLE_CANONICAL_BY_LOWER.get(rawRole);
+      const natal = roleCanon ? roleMap.get(roleCanon) : undefined;
+      if (natal) candidates.push({ idx: m.index, palaceVi: natal });
+    }
+  }
+
+  if (candidates.length === 0) return null;
+  const before = candidates.filter((c) => c.idx <= matchIndex);
+  if (before.length > 0) {
+    before.sort((a, b) => a.idx - b.idx);
+    return before[before.length - 1].palaceVi;
+  }
+  candidates.sort((a, b) => a.idx - b.idx);
+  return candidates[0].palaceVi;
+}
+
+function isMatchInsideQuotes(sentence: string, matchStart: number, matchEnd: number): boolean {
+  QUOTED_SPAN_RE.lastIndex = 0;
+  let qm: RegExpExecArray | null;
+  while ((qm = QUOTED_SPAN_RE.exec(sentence)) !== null) {
+    const qStart = qm.index;
+    const qEnd = qm.index + qm[0].length;
+    if (matchStart >= qStart && matchEnd <= qEnd) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**
- * ĐN-4 & ĐN-6 & X2/X3/Z5: Hậu kiểm chống bịa 3 lớp (V1, V2 theo câu, V3 theo khối).
- * - TUYỆT ĐỐI không sửa/viết lại chữ trong câu văn tiếng Việt của AI.
- * - Chỉ gỡ bỏ token `[Nguồn: ...]` sai (`V1` hoặc `V3`), tách thẻ đa ID thành thẻ đơn và đồng bộ danh mục tham chiếu (X3).
+ * W4 (P01+P02): Phát hiện mọi cách gọi họ "Không Kiếp" khi thiếu Địa Không hoặc Địa Kiếp trong Bản cung ∪ Tam Phương Tứ Chính.
+ */
+export function verifyIllegalKhongKiepMentions(
+  text: string,
+  chart: ZiweiChart,
+  options?: {
+    validCitationIdsSetUpper?: ReadonlySet<string>;
+    periodContext?: YunxianPeriodContext | null;
+    sectionId?: string;
+  },
+): Kp3AuditFlag[] {
+  if (!text || !chart?.palaces?.length) return [];
+
+  const sanFangMap = buildKhongKiepSanFangMap(chart);
+  const { roleMap, activatedNatalPalace } = resolvePeriodRoleToNatalMap(
+    chart,
+    options?.periodContext,
+    options?.sectionId,
+  );
+  const validIdsUpper = options?.validCitationIdsSetUpper ?? new Set<string>();
+
+  const flags: Kp3AuditFlag[] = [];
+  const seen = new Set<string>();
+  const segments = segmentTextByCanonicalPalaceHeadings(text, chart);
+
+  for (const seg of segments) {
+    let lastSectionPalace: string | null = seg.palaceVi ?? null;
+    const blocks = splitNonMetaBodyBlocks(seg.text);
+
+    for (const block of blocks) {
+      if (/^#{1,3}\s+/.test(block) && !CANONICAL_PALACE_HEADING_RE.test(block)) {
+        lastSectionPalace = seg.palaceVi ?? null;
+      }
+
+      const sentences = splitRawBlockIntoSentences(block);
+      for (const sentence of sentences) {
+        const sentenceWithoutTags = sentence.replace(CITATION_TAG_M3_REGEX, ' ');
+
+        // Kiểm tra xem câu này có thẻ `[Nguồn: ...]` hợp lệ (V1 & V3) không
+        let sentenceHasValidCitation = false;
+        if (validIdsUpper.size > 0) {
+          CITATION_TAG_M3_REGEX.lastIndex = 0;
+          let tm: RegExpExecArray | null;
+          while ((tm = CITATION_TAG_M3_REGEX.exec(sentence)) !== null) {
+            const parsed = parseCitationTagInner(tm[1] ?? '');
+            if (
+              !parsed.isEmptyTag &&
+              parsed.candidates.some((c) => c.isValidFormat && validIdsUpper.has(c.idUpper))
+            ) {
+              sentenceHasValidCitation = true;
+              break;
+            }
+          }
+        }
+
+        // Cập nhật ngữ cảnh cung gần nhất trong section nếu câu nhắc đích danh cung
+        const mentionedInSentence = resolveSentenceTargetPalace(
+          sentenceWithoutTags,
+          sentenceWithoutTags.length,
+          roleMap,
+        );
+        if (!seg.palaceVi && mentionedInSentence) {
+          lastSectionPalace = mentionedInSentence;
+        }
+
+        KHONG_KIEP_PAIR_RE.lastIndex = 0;
+        let km: RegExpExecArray | null;
+        while ((km = KHONG_KIEP_PAIR_RE.exec(sentenceWithoutTags)) !== null) {
+          // Miễn trừ (i): câu phủ định tuân thủ prompt
+          if (KHONG_KIEP_NEGATION_RE.test(sentenceWithoutTags)) {
+            continue;
+          }
+
+          // Miễn trừ (ii): trích dẫn nguyên văn trong ngoặc kép KÈM thẻ [Nguồn: ...] hợp lệ
+          if (
+            sentenceHasValidCitation &&
+            isMatchInsideQuotes(sentenceWithoutTags, km.index, km.index + km[0].length)
+          ) {
+            continue;
+          }
+
+          const resolvedPalace =
+            resolveSentenceTargetPalace(sentenceWithoutTags, km.index, roleMap) ??
+            seg.palaceVi ??
+            lastSectionPalace ??
+            activatedNatalPalace;
+
+          if (!resolvedPalace) continue;
+
+          const hasBoth = sanFangMap.get(resolvedPalace) ?? false;
+          if (!hasBoth) {
+            const dedup = resolvedPalace;
+            if (seen.has(dedup)) continue;
+            seen.add(dedup);
+            flags.push({
+              code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+              severity: 'critical',
+              palaceVi: resolvedPalace,
+              excerpt: sentenceWithoutTags.trim().slice(0, 140),
+              messageVi: `Cung ${resolvedPalace} gọi "${km[0]}" nhưng Bản cung và Tam Phương Tứ Chính không có đủ cả Địa Không lẫn Địa Kiếp.`,
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return flags;
+}
+
+export interface VerifyCitationAuditOptions {
+  palaceGanZhiMap?: Record<string, string>;
+  chart?: ZiweiChart;
+  sectionId?: string;
+  chapterMode?: 'overview' | 'palace_group' | 'period' | 'horizon' | 'chat';
+  periodContext?: YunxianPeriodContext | null;
+  allKnownEntryIds?: ReadonlySet<string> | readonly string[];
+}
+
+/**
+ * ĐN-4 & ĐN-6 & X2/X3/Z5 + KP-3 đầy đủ (W1–W5) & Z3:
+ * - Z3: Chuẩn hóa thẻ `[ID]` trần thành `[Nguồn: ID]` trên thân bài trước V1/V3/W5.
+ * - V1/V2/V3: Hậu kiểm chống bịa 3 lớp (W3 miễn mục 07-methodology / không có neo thực thể cụ thể).
+ * - KP-3 đầy đủ: W1 (Can Chi cung), W2 (Thiên Can Đại Hạn theo kỳ/Horizon), W4 (Không Kiếp), W5 (chương 0 trích dẫn).
  */
 export function verifyAcademicCitationsAndClaims(
   text: string,
   allowedEntries: readonly DistilledKnowledgeEntry[],
-  options?: { palaceGanZhiMap?: Record<string, string> },
+  options?: VerifyCitationAuditOptions,
 ): CitationAuditResult {
-  const normalized = (text || '').normalize('NFC');
+  const rawNormalized = (text || '').normalize('NFC');
   const allowedById = new Map<string, DistilledKnowledgeEntry>();
   for (const entry of allowedEntries) {
     allowedById.set(entry.id.trim().toUpperCase(), entry);
   }
 
-  const blocks = splitMarkdownSemanticBlocks(normalized);
+  // Z3 (P16): Tập ID nhận diện thẻ trần = allowedById ∪ kho KB đã nạp (hoặc danh sách chỉ định)
+  const knownIdsUpper = new Set<string>(allowedById.keys());
+  if (options?.allKnownEntryIds) {
+    for (const id of options.allKnownEntryIds) {
+      const upper = id.trim().toUpperCase();
+      if (upper) knownIdsUpper.add(upper);
+    }
+  } else {
+    for (const idUpper of getLoadedKnowledgeBaseIdSetUpper()) {
+      knownIdsUpper.add(idUpper);
+    }
+  }
+
+  const bareNormalized = normalizeBareCitationTagsInBody(rawNormalized, knownIdsUpper);
+  const normalized = bareNormalized.text;
+
+  const blocks = splitNonMetaBodyBlocks(normalized);
   const violations: CitationViolation[] = [];
   const v1InvalidIdsSet = new Set<string>();
   const v3MismatchIdsSet = new Set<string>();
@@ -584,12 +1291,14 @@ export function verifyAcademicCitationsAndClaims(
   });
 
   // X3: Loại khỏi danh mục tham chiếu mọi ID nằm trong scrubbedInvalidIds
-  // (bảo đảm đồng bộ 100% giữa thẻ sống trong thân bài sau scrub và mục tham chiếu).
   const scrubbedSetUpper = new Set(
     scrubbedInvalidIds.map((id) => id.trim().toUpperCase()),
   );
   const finalValidIdsInOrder = validIdsInOrder.filter(
     (id) => !scrubbedSetUpper.has(id.trim().toUpperCase()),
+  );
+  const finalValidSetUpper = new Set(
+    finalValidIdsInOrder.map((id) => id.trim().toUpperCase()),
   );
 
   const usedValidEntries = finalValidIdsInOrder
@@ -599,9 +1308,70 @@ export function verifyAcademicCitationsAndClaims(
   const hasUncitedClaims =
     v2UncitedBlocks.length > 0 || v3MismatchIds.length > 0 || v1InvalidIds.length > 0;
 
-  const palaceGanZhiMismatches = options?.palaceGanZhiMap
-    ? verifyPalaceGanZhiMentions(normalized, options.palaceGanZhiMap)
+  // W1: Kiểm tra Can Chi 12 cung Bản Mệnh
+  const effectivePalaceGanZhiMap =
+    options?.palaceGanZhiMap ??
+    (options?.chart ? derivePalaceGanZhiMapFromChart(options.chart) : undefined);
+
+  const palaceGanZhiMismatches = effectivePalaceGanZhiMap
+    ? verifyPalaceGanZhiMentions(normalized, effectivePalaceGanZhiMap)
     : [];
+
+  const auditFlags: Kp3AuditFlag[] = [];
+  for (const mm of palaceGanZhiMismatches) {
+    auditFlags.push({
+      code: 'PALACE_GANZHI_MISMATCH',
+      severity: 'critical',
+      palaceVi: mm.palaceVi,
+      messageVi: `Cung ${mm.palaceVi} ghi Can Chi "${mm.foundGanZhi}" không khớp lá số (đúng là "${mm.expectedGanZhi}").`,
+    });
+  }
+
+  const resolvedChapterMode =
+    options?.chapterMode ??
+    (options?.sectionId === 'horizon_5y' || options?.sectionId === 'horizon_10y'
+      ? 'horizon'
+      : options?.sectionId === 'palaces_core' ||
+          options?.sectionId === 'palaces_family' ||
+          options?.sectionId === 'palaces_social_health'
+        ? 'palace_group'
+        : options?.sectionId === 'year_2026' || options?.sectionId === 'year_2027'
+          ? 'period'
+          : options?.periodContext
+            ? 'period'
+            : undefined);
+
+  // W2: Kiểm tra Thiên Can Đại Hạn theo kỳ / Horizon
+  if (options?.chart) {
+    const isHorizon = resolvedChapterMode === 'horizon';
+    const horizonYears = options?.sectionId === 'horizon_5y' ? 5 : 10;
+    auditFlags.push(
+      ...verifyDaXianStemsInText(normalized, options.chart, {
+        isHorizon,
+        horizonYears,
+      }),
+    );
+
+    // W4: Kiểm tra gọi sai họ Không Kiếp
+    auditFlags.push(
+      ...verifyIllegalKhongKiepMentions(normalized, options.chart, {
+        validCitationIdsSetUpper: finalValidSetUpper,
+        periodContext: options.periodContext,
+        sectionId: options.sectionId,
+      }),
+    );
+  }
+
+  // W5: Chương nhóm cung hoặc kỳ hạn (ch.2–6) có 0 thẻ [Nguồn: ...] hợp lệ (chỉ khi allowedEntries > 0)
+  const isChapter2To6 =
+    resolvedChapterMode === 'palace_group' || resolvedChapterMode === 'period';
+  if (isChapter2To6 && allowedEntries.length > 0 && finalValidIdsInOrder.length === 0) {
+    auditFlags.push({
+      code: 'ZERO_CITATIONS_IN_CHAPTER',
+      severity: 'medium',
+      messageVi: 'Chương không có trích dẫn [Nguồn: ...] hợp lệ nào từ kho tri thức đã nạp.',
+    });
+  }
 
   const referenceBlockMarkdown = buildReferenceAddendumBlock(usedValidEntries);
   const warningBlockMarkdown = buildVerificationWarningBlock(hasUncitedClaims);
@@ -617,9 +1387,13 @@ export function verifyAcademicCitationsAndClaims(
     v2UncitedBlocks,
     v3MismatchIds,
     scrubbedInvalidIds,
+    normalizedBareIds: bareNormalized.normalizedBareIds.filter((id) =>
+      finalValidSetUpper.has(id.toUpperCase()),
+    ),
     hasUncitedClaims,
     violations,
     palaceGanZhiMismatches,
+    auditFlags,
     scrubbedText,
     referenceBlockMarkdown,
     warningBlockMarkdown,

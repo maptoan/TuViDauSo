@@ -22,11 +22,25 @@ import {
   retrieveKnowledgeForPeriod,
 } from '../server/knowledge-base/retriever.ts';
 import type { DistilledKnowledgeEntry } from '../server/knowledge-base/types.ts';
+import type { DossierSectionId } from '../src/lib/ziwei/dossier-context.ts';
 import {
   verifyAcademicCitationsAndClaims,
+  verifyDaXianStemsInText,
+  verifyIllegalKhongKiepMentions,
   verifyPalaceGanZhiMentions,
 } from '../server/knowledge-base/verifier.ts';
-import { sanitizeDossierChapterText } from '../src/lib/dossier-chat-ui.ts';
+import {
+  DOSSIER_CHAPTER_SPECS,
+  buildChartIdentityKey,
+  buildDossierChapterCacheKey,
+  buildDossierMarkdownExport,
+  buildDossierPlainTextExport,
+  buildDossierStandaloneHtmlExport,
+  normalizeKnownBareCitationTags,
+  sanitizeDossierChapterText,
+  type DossierChapterId,
+  type DossierChapterState,
+} from '../src/lib/dossier-chat-ui.ts';
 import { generateChart } from '../src/lib/ziwei/algorithm.ts';
 import { scrubInvalidCitationTags } from '../src/lib/ziwei/text-sanitizer.ts';
 import { formToBirthInfo } from '../src/lib/ziwei/share.ts';
@@ -1421,6 +1435,385 @@ function runVerification() {
 
     resetKnowledgeBaseCache();
     console.log('  -> ĐẠT: 3 Prompt Builders, Sanitizer & KP-3-lite verifyPalaceGanZhiMentions tích hợp chuẩn xác.');
+
+    // ── Nhóm W (BRIEF 1.5.6 v2): KP-3 đầy đủ (W1–W6) & Z3 thẻ trần ─────────────
+    {
+      console.log('\n[BRIEF 1.5.6 — Nhóm W + Z3] Kiểm thử KP-3 đầy đủ & chuẩn hóa thẻ [ID] trần...');
+      loadKnowledgeBase();
+      const chart1977 = generateChart({
+        name: 'Đỗ Vũ Toàn',
+        year: 1977,
+        month: 7,
+        day: 26,
+        hour: 5,
+        gender: 'male',
+        city: 'Hà Nội',
+        longitude: 105.85,
+      });
+
+      // Z3: Chuẩn hóa [NH-STAR-054] trần thành [Nguồn: NH-STAR-054], bỏ qua [FAKE-999]
+      {
+        const z3Corpus = [
+          makeEntry('NH-STAR-054', { starsVi: ['Thái Dương'], palacesVi: ['Phu Thê'] }),
+          makeEntry('NH-SIHUA-002', { palacesVi: ['Phu Thê'], sihuaCombos: [{ mutagenVi: 'Hóa Kỵ' }] }),
+        ];
+        const rawBare = [
+          'Cung Phu Thê có Thái Dương hãm địa [NH-STAR-054] và chịu ảnh hưởng Hóa Kỵ [NH-SIHUA-002] nhưng bỏ qua mã bịa [FAKE-999] và `[NH-STAR-054]` trong backtick.',
+          '',
+          'Xem [liên kết](https://example.com) không phải thẻ nguồn.',
+        ].join('\n');
+        const audit = verifyAcademicCitationsAndClaims(rawBare, z3Corpus, {
+          chart: chart1977,
+          sectionId: 'palaces_family',
+          chapterMode: 'palace_group',
+        });
+        assert.ok(audit.validCitationIds.includes('NH-STAR-054'));
+        assert.ok(audit.validCitationIds.includes('NH-SIHUA-002'));
+        assert.ok(audit.normalizedBareIds.includes('NH-STAR-054'));
+        assert.ok(audit.referenceBlockMarkdown.includes('[NH-STAR-054]'));
+        assert.ok(audit.scrubbedText.includes('[Nguồn: NH-STAR-054]'));
+        assert.ok(audit.scrubbedText.includes('[FAKE-999]'));
+        assert.ok(!audit.scrubbedText.includes('[Nguồn: FAKE-999]'));
+        assert.ok(audit.scrubbedText.includes('`[NH-STAR-054]`'));
+        assert.strictEqual(
+          audit.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'),
+          false,
+        );
+
+        const clientNorm = normalizeKnownBareCitationTags(rawBare, audit.normalizedBareIds);
+        assert.strictEqual(
+          normalizeKnownBareCitationTags(clientNorm, audit.normalizedBareIds),
+          clientNorm,
+          'Z3 client helper phải idempotent',
+        );
+        const clientAfterScrub = scrubInvalidCitationTags(clientNorm, {
+          invalidIds: audit.scrubbedInvalidIds,
+        });
+        assert.ok(clientAfterScrub.includes('[Nguồn: NH-STAR-054]'));
+      }
+
+      // W1 + W2 + W3: Kiểm bộ ca lỗi 1.5.4 đã biết + phân đoạn cấp câu/mệnh đề + horizon + miễn trừ W3
+      {
+        const ch5BadGanZhi = verifyAcademicCitationsAndClaims(
+          'Năm Canh Ngọ 1990 rất thuận lợi. Tuy nhiên Cung Quan Lộc (Canh Ngọ) gặp biến động.',
+          [],
+          { chart: chart1977, sectionId: 'year_2026', chapterMode: 'period' },
+        );
+        const w1Flags = ch5BadGanZhi.auditFlags.filter((f) => f.code === 'PALACE_GANZHI_MISMATCH');
+        assert.strictEqual(w1Flags.length, 1);
+        assert.strictEqual(w1Flags[0].severity, 'critical');
+        assert.strictEqual(w1Flags[0].palaceVi, 'Quan Lộc');
+
+        // W2: Gán sai Can Canh cho Đại Hạn 24–33 (đúng là Nhâm) và hỗ trợ các biến thể dấu gạch
+        for (const variant of [
+          'Giai đoạn Đại Hạn 24-33 tuổi chịu chi phối bởi Can Canh.',
+          'Giai đoạn Đại Hạn 24–33 tuổi chịu chi phối bởi [Tứ Hóa Đại Hạn (24–33 · Can Canh)].',
+          'Giai đoạn Đại Hạn 24—33 tuổi với Can Canh làm biến động.',
+          'Giai đoạn Đại Hạn 24 ~ 33 tuổi kích hoạt Can Canh.',
+          'Trong Đại Hạn từ 24 đến 33 tuổi, Can Canh chi phối mạnh.',
+        ]) {
+          const flags = verifyDaXianStemsInText(variant, chart1977);
+          assert.ok(
+            flags.some((f) => f.code === 'DAXIAN_STEM_MISMATCH' && f.ageRange === '24–33'),
+            `W2 phải bắt biến thể sai Can Đại Hạn: ${variant}`,
+          );
+        }
+
+        // W2: Đúng cặp trong block ### Cung Phu Thê [Đại hạn 24–33 tuổi] + thân bài nhắc Đại Hạn hiện tại 44–53 Can Canh -> 0 cờ giả
+        const blockMixedPeriods = [
+          '### Cung Phu Thê (Nhâm Tý) [AN THÂN] [Đại hạn 24–33 tuổi]',
+          'Cung Phu Thê gắn với kỳ 24–33 tuổi. Đặc biệt trong Đại Hạn hiện tại (44–53 · Can Canh), Thái Dương Hóa Lộc nhập bản cung.',
+          'Ngoài ra phi tinh từ Can Nhâm (Phu Thê) cho thấy Thiên Lương Hóa Lộc về Quan Lộc.',
+        ].join('\n');
+        assert.strictEqual(verifyDaXianStemsInText(blockMixedPeriods, chart1977).length, 0);
+
+        // W2 Horizon: {Canh, Kỷ} hợp lệ trong 2026–2030, Can Bính bị bắt cờ
+        const horizonValid = verifyDaXianStemsInText(
+          'Trong giai đoạn này có [Tứ Hóa Đại Hạn - Can Canh] chuyển tiếp sang [Tứ Hóa Đại Hạn - Can Kỷ].',
+          chart1977,
+          { isHorizon: true, horizonYears: 5 },
+        );
+        assert.strictEqual(horizonValid.length, 0);
+        const horizonBad = verifyDaXianStemsInText(
+          'Trong giai đoạn này có [Tứ Hóa Đại Hạn - Can Bính] chi phối mạnh.',
+          chart1977,
+          { isHorizon: true, horizonYears: 5 },
+        );
+        assert.strictEqual(horizonBad.length, 1);
+        assert.strictEqual(horizonBad[0].code, 'DAXIAN_STEM_MISMATCH');
+
+        // W3: mục phương pháp luận tổng quát (07-methodology) được miễn, còn CL-CTP-014 không khớp trong Đại Hạn vẫn bị bắt V3
+        const w3Entries: DistilledKnowledgeEntry[] = [
+          makeEntry('NH-METH-001', {
+            category: '07-methodology',
+            starsVi: ['Tử Vi'],
+            palacesVi: ['Mệnh Cung'],
+          }),
+          makeEntry('CL-CTP-014', {
+            category: 'classics-fu',
+            starsVi: ['Thiên Cơ', 'Thái Âm', 'Thiên Đồng', 'Thiên Lương'],
+            patternsVi: ['Cơ Nguyệt Đồng Lương'],
+          }),
+        ];
+        const methAudit = verifyAcademicCitationsAndClaims(
+          'Nguyên lý xem vận hạn phải đối chiếu Tam Phương Tứ Chính trước khi kết luận [Nguồn: NH-METH-001].',
+          w3Entries,
+        );
+        assert.strictEqual(methAudit.v3MismatchIds.length, 0);
+        const ctpBadAudit = verifyAcademicCitationsAndClaims(
+          'Đại Hạn 44–53 tuổi chủ về bước ngoặt chuyển nghề [Nguồn: CL-CTP-014].',
+          w3Entries,
+        );
+        assert.ok(ctpBadAudit.v3MismatchIds.includes('CL-CTP-014'));
+      }
+
+      // W4: Kiểm mọi biến thể Không Kiếp + miễn trừ phủ định & trích dẫn cổ thư trong ngoặc kép có [Nguồn: ...]
+      {
+        const validSet = new Set(['CL-TT-015']);
+        // 1) Ca A-04 hồ sơ 1.5.5 tại Quan Lộc (chỉ có Địa Không + Thiên Không) -> 1 cờ
+        const ctx2026 = buildYunxianPeriodContext(chart1977, { mode: 'liunian', year: 2026 });
+        const flagsA04 = verifyIllegalKhongKiepMentions(
+          'Sự hiện diện của bộ đôi Không - Kiếp/Không bộc lộ rõ tính chất biến động mạnh tại đây.',
+          chart1977,
+          { periodContext: ctx2026, sectionId: 'year_2026' },
+        );
+        assert.strictEqual(flagsA04.length, 1);
+        assert.strictEqual(flagsA04[0].code, 'ILLEGAL_STAR_PAIR_KHONG_KIEP');
+        assert.strictEqual(flagsA04[0].severity, 'critical');
+        assert.strictEqual(flagsA04[0].palaceVi, 'Quan Lộc');
+
+        // 2) Tất cả các biến thể viết xuôi/đảo tại Quan Lộc đều bị bắt
+        for (const phrase of [
+          'Cung Quan Lộc gặp Không Kiếp xung phá.',
+          'Cung Quan Lộc gặp Không - Kiếp xung phá.',
+          'Cung Quan Lộc gặp Không-Kiếp xung phá.',
+          'Cung Quan Lộc gặp Không/Kiếp xung phá.',
+          'Cung Quan Lộc gặp Không và Kiếp xung phá.',
+          'Cung Quan Lộc gặp cặp Địa Không - Địa Kiếp xung phá.',
+          'Cung Quan Lộc gặp Kiếp Không xung phá.',
+          'Cung Quan Lộc gặp Địa Kiếp - Địa Không xung phá.',
+        ]) {
+          const fl = verifyIllegalKhongKiepMentions(phrase, chart1977);
+          assert.strictEqual(fl.length, 1, `W4 phải bắt biến thể: ${phrase}`);
+          assert.strictEqual(fl[0].code, 'ILLEGAL_STAR_PAIR_KHONG_KIEP');
+        }
+
+        // 3) "Địa Không và Thiên Không" -> 0 cờ
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions(
+            'Cung Quan Lộc có Địa Không và Thiên Không đồng cung.',
+            chart1977,
+          ).length,
+          0,
+        );
+
+        // 4) Cung có đủ cả Địa Không lẫn Địa Kiếp trong Bản cung ∪ TPCT -> 0 cờ
+        const chartBothKk = generateChart({
+          name: 'Mẫu 1977',
+          year: 1977,
+          month: 7,
+          day: 26,
+          hour: 5,
+          gender: 'male',
+        });
+        const qlPalace = chartBothKk.palaces.find((p) => translatePalaceName(p.name) === 'Quan Lộc');
+        assert.ok(qlPalace);
+        const oppositeToQl = chartBothKk.palaces.find((p) => p.branch === (qlPalace.branch + 6) % 12);
+        assert.ok(oppositeToQl);
+        oppositeToQl.stars.push({ name: '地劫', type: 'sha' });
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions('Cung Quan Lộc hội Không Kiếp đắc địa.', chartBothKk).length,
+          0,
+        );
+
+        // 5) Miễn trừ (i): câu phủ định tuân thủ prompt -> 0 cờ
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions(
+            'Cung Quan Lộc chỉ có Địa Không và Thiên Không, không phải Không Kiếp và không tạo thành bộ Không Kiếp.',
+            chart1977,
+          ).length,
+          0,
+        );
+
+        // 6) Miễn trừ (ii): phải có CẢ ngoặc kép VÀ thẻ [Nguồn: ...] hợp lệ
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions(
+            'Tại Cung Quan Lộc, cổ thư có câu "Không Kiếp lâm mệnh đa biến động" [Nguồn: CL-TT-015].',
+            chart1977,
+            { validCitationIdsSetUpper: validSet },
+          ).length,
+          0,
+        );
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions(
+            'Tại Cung Quan Lộc, cổ thư có câu "Không Kiếp lâm mệnh đa biến động".',
+            chart1977,
+            { validCitationIdsSetUpper: validSet },
+          ).length,
+          1,
+        );
+        assert.strictEqual(
+          verifyIllegalKhongKiepMentions(
+            'Tại Cung Quan Lộc có Bộ Không Kiếp gây thăng trầm [Nguồn: CL-TT-015].',
+            chart1977,
+            { validCitationIdsSetUpper: validSet },
+          ).length,
+          1,
+        );
+      }
+
+      // W5: Chương 2–6 có 0 thẻ [Nguồn: ...] hợp lệ khi allowedEntries > 0; không chạm warningBlockMarkdown
+      {
+        const sampleEntries = [makeEntry('NH-STAR-001', { starsVi: ['Thiên Cơ'], palacesVi: ['Mệnh Cung'] })];
+        const w5Hit = verifyAcademicCitationsAndClaims(
+          '### Cung Mệnh (Nhâm Dần)\nLuận giải thuần cấu trúc tinh đẩu không có thẻ nguồn.',
+          sampleEntries,
+          { chart: chart1977, sectionId: 'palaces_core', chapterMode: 'palace_group' },
+        );
+        assert.ok(w5Hit.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER' && f.severity === 'medium'));
+        assert.strictEqual(w5Hit.hasUncitedClaims, false);
+        assert.strictEqual(w5Hit.warningBlockMarkdown, '');
+
+        // allowedEntries rỗng -> không gắn cờ W5
+        const w5EmptyEntries = verifyAcademicCitationsAndClaims(
+          '### Cung Mệnh (Nhâm Dần)\nLuận giải thuần cấu trúc.',
+          [],
+          { chart: chart1977, sectionId: 'palaces_core', chapterMode: 'palace_group' },
+        );
+        assert.strictEqual(
+          w5EmptyEntries.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'),
+          false,
+        );
+
+        // Ch.1 / Ch.7 / Ch.8 không gắn cờ W5
+        for (const sid of ['chapter_overview', 'horizon_5y', 'horizon_10y'] as const) {
+          const res = verifyAcademicCitationsAndClaims('Nội dung không thẻ nguồn.', sampleEntries, {
+            chart: chart1977,
+            sectionId: sid,
+          });
+          assert.strictEqual(
+            res.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'),
+            false,
+          );
+        }
+      }
+
+      // W6: Không rò rỉ auditFlags ra file xuất .MD / .HTML / .TXT
+      {
+        const chartKey = buildChartIdentityKey(chart1977);
+        const states = {} as Record<DossierChapterId, DossierChapterState>;
+        for (const spec of DOSSIER_CHAPTER_SPECS) {
+          states[spec.id] = {
+            chapterId: spec.id,
+            sectionCacheKey: buildDossierChapterCacheKey(chartKey, spec.id),
+            status: 'completed',
+            text: `Nội dung chuẩn ${spec.shortLabelVi}.`,
+            auditFlags: [
+              {
+                code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+                severity: 'critical',
+                palaceVi: 'Quan Lộc',
+                messageVi: 'CỜ NỘI BỘ KHÔNG ĐƯỢC XUẤT RA FILE',
+              },
+            ],
+          };
+        }
+        const exportedMd = buildDossierMarkdownExport(chart1977, states);
+        const exportedTxt = buildDossierPlainTextExport(chart1977, states);
+        const exportedHtml = buildDossierStandaloneHtmlExport(chart1977, states);
+        for (const out of [exportedMd, exportedTxt, exportedHtml]) {
+          assert.ok(!out.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+          assert.ok(!out.includes('CỜ NỘI BỘ KHÔNG ĐƯỢC XUẤT RA FILE'));
+          assert.ok(!out.includes('Kiểm Chứng KP-3'));
+        }
+      }
+
+      // Ca kiểm thực chiến trên hồ sơ 8 chương 1.5.4 + hồi quy A-04 1.5.5
+      {
+        const dossier154Path = path.resolve(
+          process.cwd(),
+          'public/assets/aistudio/Ho-So-Tu-Vi-Do-Vu-Toan-8-8-sinh-lai-toan-bo-1.5.4_a40c537a.md',
+        );
+        const dossier154 = fs.readFileSync(dossier154Path, 'utf8');
+        const chapterBlocks = dossier154
+          .split(/(?=^## Chương \d+ )/m)
+          .filter((b) => b.startsWith('## Chương '));
+        assert.strictEqual(chapterBlocks.length, 8);
+        const chapterSectionIds = [
+          'chapter_overview',
+          'palaces_core',
+          'palaces_family',
+          'palaces_social_health',
+          'year_2026',
+          'year_2027',
+          'horizon_5y',
+          'horizon_10y',
+        ] as const;
+
+        const flagsBySection = new Map<string, string[]>();
+        for (let i = 0; i < chapterSectionIds.length; i++) {
+          const sid = chapterSectionIds[i];
+          const pCtx =
+            sid === 'year_2026' || sid === 'year_2027'
+              ? buildYunxianPeriodContext(chart1977, {
+                  mode: 'liunian',
+                  year: sid === 'year_2026' ? 2026 : 2027,
+                })
+              : null;
+          const entries = pCtx
+            ? retrieveKnowledgeForPeriod(chart1977, pCtx).entries
+            : retrieveKnowledgeForDossierSection(chart1977, sid as DossierSectionId).entries;
+          const res = verifyAcademicCitationsAndClaims(chapterBlocks[i], entries, {
+            chart: chart1977,
+            sectionId: sid,
+            periodContext: pCtx,
+          });
+          flagsBySection.set(
+            sid,
+            res.auditFlags.map((f) => `${f.code}@${f.palaceVi ?? f.ageRange ?? ''}`),
+          );
+          assert.strictEqual(
+            res.auditFlags.some((f) => f.code === 'DAXIAN_STEM_MISMATCH' || f.code === 'PALACE_GANZHI_MISMATCH'),
+            false,
+            `0 cờ giả W1/W2 trên ${sid}`,
+          );
+        }
+        assert.ok(flagsBySection.get('palaces_core')?.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP@Quan Lộc'));
+        assert.ok(flagsBySection.get('palaces_core')?.includes('ZERO_CITATIONS_IN_CHAPTER@'));
+        assert.ok(flagsBySection.get('palaces_social_health')?.includes('ZERO_CITATIONS_IN_CHAPTER@'));
+        assert.ok(flagsBySection.get('year_2027')?.includes('ZERO_CITATIONS_IN_CHAPTER@'));
+        assert.strictEqual(flagsBySection.get('year_2026')?.length, 0, 'Câu trích dẫn trong ngoặc kép ch.5 được miễn W4');
+        assert.strictEqual(flagsBySection.get('chapter_overview')?.length, 0);
+        assert.strictEqual(flagsBySection.get('palaces_family')?.length, 0);
+        assert.strictEqual(flagsBySection.get('horizon_5y')?.length, 0);
+        assert.strictEqual(flagsBySection.get('horizon_10y')?.length, 0);
+
+        // Ca hồi quy hồ sơ 1.5.5: A-04 dòng 211 (ch.5) + W5 ở ch.6
+        const ctx2026 = buildYunxianPeriodContext(chart1977, { mode: 'liunian', year: 2026 });
+        const entries2026 = retrieveKnowledgeForPeriod(chart1977, ctx2026!).entries;
+        const ch5Sample155 = verifyAcademicCitationsAndClaims(
+          '### 1. Chủ Đề Kỳ Hạn (Sự Kiện Trong Năm)\nSự hiện diện của bộ đôi Không - Kiếp/Không bộc lộ rõ tính chất biến động mạnh tại Cung Lưu Mệnh Cung [Nguồn: NH-STAR-054].',
+          entries2026,
+          { chart: chart1977, sectionId: 'year_2026', periodContext: ctx2026 },
+        );
+        assert.ok(
+          ch5Sample155.auditFlags.some(
+            (f) => f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP' && f.palaceVi === 'Quan Lộc',
+          ),
+        );
+        const ctx2027 = buildYunxianPeriodContext(chart1977, { mode: 'liunian', year: 2027 });
+        const entries2027 = retrieveKnowledgeForPeriod(chart1977, ctx2027!).entries;
+        const ch6Sample155 = verifyAcademicCitationsAndClaims(
+          '### 1. Chủ Đề Kỳ Hạn\nLưu Niên 2027 nhấn mạnh quan hệ Giao Hữu không trích dẫn.',
+          entries2027,
+          { chart: chart1977, sectionId: 'year_2027', periodContext: ctx2027 },
+        );
+        assert.ok(ch6Sample155.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'));
+      }
+
+      resetKnowledgeBaseCache();
+      console.log('  -> ĐẠT [BRIEF 1.5.6 — Nhóm W + Z3]: W1–W6, Z3 & ca 1.5.4/1.5.5 đạt 100%.');
+    }
   }
 
   console.log('\n[PASS] TOÀN BỘ KIỂM THỬ verify:kb ĐẠT 100%!');

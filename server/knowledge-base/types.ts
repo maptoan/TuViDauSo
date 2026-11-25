@@ -216,6 +216,14 @@ export interface CitationViolation {
   reasonVi: string;
 }
 
+import type {
+  Kp3AuditFlag,
+  Kp3AuditFlagCode,
+  Kp3AuditFlagSeverity,
+} from '../../src/lib/dossier-chat-ui.ts';
+
+export type { Kp3AuditFlag, Kp3AuditFlagCode, Kp3AuditFlagSeverity };
+
 export interface PalaceGanZhiMismatch {
   type: 'PALACE_GANZHI_MISMATCH';
   palaceVi: string;
@@ -230,9 +238,11 @@ export interface CitationAuditResult {
   v2UncitedBlocks: number[];
   v3MismatchIds: string[];
   scrubbedInvalidIds: string[];
+  normalizedBareIds: string[];
   hasUncitedClaims: boolean;
   violations: CitationViolation[];
   palaceGanZhiMismatches: PalaceGanZhiMismatch[];
+  auditFlags: Kp3AuditFlag[];
   scrubbedText: string;
   referenceBlockMarkdown: string;
   warningBlockMarkdown: string;

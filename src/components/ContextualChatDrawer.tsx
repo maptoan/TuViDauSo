@@ -10,11 +10,13 @@ import {
   StoredChatThread,
   buildChartIdentityKey,
   buildChatStorageKey,
+  classifyDossierFailure,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
   filterPersistableChatMessages,
   getBrowserSessionStorage,
   getSharedDossierGenerating,
+  normalizeKnownBareCitationTags,
   readLruSessionEntry,
   recordChatQuestionSent,
   removeLruSessionEntry,
@@ -308,7 +310,13 @@ export default function ContextualChatDrawer({
     let receivedMeta: AiExecutionMeta | undefined;
     let wasInterrupted = false;
     let streamError = '';
+    let streamErrorCode: string | null = null;
+    let streamErrorCategory: string | null = null;
+    let streamCooldownSec: number | null = null;
+    let interruptedCategory: string | null = null;
+    let interruptedCooldownSec: number | null = null;
     let scrubbedInvalidIds: string[] = [];
+    let normalizedBareIds: string[] = [];
 
     const updateAssistant = (patch: Partial<StoredChatMessage>) => {
       setMessages((prev) =>
@@ -334,16 +342,26 @@ export default function ContextualChatDrawer({
       });
 
       if (!res.ok) {
-        let msg = 'Không thể kết nối dịch vụ AI cho câu hỏi này.';
+        let errJson: {
+          error?: string;
+          errorCategory?: string;
+          minRemainingCooldownSec?: number | null;
+          message?: string;
+        } | null = null;
         try {
-          const errJson = await res.json();
-          if (errJson?.message) msg = errJson.message;
+          errJson = await res.json();
         } catch {
           // ignore
         }
-        streamError = msg;
+        const failure = classifyDossierFailure({
+          httpStatus: res.status,
+          error: errJson?.error,
+          errorCategory: errJson?.errorCategory,
+          minRemainingCooldownSec: errJson?.minRemainingCooldownSec ?? null,
+          message: errJson?.message || 'Không thể kết nối dịch vụ AI cho câu hỏi này.',
+        });
         const finalList = updatedBase.map((m) =>
-          m.id === assistantId ? { ...m, content: '', error: msg } : m,
+          m.id === assistantId ? { ...m, content: '', error: failure.userMessageVi } : m,
         );
         setMessages(finalList);
         persistThread(finalList);
@@ -375,19 +393,41 @@ export default function ContextualChatDrawer({
             updateAssistant({ meta: receivedMeta });
             return false;
           }
-          if (Array.isArray(parsed?.citationAudit?.scrubbedInvalidIds)) {
-            scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
-              (id: unknown): id is string => typeof id === 'string',
-            );
+          if (parsed?.citationAudit) {
+            if (Array.isArray(parsed.citationAudit.scrubbedInvalidIds)) {
+              scrubbedInvalidIds = parsed.citationAudit.scrubbedInvalidIds.filter(
+                (id: unknown): id is string => typeof id === 'string',
+              );
+            }
+            if (Array.isArray(parsed.citationAudit.normalizedBareIds)) {
+              normalizedBareIds = parsed.citationAudit.normalizedBareIds.filter(
+                (id: unknown): id is string => typeof id === 'string',
+              );
+            }
             return false;
           }
           if (parsed?.interrupted) {
             wasInterrupted = true;
             if (parsed.message) streamError = parsed.message;
+            if (typeof parsed.errorCategory === 'string') {
+              interruptedCategory = parsed.errorCategory;
+            }
+            if (typeof parsed.minRemainingCooldownSec === 'number') {
+              interruptedCooldownSec = parsed.minRemainingCooldownSec;
+            }
             return false;
           }
           if (parsed?.error) {
             streamError = parsed.message || 'Lời gọi Gemini API gặp lỗi.';
+            if (typeof parsed.error === 'string') {
+              streamErrorCode = parsed.error;
+            }
+            if (typeof parsed.errorCategory === 'string') {
+              streamErrorCategory = parsed.errorCategory;
+            }
+            if (typeof parsed.minRemainingCooldownSec === 'number') {
+              streamCooldownSec = parsed.minRemainingCooldownSec;
+            }
             return false;
           }
           const deltaText = parsed?.delta?.text ?? '';
@@ -420,11 +460,25 @@ export default function ContextualChatDrawer({
       }
 
       accumulated = sanitizeAiVietnameseOutput(accumulated);
+      if (normalizedBareIds.length > 0 && accumulated) {
+        accumulated = normalizeKnownBareCitationTags(accumulated, normalizedBareIds);
+      }
       if (scrubbedInvalidIds.length > 0 && accumulated) {
         accumulated = scrubInvalidCitationTags(accumulated, {
           invalidIds: scrubbedInvalidIds,
         });
       }
+
+      const classifiedFailure =
+        wasInterrupted || streamError
+          ? classifyDossierFailure({
+              error: streamErrorCode,
+              errorCategory: streamErrorCategory ?? interruptedCategory,
+              minRemainingCooldownSec: streamCooldownSec ?? interruptedCooldownSec,
+              message: streamError,
+              interrupted: wasInterrupted,
+            })
+          : null;
 
       const finalAssistant: StoredChatMessage = {
         id: assistantId,
@@ -438,11 +492,11 @@ export default function ContextualChatDrawer({
             }
           : undefined,
         interrupted: wasInterrupted || Boolean(streamError && accumulated.trim()),
-        error:
-          streamError ||
-          (!accumulated.trim() && !wasInterrupted
+        error: classifiedFailure
+          ? classifiedFailure.userMessageVi
+          : !accumulated.trim()
             ? 'Phản hồi từ AI trống. Vui lòng thử đặt lại câu hỏi.'
-            : undefined),
+            : undefined,
       };
 
       const finalMessages = updatedBase.map((m) =>

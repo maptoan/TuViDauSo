@@ -22,6 +22,8 @@ import {
   FIRST_CHUNK_TIMEOUT_MS,
   GEMMA_TPM_CHARS_PER_TOKEN_VI,
   GEMMA_TPM_GUARD_THRESHOLD,
+  KEY_POOL_BACKUP_MAX_BYTES,
+  KEY_POOL_BACKUP_PBKDF2_ITERATIONS,
   LEASE_ABSOLUTE_MAX_TTL_MS,
   LEASE_MAX_TTL_MS,
   MAX_RECENT_LOGS,
@@ -46,6 +48,7 @@ import {
   applyBatchItemToSnapshot,
   buildCooldownProbeQueue,
   canTriggerBatchCooldownProbe,
+  evaluatePoolReadinessBanner,
   hasValidCachedPeriodEntry,
   resolveNextModelSelection,
   runClientBatchCooldownProbe,
@@ -3403,7 +3406,204 @@ async function runTests() {
       console.log('  -> Đạt: Gói D (KP-7) tách chuẩn 23 "P…:Khóa", 2 khóa trần & collectEnvSeedKeys.');
     }
 
-    console.log('\n=== TẤT CẢ 33 BÀI KIỂM THỬ KHO KHÓA ĐỀU ĐẠT ===');
+    // ── BÀI 34: Nhóm Y (KP-7 Tầng 2 · Y1) — Banner cảnh báo sẵn sàng Kho Khóa ─
+    {
+      console.log('\n[34/35] Kiểm thử Y1: evaluatePoolReadinessBanner phân biệt total < 3 vs total >= 3 && ready < 3...');
+      const b0 = evaluatePoolReadinessBanner({ total: 0, ready: 0, cooldown: 0, disabled: 0 });
+      assert.ok(b0);
+      assert.strictEqual(b0.code, 'LOW_TOTAL_KEYS');
+      assert.strictEqual(b0.severity, 'critical');
+      assert.ok(b0.title.toLowerCase().includes('kho có ít hơn 3 khóa'));
+
+      const b2 = evaluatePoolReadinessBanner({ total: 2, ready: 2, cooldown: 0, disabled: 0 });
+      assert.ok(b2);
+      assert.strictEqual(b2.code, 'LOW_TOTAL_KEYS');
+      assert.strictEqual(b2.severity, 'warn');
+      assert.ok(b2.message.toLowerCase().includes('kho có ít hơn 3 khóa'));
+
+      const bPartial = evaluatePoolReadinessBanner({ total: 5, ready: 1, cooldown: 3, disabled: 1 });
+      assert.ok(bPartial);
+      assert.strictEqual(bPartial.code, 'LOW_READY_KEYS');
+      assert.strictEqual(bPartial.severity, 'warn');
+      assert.ok(bPartial.title.includes('Chỉ còn 1/5 khóa sẵn sàng'));
+
+      const bZeroReady = evaluatePoolReadinessBanner({ total: 4, ready: 0, cooldown: 4, disabled: 0 });
+      assert.ok(bZeroReady);
+      assert.strictEqual(bZeroReady.code, 'LOW_READY_KEYS');
+      assert.strictEqual(bZeroReady.severity, 'critical');
+      assert.ok(bZeroReady.title.includes('Chỉ còn 0/4 khóa sẵn sàng'));
+
+      assert.strictEqual(evaluatePoolReadinessBanner({ total: 3, ready: 3 }), null);
+      assert.strictEqual(evaluatePoolReadinessBanner({ total: 10, ready: 4 }), null);
+
+      const modalSrc = fs.readFileSync(path.resolve('src/components/KeyPoolModal.tsx'), 'utf8');
+      assert.ok(modalSrc.includes('evaluatePoolReadinessBanner'));
+      assert.ok(modalSrc.includes('/api/key-pool/backup/export'));
+      assert.ok(modalSrc.includes('/api/key-pool/backup/import'));
+      console.log('  -> Đạt: Y1 Banner Kho Khóa & nối UI trong KeyPoolModal.tsx chính xác.');
+    }
+
+    // ── BÀI 35: Nhóm Y (KP-7 Tầng 2 · ĐK-NT-7) — Xuất/nhập sao lưu mã hóa passphrase xuyên container ─
+    {
+      console.log('\n[35/35] Kiểm thử ĐK-NT-7: Xuất sao lưu AES-256-GCM + PBKDF2-SHA256 từ dirA -> khôi phục sạch sang dirB...');
+      const dirA = fs.mkdtempSync(path.join(tmpDir, 'kp7-backup-a-'));
+      const dirB = fs.mkdtempSync(path.join(tmpDir, 'kp7-backup-b-'));
+      const mgrA = new KeyPoolManager(dirA);
+
+      const key1 = fakeKey('BackupA1_0000000000000000000000001');
+      const key2 = fakeAqKey('BackupA2_0000000000000000000000000000000002');
+      const key3 = fakeKey('BackupA3_0000000000000000000000003');
+      const id1 = mgrA._addRawKeyForVerification(key1, 'Dự án Alpha');
+      const id2 = mgrA._addRawKeyForVerification(key2, 'Dự án Beta');
+      const id3 = mgrA._addRawKeyForVerification(key3, 'Dự án Gamma');
+      mgrA._findKeyRecord(id1)!.detectedProjectNumber = '111222333';
+      mgrA._findKeyRecord(id2)!.detectedProjectNumber = '444555666';
+      mgrA._findKeyRecord(id3)!.detectedProjectNumber = null;
+      mgrA.updateModelConfig({
+        defaultModel: 'gemini-4-hydrogen',
+        fallbackModel: 'gemma-4-31b-it',
+        customSupportedModels: ['gemini-4-custom-preview'],
+      });
+      await mgrA.flushPersistence();
+
+      // Từ chối mật khẩu ngắn < 8 ký tự
+      assert.throws(() => mgrA.exportEncryptedBackup('1234567'), /ít nhất 8 ký tự/);
+      assert.throws(() => mgrA.exportEncryptedBackup('        '), /ít nhất 8 ký tự/);
+
+      const passphrase = 'MatKhauSaoLuu!2026#';
+      const envelope = mgrA.exportEncryptedBackup(passphrase);
+      assert.strictEqual(envelope.format, 'ziwei-key-pool-backup');
+      assert.strictEqual(envelope.schemaVersion, 1);
+      assert.strictEqual(envelope.kdf, 'PBKDF2-HMAC-SHA256');
+      assert.strictEqual(envelope.iterations, KEY_POOL_BACKUP_PBKDF2_ITERATIONS);
+      assert.strictEqual(envelope.cipher, 'AES-256-GCM');
+      assert.strictEqual(Buffer.from(envelope.salt, 'base64').length, 16);
+      assert.strictEqual(Buffer.from(envelope.iv, 'base64').length, 12);
+      assert.strictEqual(Buffer.from(envelope.authTag, 'base64').length, 16);
+      // Tuyệt đối không lộ rawKey trong envelope JSON
+      const envSerialized = JSON.stringify(envelope);
+      assert.ok(!envSerialized.includes(key1) && !envSerialized.includes(key2) && !envSerialized.includes(key3));
+
+      // Khởi tạo container/thư mục B hoàn toàn mới (master key khác hoàn toàn dirA)
+      const mgrB = new KeyPoolManager(dirB);
+      assert.strictEqual(mgrB._getRawKeyIdsForVerification().length, 0);
+
+      // Sai mật khẩu -> từ chối
+      assert.throws(() => mgrB.importEncryptedBackup(envelope, 'SaiMatKhau!2026'), /không đúng|chỉnh sửa/);
+
+      // Sửa header AAD (exportedAt hoặc iterations) -> từ chối xác thực GCM
+      assert.throws(
+        () => mgrB.importEncryptedBackup({ ...envelope, exportedAt: '2099-01-01T00:00:00.000Z' }, passphrase),
+        /không đúng|chỉnh sửa/,
+      );
+      assert.throws(
+        () => mgrB.importEncryptedBackup({ ...envelope, iterations: 1000 }, passphrase),
+        /không hợp lệ/,
+      );
+      assert.throws(
+        () => mgrB.importEncryptedBackup({ ...envelope, format: 'other-format' }, passphrase),
+        /không hợp lệ/,
+      );
+
+      // Nhập hợp lệ vào dirB -> khôi phục 100% keys + labels + detectedProjectNumber + modelConfig
+      const importRes = mgrB.importEncryptedBackup(envelope, passphrase);
+      assert.strictEqual(importRes.importedCount, 3);
+      assert.strictEqual(importRes.skippedDuplicate, 0);
+      assert.strictEqual(importRes.invalid, 0);
+      assert.strictEqual(importRes.totalAfter, 3);
+      assert.strictEqual(importRes.modelConfigApplied, true);
+
+      const snapB = mgrB.getPublicSnapshot({
+        isReadOnly: false,
+        isSharedOrigin: false,
+        adminPinRequired: false,
+        hasAdminPinConfigured: false,
+      });
+      assert.strictEqual(snapB.summary.total, 3);
+      assert.strictEqual(snapB.summary.ready, 3);
+      assert.strictEqual(snapB.modelConfig.defaultModel, 'gemini-4-hydrogen');
+      assert.strictEqual(snapB.modelConfig.fallbackModel, 'gemma-4-31b-it');
+      assert.ok(snapB.modelConfig.supportedModels.includes('gemini-4-custom-preview'));
+      assert.deepStrictEqual(
+        snapB.keys.map((k) => ({
+          label: k.label,
+          project: k.detectedProjectNumber,
+          masked: k.maskedKey,
+        })),
+        [
+          { label: 'Dự án Alpha', project: '111222333', masked: maskApiKey(key1) },
+          { label: 'Dự án Beta', project: '444555666', masked: maskApiKey(key2) },
+          { label: 'Dự án Gamma', project: null, masked: maskApiKey(key3) },
+        ],
+      );
+
+      // Nhập lại lần 2 vào dirB -> chống trùng 100%
+      const importDup = mgrB.importEncryptedBackup(envelope, passphrase);
+      assert.strictEqual(importDup.importedCount, 0);
+      assert.strictEqual(importDup.skippedDuplicate, 3);
+      assert.strictEqual(importDup.totalAfter, 3);
+
+      // Khởi tạo lại dirB từ đĩa (verify persistence độc lập không cần .pool-master.key của dirA)
+      await mgrB.flushPersistence();
+      const mgrBReloaded = new KeyPoolManager(dirB);
+      const snapBReloaded = mgrBReloaded.getPublicSnapshot({
+        isReadOnly: false,
+        isSharedOrigin: false,
+        adminPinRequired: false,
+        hasAdminPinConfigured: false,
+      });
+      assert.strictEqual(snapBReloaded.summary.total, 3);
+      assert.strictEqual(snapBReloaded.modelConfig.defaultModel, 'gemini-4-hydrogen');
+
+      // Kiểm chứng HTTP route guards trên /api/key-pool/backup/export & /import
+      const appBackup = express();
+      registerApiRoutes(appBackup);
+      const serverBackup = await new Promise<import('http').Server>((resolve) => {
+        const s = appBackup.listen(0, '127.0.0.1', () => resolve(s));
+      });
+      try {
+        const port = (serverBackup.address() as AddressInfo).port;
+        const base = `http://127.0.0.1:${port}`;
+
+        // 1) Shared read-only URL (ais-pre-*) bị chặn 403 ADMIN_READ_ONLY khi chưa có PIN
+        const rReadOnly = await fetch(`${base}/api/key-pool/backup/export`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Origin: 'https://ais-pre-demo.aistudio.google.com',
+          },
+          body: JSON.stringify({ passphrase }),
+        });
+        assert.strictEqual(rReadOnly.status, 403);
+
+        // 2) Payload > 256 KB bị chặn 413 PAYLOAD_TOO_LARGE
+        const oversizedBackup = {
+          ...envelope,
+          ciphertext: 'A'.repeat(KEY_POOL_BACKUP_MAX_BYTES + 1024),
+        };
+        const rTooBig = await fetch(`${base}/api/key-pool/backup/import`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ backup: oversizedBackup, passphrase }),
+        });
+        assert.strictEqual(rTooBig.status, 413);
+
+        // 3) Export HTTP thành công với Cache-Control: no-store
+        const rExport = await fetch(`${base}/api/key-pool/backup/export`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passphrase }),
+        });
+        assert.strictEqual(rExport.status, 200);
+        assert.strictEqual(rExport.headers.get('cache-control'), 'no-store');
+      } finally {
+        await new Promise<void>((resolve) => serverBackup.close(() => resolve()));
+      }
+
+      console.log('  -> Đạt: ĐK-NT-7 khôi phục xuyên thư mục dirA -> dirB 100% + bảo vệ PBKDF2/GCM AAD/403/413.');
+    }
+
+    console.log('\n=== TẤT CẢ 35 BÀI KIỂM THỬ KHO KHÓA ĐỀU ĐẠT ===');
   } finally {
     if (origEnvKey !== undefined) process.env.GEMINI_API_KEY = origEnvKey;
     if (origEnvKeys !== undefined) process.env.GEMINI_API_KEYS = origEnvKeys;
