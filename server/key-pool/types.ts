@@ -6,6 +6,10 @@ export type KeyErrorCategory =
   | 'QUOTA_PROJECT_ZERO'
   | 'QUOTA_DAILY_EXHAUSTED'
   | 'AUTH_INVALID_KEY'
+  | 'AUTH_FORBIDDEN_AMBIGUOUS'
+  | 'AUTH_FORBIDDEN_REPEATED'
+  | 'API_NOT_ENABLED'
+  | 'TEST_TIMEOUT_INCONCLUSIVE'
   | 'NETWORK_OR_5XX'
   | 'MODEL_UNAVAILABLE'
   | 'UNKNOWN';
@@ -43,6 +47,7 @@ export interface GeminiKeyRecord {
   healthScore: number;
   lastScoreRecoveryAt: number;
   consecutiveErrors: number;
+  consecutiveForbiddenErrors?: number;
   cooldownUntil: number | null;
   cooldownReason: KeyErrorCategory;
   modelCooldowns?: Record<string, number>;
@@ -51,10 +56,26 @@ export interface GeminiKeyRecord {
   updatedAt: number;
 }
 
+export type ModelThinkingLevel =
+  | 'THINKING_LEVEL_UNSPECIFIED'
+  | 'MINIMAL'
+  | 'LOW'
+  | 'MEDIUM'
+  | 'HIGH'
+  | 'XHIGH';
+
+export interface ModelProfileConfig {
+  maxOutputTokens: number;
+  thinkingLevel?: ModelThinkingLevel;
+  estimatedOutputTokensForTpmGuard?: number;
+  firstChunkTimeoutMs?: number;
+}
+
 export interface PoolModelConfig {
   defaultModel: string;
   fallbackModel: string;
   supportedModels: string[];
+  profiles?: Record<string, ModelProfileConfig>;
 }
 
 export interface KeyPoolLogEntry {
@@ -168,6 +189,11 @@ export interface StreamExecutionMeta {
   continuedFromPartial?: boolean;
   continuationCount?: number;
   interrupted?: boolean;
+  partialLength?: number;
+  finishReason?: string;
+  truncatedByMaxTokens?: boolean;
+  fallbackLegUsed: boolean;
+  fallbackLegLatencyMs?: number;
 }
 
 export interface StreamInterruptedEvent {
@@ -177,24 +203,66 @@ export interface StreamInterruptedEvent {
 }
 
 export const DEFAULT_MODEL = 'gemini-3.5-flash-lite';
-export const FALLBACK_MODEL = 'gemini-3.8-flash';
+export const FALLBACK_MODEL = 'gemma-4-31b-it';
 export const DEFAULT_SUPPORTED_MODELS: string[] = [
   'gemini-3.5-flash-lite',
   'gemini-3.5-flash',
   'gemini-3.8-flash',
   'gemini-4-hydrogen',
   'gemini-4-argon',
+  'gemma-4-31b-it',
+  'gemma-4-26b-a4b-it',
 ];
+
+export const DEFAULT_MODEL_PROFILES: Record<string, ModelProfileConfig> = {
+  'gemini-4-hydrogen': {
+    maxOutputTokens: 32_768,
+    thinkingLevel: 'LOW',
+    firstChunkTimeoutMs: 30_000,
+  },
+  'gemma-4-31b-it': {
+    maxOutputTokens: 32_768,
+    thinkingLevel: 'MINIMAL',
+    estimatedOutputTokensForTpmGuard: 3_000,
+    firstChunkTimeoutMs: 60_000,
+  },
+  'gemma-4-26b-a4b-it': {
+    maxOutputTokens: 32_768,
+    thinkingLevel: 'MINIMAL',
+    estimatedOutputTokensForTpmGuard: 3_000,
+    firstChunkTimeoutMs: 60_000,
+  },
+};
+
+/**
+ * Cấu hình cổng TPM cho họ Gemma (ĐK-151-11, 12, 13):
+ * - Trần free tier họ Gemma = 16.000 token/phút/project là ngân sách GỘP trượt theo phút.
+ * - Cổng kiểm tra theo từng request chỉ là lớp bảo vệ chính chống vượt trần đơn lẻ,
+ *   KHÔNG phải bảo đảm tuyệt đối khi nhiều lượt chạy dồn trong cùng 1 phút trên cùng project.
+ * - Hệ số 2.4 ký tự/token hiệu chuẩn từ 6 luồng đo thật Pha 0 (sai lệch +1,6% đến +9,2%,
+ *   luôn nghiêng về phía an toàn).
+ */
+export const GEMMA_TPM_GUARD_THRESHOLD = 15_000;
+export const GEMMA_TPM_CHARS_PER_TOKEN_VI = 2.4;
+export const GEMMA_TPM_DEFAULT_OUTPUT_ESTIMATE = 3_000;
 
 export const MAX_RAW_INPUT_CHARS = 65_536;
 export const MAX_KEYS_IN_POOL = 50;
 export const MAX_KEY_ATTEMPTS = 5;
+export const MAX_FALLBACK_KEY_ATTEMPTS = 5;
 export const FIRST_CHUNK_TIMEOUT_MS = 12_000;
+export const FIRST_CHUNK_TIMEOUT_MIN_MS = 5_000;
+export const FIRST_CHUNK_TIMEOUT_MAX_MS = 120_000;
 export const TOTAL_FAILOVER_TIME_BUDGET_MS = 35_000;
-export const TEST_KEY_TIMEOUT_MS = 8_000;
+export const FALLBACK_LEG_TIME_BUDGET_MS = 150_000;
+export const ABSOLUTE_REQUEST_BUDGET_MS = 200_000;
+export const FALLBACK_COOLDOWN_WAIT_CAP_MS = 30_000;
+export const SSE_KEEPALIVE_EARLY_TRIGGER_MS = 15_000;
+export const TEST_KEY_TIMEOUT_MS = 20_000;
+export const TEST_KEY_MAX_OUTPUT_TOKENS = 256;
 export const TEST_KEY_DEBOUNCE_MS = 5_000;
-export const LEASE_MAX_TTL_MS = 45_000;
-export const LEASE_ABSOLUTE_MAX_TTL_MS = 120_000;
+export const LEASE_MAX_TTL_MS = 65_000;
+export const LEASE_ABSOLUTE_MAX_TTL_MS = 210_000;
 export const PREVIEW_SESSION_TTL_MS = 5 * 60_000;
 export const MAX_PREVIEW_SESSIONS = 20;
 export const MAX_RECENT_LOGS = 100;

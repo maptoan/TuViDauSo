@@ -98,6 +98,14 @@ if (uniqueFactTables.size !== 4 || uniqueDetInterps.size !== 4 || uniqueActivate
   process.exit(1);
 }
 
+if (
+  !liunian1!.dynamicStars.every((d) => Boolean(d.natalGanZhiVi)) ||
+  !liunian1!.factTableMarkdown.includes('trùng cung Bản Mệnh gốc ')
+) {
+  console.error('LỖI: Sao lưu động thiếu Can Chi cung Bản Mệnh gốc (A4)!');
+  process.exit(1);
+}
+
 console.log('✓ KHẲNG ĐỊNH ĐẠT: Cả 4 kỳ hạn (2 Đại Hạn + 2 Lưu Niên) sinh ra 4 Bảng dữ kiện kỳ hạn và 4 bản luận giải xác định hoàn toàn khác nhau.\n');
 
 console.log('--- MẪU BẢNG DỮ KIỆN KỲ HẠN (ĐẠI HẠN 1: 24-33 TUỔI) ---');

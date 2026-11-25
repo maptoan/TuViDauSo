@@ -82,11 +82,41 @@ export function sanitizeAiVietnameseOutput(
     .replace(VIET_DIACRITIC_LOWER_BEFORE_UPPER_RE, ' ');
 
   // Lớp 3B (ii): Sửa từ điển cố định cực hẹp với biên chữ Unicode (?<!\p{L})...(?!\p{L}).
-  // Tuyệt đối không dùng regex tổng quát và không đụng tới "Canh Thìn", "Canh Dần", tên sao hay tên cung.
+  // Tuyệt đối không dùng regex tổng quát và không đụng tới "Canh Thìn", "Canh Dần", tên sao, tên cung hay địa danh "Bảo Ninh".
   out = out
     .replace(/(?<!\p{L})kho[ \t]+lứa(?!\p{L})/gu, 'kho lúa')
     .replace(/(?<!\p{L})Kho[ \t]+lứa(?!\p{L})/gu, 'Kho lúa')
-    .replace(/(?<!\p{L})bảo[ \t]+Thủ(?!\p{L})/gu, 'bảo thủ');
+    .replace(/(?<!\p{L})bảo[ \t]+Thủ(?!\p{L})/gu, 'bảo thủ')
+    // Z3 (C-01): Số thứ tự trượt tiếng Anh (dạng dài trước dạng ngắn để không sót đuôi Number)
+    .replace(/(?<!\p{L})(T|t)hứ[ \t]+(?:secondNumber|second)(?!\p{L})/gu, '$1hứ hai')
+    .replace(/(?<!\p{L})(T|t)hứ[ \t]+(?:firstNumber|first)(?!\p{L})/gu, '$1hứ nhất')
+    .replace(/(?<!\p{L})(T|t)hứ[ \t]+(?:thirdNumber|third)(?!\p{L})/gu, '$1hứ ba')
+    // Z3 (C-02, C-04): Lỗi bộ gõ Telex
+    .replace(/(?<!\p{L})Thân[ \t]+Cuv(?!\p{L})/gu, 'Thân Cư')
+    .replace(/(?<!\p{L})thân[ \t]+cuv(?!\p{L})/gu, 'thân cư')
+    .replace(/(?<!\p{L})Venh[ \t]+Khúc(?!\p{L})/gu, 'Văn Khúc')
+    .replace(/(?<!\p{L})Venh[ \t]+Xương(?!\p{L})/gu, 'Văn Xương')
+    // Z3 (C-03): Nhãn enum lọt từ patterns
+    .replace(/\[excellent\]/gu, '[Thượng cách]')
+    .replace(/\[good\]/gu, '[Cát cách]')
+    .replace(/\[neutral\]/gu, '[Trung bình]')
+    .replace(/\[bad\]/gu, '[Hung cách]')
+    // Z3 (C-04): Dính chữ thường gặp
+    .replace(/(?<!\p{L})khiâm[ \t]+đau(?!\p{L})/gu, 'khi ốm đau')
+    .replace(/(?<!\p{L})Khiâm[ \t]+đau(?!\p{L})/gu, 'Khi ốm đau')
+    // Z3 (C-05): Từ sai ngữ cảnh cố định (bảo ninh chỉ khớp chữ thường, không đụng địa danh "Bảo Ninh")
+    .replace(/(?<!\p{L})đồng[ \t]+điệu[ \t]+mật[ \t]+khẩu(?!\p{L})/gu, 'đồng điệu mật thiết')
+    .replace(/(?<!\p{L})tránh[ \t]+dùng[ \t]+tôi[ \t]+tớ(?!\p{L})/gu, 'tránh sự tự ái')
+    .replace(/(?<!\p{L})hoa[ \t]+tụ(?!\p{L})/gu, 'hội tụ')
+    .replace(/(?<!\p{L})Hoa[ \t]+tụ(?!\p{L})/gu, 'Hội tụ')
+    .replace(/(?<!\p{L})bề[ \t]+vững(?!\p{L})/gu, 'bền vững')
+    .replace(/(?<!\p{L})bảo[ \t]+ninh(?!\p{L})/gu, 'bảo toàn')
+    .replace(/(?<!\p{L})danh[ \t]+uy[ \t]+uy[ \t]+tín(?!\p{L})/gu, 'danh tiếng và uy tín')
+    // Z3 (C-06): Viết hoa thất thường ("HOÁ" chỉ sửa trước tên Tứ Hóa; "thế Mạnh" chỉ sửa sau "trục")
+    .replace(/(?<!\p{L})(?:HOÁ|Hoá|HÓA)[ \t]+(Lộc|Quyền|Khoa|Kỵ)(?!\p{L})/gu, 'Hóa $1')
+    .replace(/(?<!\p{L})(trục[ \t]+)thế[ \t]+Mạnh(?!\p{L})/gu, '$1thế mạnh')
+    // Z3 (Y5 fallback): Tiêu đề lặp "### Cung Mệnh Cung"
+    .replace(/(^\s*#{2,4}[ \t]+)Cung[ \t]+Mệnh[ \t]+Cung(?=$|[\s(\[–—-])/gmu, '$1Cung Mệnh');
 
   // Thu gọn khoảng trắng ngang bị đúp sau chữ mà vẫn giữ nguyên thụt đầu dòng, bảng Markdown và xuống dòng.
   out = out
@@ -100,12 +130,70 @@ export function sanitizeAiVietnameseOutput(
   return out;
 }
 
-const CITATION_TAG_SCAN_RE = /\[Nguồn:\s*([A-Z0-9_-]{4,24})(?:\s*[·,|]\s*[^\]]+)?\]/giu;
+export const CITATION_ID_SYNTAX_RE = /^[A-Z0-9_-]{4,24}$/;
+
+export const CITATION_TAG_SCAN_RE = /\[Nguồn:\s*([^\]]*)\]/giu;
+
+export interface ParsedCitationCandidate {
+  idUpper: string;
+  isValidFormat: boolean;
+}
+
+export interface ParsedCitationTag {
+  rawInner: string;
+  noteSuffix: string;
+  candidates: ParsedCitationCandidate[];
+  isEmptyTag: boolean;
+}
 
 /**
- * ĐN-6 (Bậc 1 — Safe Tag Scrubbing): Gỡ bỏ an toàn các token thẻ `[Nguồn: ID]` nằm trong danh sách lỗi `V1`/`V3`
- * (hoặc mọi thẻ ngoài `allowedIds` nếu truyền vào) mà KHÔNG sửa đổi chữ/ngữ pháp trong câu văn tiếng Việt.
- * Đảm bảo tính lũy đẳng: f(f(x)) === f(x).
+ * X2 (P1/P2/P3): Parser dùng chung duy nhất cho nội dung thẻ `[Nguồn: ...]`.
+ * 1. Cắt hậu tố chú thích sau dấu `·` hoặc `|` đầu tiên TRƯỚC khi tách ID
+ *    (dấu phẩy trong chú thích không tạo ứng viên ID mới).
+ * 2. Tách phần ID theo `,` / `;` / `/`, chuẩn hóa `.trim().toUpperCase()`, kiểm `^[A-Z0-9_-]{4,24}$`.
+ * 3. Thẻ rỗng hoặc chỉ có dấu phân cách trả về `isEmptyTag = true` để đánh V1 và xóa sạch vỏ thẻ.
+ */
+export function parseCitationTagInner(rawInner: string): ParsedCitationTag {
+  const safeInner = (rawInner ?? '').normalize('NFC');
+  const noteMatch = safeInner.match(/[·|]/u);
+  const noteIdx = noteMatch?.index ?? -1;
+  const idPart = (noteIdx >= 0 ? safeInner.slice(0, noteIdx) : safeInner).trim();
+  const noteSuffix = noteIdx >= 0 ? safeInner.slice(noteIdx).trim() : '';
+
+  const segments = idPart
+    .split(/[,;/]/u)
+    .map((seg) => seg.trim())
+    .filter((seg) => seg.length > 0);
+
+  if (segments.length === 0) {
+    return {
+      rawInner: safeInner,
+      noteSuffix,
+      candidates: [],
+      isEmptyTag: true,
+    };
+  }
+
+  const candidates: ParsedCitationCandidate[] = segments.map((seg) => {
+    const idUpper = seg.toUpperCase();
+    return {
+      idUpper,
+      isValidFormat: CITATION_ID_SYNTAX_RE.test(idUpper),
+    };
+  });
+
+  return {
+    rawInner: safeInner,
+    noteSuffix,
+    candidates,
+    isEmptyTag: false,
+  };
+}
+
+/**
+ * ĐN-6 + X2 (P2/P3): Gỡ bỏ an toàn các token thẻ `[Nguồn: ...]` không hợp lệ, tách thẻ đa ID
+ * và giữ lại các ID hợp lệ ở dạng thẻ đơn `[Nguồn: ID1] [Nguồn: ID2]` (hoặc giữ nguyên
+ * thẻ đơn kèm hậu tố `· ...` nếu hợp lệ). Đảm bảo tính lũy đẳng: f(f(x)) === f(x).
  */
 export function scrubInvalidCitationTags(
   text: string,
@@ -119,18 +207,56 @@ export function scrubInvalidCitationTags(
     ? new Set(Array.from(options.allowedIds, (x) => x.trim().toUpperCase()))
     : null;
 
-  if (!invalidSet && !allowedSet) return text;
-  if (invalidSet && invalidSet.size === 0 && !allowedSet) return text;
-
   let changed = false;
-  const replaced = text.replace(CITATION_TAG_SCAN_RE, (fullMatch, rawId: string) => {
-    const idUpper = rawId.trim().toUpperCase();
-    const isInvalid =
-      (invalidSet ? invalidSet.has(idUpper) : false) ||
-      (allowedSet ? !allowedSet.has(idUpper) : false);
-    if (!isInvalid) return fullMatch;
+  const replaced = text.replace(CITATION_TAG_SCAN_RE, (fullMatch, rawInner: string) => {
+    const parsed = parseCitationTagInner(rawInner);
+    if (parsed.isEmptyTag || parsed.candidates.length === 0) {
+      changed = true;
+      return '';
+    }
+
+    const survivingIds: string[] = [];
+    let removedAny = false;
+
+    for (const cand of parsed.candidates) {
+      const isInvalid =
+        !cand.isValidFormat ||
+        (invalidSet ? invalidSet.has(cand.idUpper) : false) ||
+        (allowedSet ? !allowedSet.has(cand.idUpper) : false);
+      if (isInvalid) {
+        removedAny = true;
+      } else {
+        survivingIds.push(cand.idUpper);
+      }
+    }
+
+    if (survivingIds.length === 0) {
+      changed = true;
+      return '';
+    }
+
+    // Thẻ đơn hợp lệ: giữ nguyên dạng gốc (bao gồm hậu tố chú thích sau `·` nếu có)
+    // trừ khi mã ID viết thường cần chuẩn hóa hoa.
+    if (parsed.candidates.length === 1 && !removedAny) {
+      const idUpper = parsed.candidates[0].idUpper;
+      if (parsed.noteSuffix) {
+        const rawIdPart = rawInner.slice(0, rawInner.search(/[·|]/u)).trim();
+        if (rawIdPart === idUpper) {
+          return fullMatch;
+        }
+        changed = true;
+        return `[Nguồn: ${idUpper} ${parsed.noteSuffix}]`;
+      }
+      if (rawInner.trim() !== idUpper) {
+        changed = true;
+        return `[Nguồn: ${idUpper}]`;
+      }
+      return fullMatch;
+    }
+
+    // Thẻ đa ID (hoặc vừa loại bớt ID sai khỏi thẻ đa ID): xuất thành các thẻ đơn `[Nguồn: ID1] [Nguồn: ID2]`.
     changed = true;
-    return '';
+    return survivingIds.map((id) => `[Nguồn: ${id}]`).join(' ');
   });
 
   if (!changed) return text;

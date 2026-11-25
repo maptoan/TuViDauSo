@@ -143,7 +143,11 @@ const ERROR_LABELS: Record<string, string> = {
   RATE_LIMIT_RPM: 'Vượt RPM/phút (429)',
   QUOTA_PROJECT_ZERO: 'Hạn mức Project = 0 (429)',
   QUOTA_DAILY_EXHAUSTED: 'Hết quota ngày (429)',
-  AUTH_INVALID_KEY: 'Key không hợp lệ (401/403)',
+  AUTH_INVALID_KEY: 'Key không hợp lệ (401/key invalid)',
+  AUTH_FORBIDDEN_AMBIGUOUS: 'Từ chối tạm thời (403)',
+  AUTH_FORBIDDEN_REPEATED: 'Vô hiệu do 403 lặp 5 lần',
+  API_NOT_ENABLED: 'Project chưa bật API (403)',
+  TEST_TIMEOUT_INCONCLUSIVE: 'Hết giờ thử (chưa kết luận)',
   NETWORK_OR_5XX: 'Lỗi mạng / Máy chủ (5xx)',
   MODEL_UNAVAILABLE: 'Model không khả dụng',
   UNKNOWN: 'Lỗi khác',
@@ -179,14 +183,14 @@ export default function KeyPoolModal({
 
   // Model config state
   const [defaultModel, setDefaultModel] = useState('gemini-3.5-flash-lite');
-  const [fallbackModel, setFallbackModel] = useState('gemini-3.8-flash');
+  const [fallbackModel, setFallbackModel] = useState('gemma-4-31b-it');
   const [customModelInput, setCustomModelInput] = useState('');
   const [savingModels, setSavingModels] = useState(false);
 
   // Row operations & feedback
-  const [testingKeyId, setTestingKeyId] = useState<string | null>(null);
+  const [testingKeyTarget, setTestingKeyTarget] = useState<{ id: string; model: string } | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [notice, setNotice] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [notice, setNotice] = useState<{ type: 'ok' | 'err' | 'warn'; text: string } | null>(null);
   const [showLogs, setShowLogs] = useState(false);
 
   // Batch cooldown re-check state (F3: Client-orchestrated)
@@ -446,13 +450,15 @@ export default function KeyPoolModal({
     }
   };
 
-  const handleTestKey = async (id: string) => {
-    setTestingKeyId(id);
+  const handleTestKey = async (id: string, model?: string) => {
+    const modelLabel = model || snapshot?.modelConfig.defaultModel || defaultModel;
+    setTestingKeyTarget({ id, model: modelLabel });
     setNotice(null);
     try {
       const res = await fetch(`/api/key-pool/${encodeURIComponent(id)}/test`, {
         method: 'POST',
         headers: authHeaders(),
+        body: JSON.stringify(model ? { model } : {}),
       });
       const data = await res.json();
       if (data?.pool) applySnapshot(data.pool);
@@ -463,18 +469,25 @@ export default function KeyPoolModal({
       if (data.ok) {
         setNotice({
           type: 'ok',
-          text: `Khóa hoạt động tốt trên ${data.modelUsed} (độ trễ kiểm tra: ${data.latencyMs}ms).`,
+          text: data.isDefaultModel === false
+            ? `Khóa phản hồi tốt trên model phụ ${data.modelUsed} (độ trễ: ${data.latencyMs}ms · giữ nguyên trạng thái khóa).`
+            : `Khóa hoạt động tốt trên ${data.modelUsed} (độ trễ kiểm tra: ${data.latencyMs}ms).`,
+        });
+      } else if (data.inconclusive || data.errorCategory === 'TEST_TIMEOUT_INCONCLUSIVE') {
+        setNotice({
+          type: 'warn',
+          text: `Chưa kết luận trên ${data.modelUsed} [${ERROR_LABELS.TEST_TIMEOUT_INCONCLUSIVE}]: ${data.sanitizedMessage || 'Giữ nguyên trạng thái và điểm sức khỏe của khóa.'}`,
         });
       } else {
         setNotice({
           type: 'err',
-          text: `Khóa gặp lỗi [${ERROR_LABELS[data.errorCategory] || data.errorCategory}]: ${data.sanitizedMessage}`,
+          text: `Khóa gặp lỗi trên ${data.modelUsed || modelLabel} [${ERROR_LABELS[data.errorCategory] || data.errorCategory}]: ${data.sanitizedMessage}`,
         });
       }
     } catch {
       setNotice({ type: 'err', text: 'Lỗi kết nối khi kiểm tra thử khóa.' });
     } finally {
-      setTestingKeyId(null);
+      setTestingKeyTarget(null);
     }
   };
 
@@ -567,6 +580,7 @@ export default function KeyPoolModal({
           return {
             kind: 'probed',
             ok: Boolean(data.ok),
+            inconclusive: Boolean(data.inconclusive),
             latencyMs: typeof data.latencyMs === 'number' ? data.latencyMs : 0,
             modelUsed: data.modelUsed || snapshot.modelConfig.defaultModel,
             status: data.status || (data.ok ? 'ready' : 'cooldown'),
@@ -599,10 +613,12 @@ export default function KeyPoolModal({
       } else {
         const { counts } = finalProgress;
         setNotice({
-          type: counts.recovered > 0 ? 'ok' : 'err',
+          type: counts.recovered > 0 ? 'ok' : counts.inconclusive > 0 && counts.stillFailing === 0 ? 'warn' : 'err',
           text: `${
             finalProgress.stoppedEarly ? 'Đã dừng kiểm tra' : 'Hoàn tất kiểm tra'
-          } ${finalProgress.processed}/${finalProgress.total} khóa đang nguội: Hồi phục ${counts.recovered} · Còn lỗi ${counts.stillFailing} (probe thật) · Bỏ qua trùng Project ${counts.skippedSameProject} · Vô hiệu ${counts.disabled}${
+          } ${finalProgress.processed}/${finalProgress.total} khóa đang nguội: Hồi phục ${counts.recovered} · Còn lỗi ${counts.stillFailing} (probe thật)${
+            counts.inconclusive > 0 ? ` · Chưa kết luận (timeout) ${counts.inconclusive}` : ''
+          } · Bỏ qua trùng Project ${counts.skippedSameProject} · Vô hiệu ${counts.disabled}${
             counts.deferred > 0 ? ` · Chưa thử (đang chờ) ${counts.deferred}` : ''
           }.`,
         });
@@ -799,7 +815,9 @@ export default function KeyPoolModal({
               className={`rounded-xl p-3 border text-xs flex items-start gap-2 ${
                 notice.type === 'ok'
                   ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                  : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+                  : notice.type === 'warn'
+                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
+                    : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
               }`}
             >
               {notice.type === 'ok' ? (
@@ -954,7 +972,7 @@ export default function KeyPoolModal({
             </div>
 
             <p className="text-[11px] text-[var(--t-text2)] leading-relaxed">
-              Dán một hoặc nhiều Gemini API key cùng lúc. Hệ thống tự tách theo dấu phẩy (<code>,</code>), khoảng trắng, tab, chấm phẩy (<code>;</code>), mỗi key một hàng, dòng <code>.env</code>, nhãn <code>Ten: AIza...</code> hoặc JSON. Khóa chỉ lưu ở máy chủ và luôn hiển thị dạng che sau khi lưu.
+              Dán một hoặc nhiều Gemini API key cùng lúc (hỗ trợ cả định dạng <code>AIza...</code> và <code>AQ....</code>). Hệ thống tự tách theo dấu phẩy (<code>,</code>), khoảng trắng, tab, chấm phẩy (<code>;</code>), mỗi key một hàng, dòng <code>.env</code>, nhãn <code>Ten: AIza.../AQ....</code> hoặc JSON. Khóa chỉ lưu ở máy chủ và luôn hiển thị dạng che sau khi lưu.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-end">
@@ -1054,7 +1072,7 @@ export default function KeyPoolModal({
                     Bảng Theo Dõi Sức Khỏe Từng Khóa ({snapshot?.keys.length ?? 0})
                   </h3>
                   <span className="text-[11px] text-[var(--t-faint)]">
-                    Ưu tiên điểm sức khỏe cao nhất · Xoay vòng chia tải
+                    Ưu tiên điểm sức khỏe cao nhất · Xoay vòng chia tải · Thử khóa model thường tối đa 20s; riêng họ Gemma có thể mất tới ~60s cho phản hồi đầu
                   </span>
                 </div>
               </div>
@@ -1151,6 +1169,11 @@ export default function KeyPoolModal({
                   <span className="px-2 py-1 rounded border border-rose-500/35 bg-rose-500/10 text-rose-300 font-semibold">
                     Vô hiệu: {batchProgress.counts.disabled}
                   </span>
+                  {batchProgress.counts.inconclusive > 0 && (
+                    <span className="px-2 py-1 rounded border border-yellow-500/35 bg-yellow-500/10 text-yellow-300 font-semibold">
+                      Chưa kết luận (timeout): {batchProgress.counts.inconclusive}
+                    </span>
+                  )}
                   {batchProgress.counts.deferred > 0 && (
                     <span className="px-2 py-1 rounded border border-slate-500/35 bg-slate-500/10 text-slate-300">
                       Chưa thử (đang chờ): {batchProgress.counts.deferred}
@@ -1219,6 +1242,10 @@ export default function KeyPoolModal({
                           ) : item.outcome === 'disabled' ? (
                             <span className="text-rose-400 font-semibold">
                               Vô hiệu ({ERROR_LABELS[item.errorCategory || 'AUTH_INVALID_KEY'] || item.errorCategory})
+                            </span>
+                          ) : item.outcome === 'inconclusive' ? (
+                            <span className="text-yellow-300 font-semibold">
+                              Chưa kết luận (timeout · giữ nguyên trạng thái)
                             </span>
                           ) : item.outcome === 'skipped_same_project' ? (
                             <span className="text-sky-300">
@@ -1304,19 +1331,67 @@ export default function KeyPoolModal({
 
                         {/* Right: Actions */}
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <button
-                            type="button"
-                            onClick={() => handleTestKey(key.id)}
-                            disabled={isReadOnly || testingKeyId === key.id || Boolean(batchProgress?.running)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text)] hover:border-[var(--t-gold)] disabled:opacity-40 cursor-pointer"
-                          >
-                            <RefreshCw
-                              className={`w-3 h-3 ${testingKeyId === key.id ? 'animate-spin' : ''}`}
-                            />
-                            <span>
-                              {testingKeyId === key.id ? 'Đang thử...' : 'Kiểm tra thử'}
-                            </span>
-                          </button>
+                          {(() => {
+                            const activeDefaultModel =
+                              snapshot?.modelConfig.defaultModel || defaultModel;
+                            const activeFallbackModel =
+                              snapshot?.modelConfig.fallbackModel || fallbackModel;
+                            const isTestingDefault =
+                              testingKeyTarget?.id === key.id &&
+                              testingKeyTarget?.model === activeDefaultModel;
+                            const isTestingFallback =
+                              testingKeyTarget?.id === key.id &&
+                              testingKeyTarget?.model === activeFallbackModel;
+                            const anyTestingThisKey = testingKeyTarget?.id === key.id;
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleTestKey(key.id, activeDefaultModel)}
+                                  disabled={
+                                    isReadOnly ||
+                                    anyTestingThisKey ||
+                                    Boolean(batchProgress?.running)
+                                  }
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-[var(--t-border)] bg-[var(--t-surface)] text-[var(--t-text)] hover:border-[var(--t-gold)] disabled:opacity-40 cursor-pointer"
+                                  title={`Kiểm tra thử trên model mặc định ${activeDefaultModel}`}
+                                >
+                                  <RefreshCw
+                                    className={`w-3 h-3 ${isTestingDefault ? 'animate-spin' : ''}`}
+                                  />
+                                  <span>
+                                    {isTestingDefault
+                                      ? `Đang thử (${activeDefaultModel})...`
+                                      : `Thử (${activeDefaultModel})`}
+                                  </span>
+                                </button>
+
+                                {activeFallbackModel &&
+                                  activeFallbackModel !== activeDefaultModel && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleTestKey(key.id, activeFallbackModel)}
+                                      disabled={
+                                        isReadOnly ||
+                                        anyTestingThisKey ||
+                                        Boolean(batchProgress?.running)
+                                      }
+                                      className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-[11px] font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-[var(--t-gold)] hover:border-[var(--t-gold)] disabled:opacity-40 cursor-pointer"
+                                      title={`Kiểm tra thử trên model dự phòng ${activeFallbackModel} (không thay đổi trạng thái chung của khóa)`}
+                                    >
+                                      <RefreshCw
+                                        className={`w-3 h-3 ${isTestingFallback ? 'animate-spin' : ''}`}
+                                      />
+                                      <span>
+                                        {isTestingFallback
+                                          ? `Đang thử (${activeFallbackModel})...`
+                                          : `Thử dự phòng (${activeFallbackModel})`}
+                                      </span>
+                                    </button>
+                                  )}
+                              </>
+                            );
+                          })()}
 
                           {(isCooldown || isDisabled) && (
                             <button

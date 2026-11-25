@@ -9,9 +9,11 @@ import { createServer as createViteServer } from 'vite';
 import {
   formatChartSummaryVi,
   generateLocalInterpretationVi,
+  translatePalaceName,
   translateStarName,
   translateWuxingJu,
   VI_BRANCHES,
+  VI_STEMS,
 } from './src/lib/ziwei/vi-i18n.ts';
 import type { ZiweiChart } from './src/lib/ziwei/types.ts';
 import type { YunxianPeriodContext } from './src/lib/ziwei/yunxian-context.ts';
@@ -41,6 +43,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
+
+function buildPalaceGanZhiMap(chart: ZiweiChart): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const p of chart.palaces) {
+    const palaceVi = translatePalaceName(p.name);
+    const stemVi = VI_STEMS[p.stem] ?? '';
+    const branchVi = VI_BRANCHES[p.branch] ?? '';
+    if (palaceVi && stemVi && branchVi) {
+      map[palaceVi] = `${stemVi} ${branchVi}`;
+    }
+  }
+  return map;
+}
 
 function timingSafePinMatches(provided: string, expected: string): boolean {
   const hashA = crypto.createHash('sha256').update(provided, 'utf8').digest();
@@ -205,12 +220,15 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
    - Đọc trực tiếp tọa độ sao, Cát/Sát tinh và vai trò Lưu/Đại Hạn từ mục [Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn (Tra Cứu Cố Định — Không Tự Nhẩm Địa Chi)], không tự nhẩm lại cung tam hợp hay đối cung.
    - BẮT BUỘC phải nhắc và phân tích ĐỦ CẢ 4 SAO TỨ HÓA CỦA KỲ HẠN (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ — nêu rõ tên sao + loại hóa + cung kỳ hạn tọa thủ + đối cung xung chiếu), tuyệt đối không được bỏ sót bất kỳ hóa nào.
 4. Phân biệt rõ tính chất kỳ hạn:
-   - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
-   - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
+    - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
+    - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
+    - Đối với chương LƯU NIÊN: độ dài thân bài mục tiêu **900–1.300 từ**, phân tích đủ Tam Phương Tứ Chính của Lưu Mệnh (Lưu Mệnh – Lưu Tài – Lưu Quan – Lưu Di) và giao thoa với Đại Hạn gốc chi phối hiện hành (đọc từ Bảng dữ kiện kỳ hạn).
+    - Mỗi dòng Lưu Tứ Hóa BẮT BUỘC nêu đủ **tên Hóa + tên sao + độ sáng** (ví dụ: "Lưu Hóa Khoa → Sao Văn Xương [Miếu]"); mỗi lần nêu sao lưu (Lưu Lộc Tồn, Lưu Thiên Mã, Lưu Văn Xương, Lưu Văn Khúc…) BẮT BUỘC kèm tên cung Bản Mệnh gốc trong ngoặc.
+    - Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
-   - Khi sử dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tới Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp vào cuối đoạn/bullet đó (ví dụ: \`[Nguồn: NH-SIHUA-001]\`).
+   - Khi sử dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tới Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó (ví dụ: \`[Nguồn: NH-SIHUA-001]\`).
    - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách; phần không có trích đoạn đối chiếu thì luận giải thuần túy theo Bảng dữ kiện lá số mà không viện dẫn tên sách/cổ quyết.
-6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), trình bày bằng Markdown theo đúng 4 đề mục:
+6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), tuyệt đối không mở đầu chương bằng câu dẫn nhập kiểu "Dưới đây là phần luận giải chi tiết cho kỳ hạn …" — vào thẳng đề mục \`### 1. …\`, trình bày bằng Markdown theo đúng 4 đề mục:
    ### 1. Chủ Đề Kỳ Hạn (${isDahan ? 'Xu Thế 10 Năm' : 'Sự Kiện Trong Năm'})
    ### 2. Điểm Cát & Động Lực Thuận Lợi
    ### 3. Điểm Hung & Trục Xung Chiếu Cần Lưu Ý
@@ -219,13 +237,13 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
 
   const excerpts = [
     ...(periodContext.knowledgeExcerpts.patterns.length > 0
-      ? ['[Cách cục nhận diện từ patterns.ts]:', ...periodContext.knowledgeExcerpts.patterns.map((x) => `- ${x}`)]
+      ? ['[Cách cục nhận diện từ lá số]:', ...periodContext.knowledgeExcerpts.patterns.map((x) => `- ${x}`)]
       : []),
     ...(periodContext.knowledgeExcerpts.starPrinciples.length > 0
-      ? ['[Tính chất tinh diệu từ school-data.ts / constants.ts]:', ...periodContext.knowledgeExcerpts.starPrinciples.map((x) => `- ${x}`)]
+      ? ['[Tính chất tinh diệu]:', ...periodContext.knowledgeExcerpts.starPrinciples.map((x) => `- ${x}`)]
       : []),
     ...(periodContext.knowledgeExcerpts.fuqiAndSihua.length > 0
-      ? ['[Nguyên lý Tứ Hóa & Tinh hệ từ heming-knowledge.ts]:', ...periodContext.knowledgeExcerpts.fuqiAndSihua.map((x) => `- ${x}`)]
+      ? ['[Nguyên lý Tứ Hóa & Tinh hệ]:', ...periodContext.knowledgeExcerpts.fuqiAndSihua.map((x) => `- ${x}`)]
       : []),
   ].join('\n');
 
@@ -400,18 +418,28 @@ export function buildStrictDossierSectionPrompt(
     sectionId === 'palaces_social_health';
   const isHorizon = sectionId === 'horizon_5y' || sectionId === 'horizon_10y';
 
+  const familyGenderRule =
+    sectionId === 'palaces_family'
+      ? `\n   - Khi luận cung Phu Thê và các sao phối ngẫu, căn cứ trường Đương số trong Bảng dữ kiện: đương số nam thì không dùng khuôn diễn đạt dành cho nữ và ngược lại.`
+      : '';
+
   const sectionRules = isPalaceGroup
     ? `4. ĐỊNH DẠNG & SÀN ĐỘ DÀI BẮT BUỘC CHO NHÓM 4 CUNG:
    - Phải viết đầy đủ 4 đề mục Markdown \`### Cung <Tên Cung> (<Can Chi>)\` tách biệt cho cả 4 cung: ${(sectionCtx.palaceNamesVi ?? []).join(', ')}. KHÔNG được gộp sơ sài hay bỏ sót bất kỳ cung nào.
    - Lưu ý: tiêu đề mục cung (gồm cả nhãn [AN MỆNH]/[AN THÂN]/[Đại hạn X–Y tuổi]) sẽ được app chuẩn hóa hậu kiểm tự động theo dữ kiện lá số; AI giữ đúng mẫu \`### Cung <Tên Cung> (<Can Chi>)\` và tập trung viết thân bài thật sâu sắc cho từng cung.
    - Mỗi cung BẮT BUỘC đạt độ sâu phân tích **250–350 từ MỖI cung** (tổng toàn chương **1,000–1,400 từ**).
-   - Trong mỗi cung: phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), Cát tinh/Sát tinh đi kèm, Tam Phương Tứ Chính (đối cung + 2 cung tam hợp), Tứ Hóa theo đúng tiền tố tầng và Tự Hóa/Phi Tinh (nếu có), cùng lời khuyên thực tiễn.`
+   - Trong mỗi cung: phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), Cát tinh/Sát tinh đi kèm, Tam Phương Tứ Chính (đối cung + 2 cung tam hợp), Tứ Hóa theo đúng tiền tố tầng và Tự Hóa/Phi Tinh (nếu có), cùng lời khuyên thực tiễn.
+    - Khi nhắc Tứ Hóa Đại Hạn của một kỳ tuổi, chỉ dùng Can và bộ sao của đúng kỳ đó theo dòng [Tứ Hóa Đại Hạn Kỳ ...] của cung tương ứng. Thẻ [Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại; không gán Can của kỳ hiện tại cho các kỳ quá khứ hay tương lai.
+    - Trong mỗi cung thuộc Chương 2, 3, 4, BẮT BUỘC phân tích dòng \`[Tứ Hóa Đại Hạn Kỳ X–Y]\` gắn với đại hạn đóng tại cung đó (nêu rõ kỳ tuổi, Thiên Can và đủ 4 hóa Lộc/Quyền/Khoa/Kỵ), bên cạnh \`[Phi Tinh Can Cung ...]\`.${familyGenderRule}`
     : isHorizon
       ? `4. QUY TẮC TỐI THƯỢNG CHO PHÂN TÍCH ĐA NĂM & ĐỘ DÀI (BẮT BUỘC):
    - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
    - Với mỗi năm trong Ma Trận, BẠN CHỈ ĐƯỢC PHÉP trích dẫn Năm, Tuổi, Can Chi, Đại Hạn chủ quản, Quan hệ Đại Hạn–Lưu Niên, Cung Bản Mệnh kích hoạt, đủ cả 4 sao Lưu Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) kèm nhãn "Cung Lưu <Tên Cung>" (cả tọa thủ lẫn đối cung xung chiếu), các Sao Lưu và Cờ xung hợp đã in TRỰC TIẾP trong bảng Ma Trận.
+   - Khi liệt kê 4 sao Lưu Tứ Hóa của từng năm, BẮT BUỘC theo đúng mẫu: \`{Sao} Hóa {X} tại Cung Lưu {A} [trùng {B}] (xung Cung Lưu {C} [trùng {D}])\` — không được lược đối cung xung chiếu.
    - TUYỆT ĐỐI CẤM tự tính nhẩm hoặc bịa thêm bất kỳ sao lưu niên, cung hạn hay năm nào nằm ngoài bảng Ma Trận.
    - Nếu một năm được ghi **"chưa vào Đại Hạn"**, PHẢI nêu rõ đương số chưa vào Đại Hạn ở năm đó và tuyệt đối không tự bịa cung Đại Hạn hay Tứ Hóa Đại Hạn.
+   - Chỉ gắn thẻ \`[Nguồn: ...]\` vào đoạn bình giải lý thuyết tương ứng với chủ đề của thẻ; không gắn thẻ Tứ Hóa chuyên đề đơn lẻ vào câu liệt kê danh sách 4 sao Tứ Hóa Đại Hạn.
+   - Tuyệt đối không mở đầu bằng câu dẫn nhập và không lặp lại tên chương ở đầu bài; sử dụng thống nhất cấp tiêu đề \`### 1.\`, \`### 2.\`, \`### 3.\`, \`### 4.\` cho các phần chính.
    - Trình bày rõ: Tổng quan chuyển dịch & mốc chuyển Đại Hạn → Phân tích nhịp từng năm dựa trên Ma Trận (xét đủ 4 Lưu Tứ Hóa) → Điểm rơi cơ hội/rủi ro nổi bật → Chiến lược hành động.`
       : `4. ĐỊNH DẠNG & ĐỘ DÀI BẮT BUỘC CHO CHƯƠNG TỔNG QUAN:
    - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
@@ -424,11 +452,11 @@ export function buildStrictDossierSectionPrompt(
   const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
 QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
 1. CHỈ ĐƯỢC phép luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được cung cấp.
-2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện.
+2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện. Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
 3. Khi nhắc đến Tứ Hóa, PHẢI giữ rõ tầng theo đúng tiền tố: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
 ${sectionRules}
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
-   - Khi áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên trường phái / tác giả / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` nằm trong danh sách đã nạp ở cuối đoạn hoặc mục bullet tương ứng.
+   - Khi áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên trường phái / tác giả / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` nằm trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó.
    - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc trích nguyên văn khẩu quyết ngoài danh sách; với phần không có trích đoạn đi kèm, chỉ luận giải thuần túy từ dữ kiện tinh đẩu trên lá số.
 6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
 7. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
@@ -649,7 +677,14 @@ export function registerApiRoutes(app: express.Express) {
   app.post('/api/key-pool/:id/test', async (req, res) => {
     if (!requireKeyPoolWriteAccess(req, res)) return;
     try {
-      const result = await keyPoolManager.testKey(req.params.id);
+      const requestedModel =
+        typeof req.body?.model === 'string' && req.body.model.trim()
+          ? req.body.model.trim()
+          : undefined;
+      const result = await keyPoolManager.testKey(
+        req.params.id,
+        requestedModel ? { model: requestedModel } : undefined,
+      );
       const sec = getRequestSecurityContext(req);
       res.json({
         ...result,
@@ -662,7 +697,11 @@ export function registerApiRoutes(app: express.Express) {
       });
     } catch (err) {
       const msg = keyPoolManager.sanitize(err);
-      const status = msg.includes('Không tìm thấy') ? 404 : 429;
+      const status = msg.includes('Không tìm thấy')
+        ? 404
+        : msg.includes('không hợp lệ')
+          ? 400
+          : 429;
       res.status(status).json({ error: 'TEST_FAILED', message: msg });
     }
   });
@@ -745,10 +784,11 @@ export function registerApiRoutes(app: express.Express) {
     let wasInterrupted = false;
 
     try {
-      await keyPoolManager.executeStream({
+      const finalMeta = await keyPoolManager.executeStream({
         prompt,
         systemInstruction,
         signal: abortController.signal,
+        onSseKeepAliveRequired: ensureSseStarted,
         onMeta: (meta) => {
           ensureSseStarted();
           sendSseJson(res, { meta });
@@ -803,12 +843,20 @@ export function registerApiRoutes(app: express.Express) {
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
+          { palaceGanZhiMap: buildPalaceGanZhiMap(chart) },
         );
+        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+          console.warn(
+            `[interpret-period] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
+            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+          );
+        }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
+            palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
           },
         });
         const tailBlock = [
@@ -825,6 +873,9 @@ export function registerApiRoutes(app: express.Express) {
               : '\n\n';
           sendSseText(res, `${leadingSep}${tailBlock}`);
         }
+      }
+      if (sseStarted && !res.writableEnded) {
+        sendSseJson(res, { meta: finalMeta, done: true });
       }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -899,10 +950,11 @@ export function registerApiRoutes(app: express.Express) {
     let wasInterrupted = false;
 
     try {
-      await keyPoolManager.executeStream({
+      const finalMeta = await keyPoolManager.executeStream({
         prompt,
         systemInstruction,
         signal: abortController.signal,
+        onSseKeepAliveRequired: ensureSseStarted,
         onMeta: (meta) => {
           ensureSseStarted();
           sendSseJson(res, { meta });
@@ -930,12 +982,20 @@ export function registerApiRoutes(app: express.Express) {
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
+          { palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart) },
         );
+        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+          console.warn(
+            `[interpret-dossier-section] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
+            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+          );
+        }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
+            palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
           },
         });
         const tailBlock = [
@@ -952,6 +1012,9 @@ export function registerApiRoutes(app: express.Express) {
               : '\n\n';
           sendSseText(res, `${leadingSep}${tailBlock}`);
         }
+      }
+      if (sseStarted && !res.writableEnded) {
+        sendSseJson(res, { meta: finalMeta, done: true });
       }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1032,10 +1095,11 @@ export function registerApiRoutes(app: express.Express) {
     let wasInterrupted = false;
 
     try {
-      await keyPoolManager.executeStream({
+      const finalMeta = await keyPoolManager.executeStream({
         prompt,
         systemInstruction,
         signal: abortController.signal,
+        onSseKeepAliveRequired: ensureSseStarted,
         onMeta: (meta) => {
           ensureSseStarted();
           sendSseJson(res, { meta });
@@ -1063,12 +1127,20 @@ export function registerApiRoutes(app: express.Express) {
         const citationAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
+          { palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart) },
         );
+        if (citationAudit.palaceGanZhiMismatches.length > 0) {
+          console.warn(
+            `[interpret-chat] PALACE_GANZHI_MISMATCH (${citationAudit.palaceGanZhiMismatches.length}):`,
+            JSON.stringify(citationAudit.palaceGanZhiMismatches),
+          );
+        }
         sendSseJson(res, {
           citationAudit: {
             validIds: citationAudit.validCitationIds,
             scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
             hasUncitedClaims: citationAudit.hasUncitedClaims,
+            palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
           },
         });
         if (citationAudit.chatFooterMarkdown) {
@@ -1079,6 +1151,9 @@ export function registerApiRoutes(app: express.Express) {
               : '\n\n';
           sendSseText(res, `${leadingSep}${citationAudit.chatFooterMarkdown}`);
         }
+      }
+      if (sseStarted && !res.writableEnded) {
+        sendSseJson(res, { meta: finalMeta, done: true });
       }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1188,7 +1263,7 @@ Hãy trình bày bài luận giải bằng tiếng Việt chuẩn mực, rõ rà
     let interruptedEmitted = false;
 
     try {
-      await keyPoolManager.executeStream({
+      const finalMeta = await keyPoolManager.executeStream({
         prompt,
         signal: abortController.signal,
         onMeta: (meta) => {
@@ -1208,6 +1283,9 @@ Hãy trình bày bài luận giải bằng tiếng Việt chuẩn mực, rõ rà
           });
         },
       });
+      if (!res.writableEnded) {
+        sendSseJson(res, { meta: finalMeta, done: true });
+      }
     } catch (err) {
       if (!anyChunkSent) {
         sendSseText(res, generateLocalInterpretationVi(chart, fallbackPrompt));
@@ -1275,7 +1353,7 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
     let interruptedEmitted = false;
 
     try {
-      await keyPoolManager.executeStream({
+      const finalMeta = await keyPoolManager.executeStream({
         prompt,
         signal: abortController.signal,
         onMeta: (meta) => {
@@ -1295,6 +1373,9 @@ Hãy luận giải chi tiết bằng tiếng Việt theo 5 bước chuẩn mực
           });
         },
       });
+      if (!res.writableEnded) {
+        sendSseJson(res, { meta: finalMeta, done: true });
+      }
     } catch (err) {
       if (!anyChunkSent) {
         sendSseText(res, buildLocalHemingServerFallback(chartA, chartB));

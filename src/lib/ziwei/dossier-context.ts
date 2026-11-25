@@ -217,7 +217,7 @@ function getAllSiHuaTagsForChart(
   const dxSiHua = getDaXianSiHua(chart, dxIdx);
   const dxStem = dxSiHua?.stemIndex ?? 0;
   const dxStemVi = VI_STEMS[dxStem] ?? '';
-  const daXianPrefix = `[Tứ Hóa Đại Hạn - Can ${dxStemVi}]`;
+  const daXianPrefix = `[Tứ Hóa Đại Hạn HIỆN TẠI (${dx.startAge}–${dx.endAge} · Can ${dxStemVi})]`;
   const daXianByStar: Record<string, SiHua> = {};
   const daXianTags: string[] = [];
 
@@ -246,6 +246,18 @@ function getAllSiHuaTagsForChart(
     daXianByStar,
     daXianTags,
   };
+}
+
+const PATTERN_LEVEL_VI_MAP: Record<string, string> = {
+  excellent: 'Thượng cách',
+  good: 'Cát cách',
+  neutral: 'Trung bình',
+  bad: 'Hung cách',
+  caution: 'Hung cách',
+};
+
+function translatePatternLevelVi(level: string): string {
+  return PATTERN_LEVEL_VI_MAP[level] ?? level;
 }
 
 export interface NatalOverviewFactSheet {
@@ -324,7 +336,7 @@ export function buildNatalOverviewFactSheetVi(chart: ZiweiChart): NatalOverviewF
   if (patternsVi.length > 0) {
     for (const pat of patternsVi.slice(0, 10)) {
       lines.push(
-        `• **${pat.name}** [${pat.level}] (${pat.palaces.join(', ')}): ${pat.description}`,
+        `• **${pat.name}** [${translatePatternLevelVi(pat.level)}] (${pat.palaces.join(', ')}): ${pat.description}`,
       );
     }
   } else {
@@ -386,8 +398,13 @@ export function buildPalaceGroupFactSheetVi(
   const palaces: DossierPalaceDetailVi[] = [];
   const lines: string[] = [];
 
+  const genderLabelVi =
+    translateYinYang(chart.yinYangGender) ||
+    (chart.birthInfo.gender === 'female' ? 'Nữ' : 'Nam');
+
   lines.push(`**[${spec.titleVi.toUpperCase()}]**`);
   lines.push(`*${spec.subtitleVi}*`);
+  lines.push(`• Đương số: ${genderLabelVi}`);
   lines.push(`• **Ngữ cảnh Đại Hạn hiện tại**: ${sihuaInfo.currentDaXianLabelVi}`);
 
   for (const canonicalKey of spec.palaceKeys) {
@@ -506,9 +523,36 @@ export function buildPalaceGroupFactSheetVi(
     };
     palaces.push(detail);
 
+    const lendingNoteVi =
+      !p.isEmpty && oppPalace?.isEmpty
+        ? ` (Chính tinh tại cung này được đối cung ${translatePalaceName(oppPalace.name)} vô chính diệu mượn để tham chiếu; cung này KHÔNG mượn sao của ${translatePalaceName(oppPalace.name)}.)`
+        : '';
+
+    const daXianRange = p.daXianAge ?? (() => {
+      const dx = chart.daXians.find((d) => d.palaceBranch === p.branch);
+      return dx ? ([dx.startAge, dx.endAge] as [number, number]) : null;
+    })();
+    let daXianPeriodSiHuaLine = '';
+    if (daXianRange) {
+      const dxStemVi = VI_STEMS[p.stem] ?? '';
+      const periodTransforms = getSiHuaByStem(p.stem);
+      const periodSiHuaParts = (['禄', '权', '科', '忌'] as SiHua[])
+        .map((sh) => {
+          const starCn = periodTransforms[sh];
+          if (!starCn) return null;
+          const targetPal = chart.palaces.find((x) => x.stars.some((st) => st.name === starCn));
+          const targetPalName = targetPal ? translatePalaceName(targetPal.name) : 'Không xác định';
+          return `${translateStarName(starCn)} Hóa ${translateSiHua(sh)} → ${targetPalName}`;
+        })
+        .filter((x): x is string => Boolean(x));
+      if (periodSiHuaParts.length > 0) {
+        daXianPeriodSiHuaLine = `• [Tứ Hóa Đại Hạn Kỳ ${daXianRange[0]}–${daXianRange[1]} (đóng tại ${natalPalaceNameVi} · Can ${dxStemVi})] ${periodSiHuaParts.join('; ')}`;
+      }
+    }
+
     lines.push(`\n${formatCanonicalPalaceHeading(p)}`);
     lines.push(`• **Chức năng**: ${roleDescVi}`);
-    lines.push(`• **Chính tinh**: **${majorsInfo.summaryVi}**`);
+    lines.push(`• **Chính tinh**: **${majorsInfo.summaryVi}**${lendingNoteVi}`);
     lines.push(
       `• **Cát tinh / Trợ tinh**: ${luckyStarsVi.join(', ') || 'Không'} | **Sát tinh**: ${shaStarsVi.join(', ') || 'Không'} | **Tạp diệu**: ${minorStarsVi.join(', ') || 'Không'}`,
     );
@@ -518,6 +562,9 @@ export function buildPalaceGroupFactSheetVi(
     lines.push(
       `• **Tứ Hóa & Phi Tinh liên hệ**: ${detail.siHuaTags.length > 0 ? detail.siHuaTags.join(' ; ') : 'Không có Tứ Hóa trực tiếp trên bản cung.'}`,
     );
+    if (daXianPeriodSiHuaLine) {
+      lines.push(daXianPeriodSiHuaLine);
+    }
 
     const starNotes = majorsInfo.rawMajorNames
       .map((cn) => {
@@ -541,6 +588,8 @@ export function buildPalaceGroupFactSheetVi(
 
 export function formatCanonicalPalaceHeading(p: Palace): string {
   const natalPalaceNameVi = translatePalaceName(p.name);
+  const headingPalaceLabel =
+    natalPalaceNameVi === 'Mệnh Cung' ? 'Cung Mệnh' : `Cung ${natalPalaceNameVi}`;
   const ganZhiVi = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
   const daXianAgeRangeVi = p.daXianAge ? `${p.daXianAge[0]}–${p.daXianAge[1]} tuổi` : null;
   const badges = [
@@ -551,7 +600,7 @@ export function formatCanonicalPalaceHeading(p: Palace): string {
     .filter(Boolean)
     .join(' ');
 
-  return `### Cung ${natalPalaceNameVi} (${ganZhiVi}) ${badges}`.trim();
+  return `### ${headingPalaceLabel} (${ganZhiVi}) ${badges}`.trim();
 }
 
 export interface MultiYearSiHuaEntry extends PeriodSiHuaImpact {
@@ -667,7 +716,10 @@ export function buildMultiYearHorizonContext(
       const dxPalaceNameVi = translatePalaceName(dxPalace.name);
       const dxGanZhiVi = `${VI_STEMS[dxPalace.stem]} ${VI_BRANCHES[dxPalace.branch]}`;
       const dxSiHua = getDaXianSiHua(chart, effDxIdx, year);
-      const dxPrefix = `[Tứ Hóa Đại Hạn - Can ${VI_STEMS[dxPalace.stem]}]`;
+      const isCurrentDaXian = effDxIdx === chart.currentDaXianIndex;
+      const dxPrefix = isCurrentDaXian
+        ? `[Tứ Hóa Đại Hạn HIỆN TẠI (${dx.startAge}–${dx.endAge} · Can ${VI_STEMS[dxPalace.stem]})]`
+        : `[Tứ Hóa Đại Hạn Kỳ ${dx.startAge}–${dx.endAge} (đóng tại ${dxPalaceNameVi} · Can ${VI_STEMS[dxPalace.stem]})]`;
       let dxSiHuaSummaryVi = `${dxPrefix} Không xác định`;
       if (dxSiHua) {
         const parts: string[] = [];
@@ -912,6 +964,11 @@ export function buildMultiYearHorizonContext(
 
   for (const r of rows) {
     detailLines.push(`\n### Năm ${r.year} — ${r.lunarGanZhiVi} (${r.nominalAge} tuổi âm lịch)`);
+    if (r.activatedPalace.branch === chart.mingGongBranch) {
+      detailLines.push(
+        `*(Lưu Mệnh trùng Mệnh gốc tại ${r.activatedPalace.branchVi} nên cả 12 cung Lưu Niên năm này trùng tên với 12 cung Bản Mệnh)*`,
+      );
+    }
     detailLines.push(`• **(1–2) Năm & Tuổi**: ${r.year} (${r.lunarGanZhiVi}) · ${r.nominalAge} tuổi`);
     detailLines.push(
       `• **(3) Đại Hạn chủ quản**: ${r.governingDaXian.labelVi}${r.governingDaXian.isPreDaXian ? '' : ` · ${r.governingDaXian.siHuaSummaryVi}`}`,
@@ -946,9 +1003,9 @@ export function buildMultiYearHorizonContext(
   };
 }
 
-function periodCtxLabelDynStars(dynamicStars: PeriodDynamicStarItem[]): string {
+export function periodCtxLabelDynStars(dynamicStars: PeriodDynamicStarItem[]): string {
   return dynamicStars
-    .map((d) => `${d.starLabelVi} tại Cung ${d.periodPalaceRoleVi} (${d.natalPalaceNameVi} - ${d.branchVi})`)
+    .map((d) => `${d.starLabelVi} tại Cung ${d.periodPalaceRoleVi} (${d.natalPalaceNameVi} - ${d.natalGanZhiVi})`)
     .join(' · ');
 }
 

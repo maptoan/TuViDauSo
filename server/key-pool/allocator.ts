@@ -1,4 +1,5 @@
 import {
+  FALLBACK_COOLDOWN_WAIT_CAP_MS,
   type GeminiKeyRecord,
   type KeyErrorCategory,
   type KeyLease,
@@ -12,9 +13,11 @@ import {
 
 const GEMINI_35_PLUS_REGEX =
   /^gemini-(?:3\.[5-9]|[4-9](?:\.\d+)?|[1-9]\d+(?:\.\d+)?)-[a-z0-9.-]+$/i;
+const GEMMA_4_REGEX = /^gemma-4-[a-z0-9.-]+$/i;
 
 export function isSupportedGemini35Plus(modelName: string): boolean {
-  return GEMINI_35_PLUS_REGEX.test(modelName.trim());
+  const trimmed = modelName.trim();
+  return GEMINI_35_PLUS_REGEX.test(trimmed) || GEMMA_4_REGEX.test(trimmed);
 }
 
 function collectErrorText(raw: unknown, depth = 0, visited = new Set<unknown>()): string {
@@ -65,6 +68,7 @@ export function sanitizeSecretText(raw: unknown, rawKeys: Iterable<string>): str
     }
   }
   text = text.replace(/AIza[0-9A-Za-z_-]{20,50}/g, 'AIza••••[REDACTED]');
+  text = text.replace(/\bAQ\.[0-9A-Za-z_-]{12,64}/g, 'AQ.••••[REDACTED]');
   return text;
 }
 
@@ -86,7 +90,9 @@ export function classifyGeminiError(
     .replace(/\s+/g, ' ');
   const summary = normalizedText.slice(0, 420);
 
-  const projectMatch = normalizedText.match(/project(?:s\/|_number[:\s"]+)(\d{6,20})/i);
+  const projectMatch = normalizedText.match(
+    /(?:projects\/|project_number[:\s"]+|in\s+project\s+|(?:\?|&)project=)(\d{6,20})/i,
+  );
   const projectNumber = projectMatch?.[1] ?? null;
 
   const retryJsonMatch = normalizedText.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/i);
@@ -102,17 +108,42 @@ export function classifyGeminiError(
         ? anyErr.code
         : null;
 
-  // 1. Lỗi xác thực key (401 / 403 / Key bị thu hồi / hết hạn) -> vô hiệu hẳn
+  // 1. Lỗi xác thực key chết đích danh (401 hoặc marker key invalid/leaked/expired) -> vô hiệu hẳn
+  // (Gỡ numericStatus === 403, \b403\b và PERMISSION_DENIED để không nuốt nhầm các 403 khác)
   if (
     numericStatus === 401 ||
-    numericStatus === 403 ||
-    /\b(?:401|403)\b/.test(normalizedText) ||
-    /API_KEY_INVALID|API key not valid|PERMISSION_DENIED|reported as leaked|API key expired/i.test(
+    /\b401\b|\bUNAUTHENTICATED\b/i.test(normalizedText) ||
+    /API_KEY_INVALID|API key not valid|reported as leaked|API key expired|key_invalid|API_KEY_EXPIRED/i.test(
       normalizedText,
     )
   ) {
     return {
       category: 'AUTH_INVALID_KEY',
+      projectNumber,
+      retryDelaySec,
+      sanitizedSummary: summary,
+    };
+  }
+
+  // 1b. Project chưa bật Generative Language API (403 SERVICE_DISABLED)
+  if (
+    /SERVICE_DISABLED|has not been used in project|it is disabled/i.test(normalizedText)
+  ) {
+    return {
+      category: 'API_NOT_ENABLED',
+      projectNumber,
+      retryDelaySec,
+      sanitizedSummary: summary,
+    };
+  }
+
+  // 1c. Lỗi 403 còn lại (mơ hồ: hạn chế vùng/model, chính sách tạm thời...) -> cooldown leo thang
+  if (
+    numericStatus === 403 ||
+    /\b403\b|PERMISSION_DENIED/i.test(normalizedText)
+  ) {
+    return {
+      category: 'AUTH_FORBIDDEN_AMBIGUOUS',
       projectNumber,
       retryDelaySec,
       sanitizedSummary: summary,
@@ -209,6 +240,14 @@ export function formatHumanReadableErrorVi(
       return `Đã sử dụng hết hạn mức yêu cầu trong ngày (429 RPD)${projSuffix}.${waitSuffix}`.trim();
     case 'AUTH_INVALID_KEY':
       return 'Khóa Gemini API không hợp lệ, đã hết hạn hoặc bị thu hồi quyền (401/403).';
+    case 'AUTH_FORBIDDEN_AMBIGUOUS':
+      return `Yêu cầu bị từ chối quyền truy cập tạm thời (403)${projSuffix}.${waitSuffix}`.trim();
+    case 'AUTH_FORBIDDEN_REPEATED':
+      return `Khóa bị vô hiệu hóa do gặp lỗi từ chối 403 lặp lại 5 lần liên tiếp${projSuffix}.`.trim();
+    case 'API_NOT_ENABLED':
+      return `Project chưa bật Generative Language API${projSuffix}.${waitSuffix}`.trim();
+    case 'TEST_TIMEOUT_INCONCLUSIVE':
+      return 'Hết thời gian chờ khi thử khóa — chưa kết luận trạng thái khóa.';
     case 'MODEL_UNAVAILABLE':
       return `Model Gemini đang quá tải hoặc tạm thời không khả dụng (503/404).${waitSuffix}`.trim();
     case 'NETWORK_OR_5XX':
@@ -274,12 +313,21 @@ export function computeCooldownDurationMs(
       const jitterMs = disableJitter ? 0 : Math.floor(Math.random() * 120_000);
       return Math.min(12 * 3600 * 1000, untilReset + jitterMs);
     }
+    case 'API_NOT_ENABLED':
+      return 3600 * 1000; // 1 giờ (3.600 giây)
+    case 'AUTH_FORBIDDEN_AMBIGUOUS': {
+      const ladderSec = [30, 60, 120, 300][Math.min(Math.max(0, consecutiveErrors - 1), 3)];
+      const baseMs = ladderSec * 1000;
+      return disableJitter ? baseMs : applyJitter(baseMs, 0.15);
+    }
     case 'NETWORK_OR_5XX':
     case 'UNKNOWN': {
       const baseMs = 30_000;
       return disableJitter ? baseMs : applyJitter(baseMs, 0.15);
     }
     case 'AUTH_INVALID_KEY':
+    case 'AUTH_FORBIDDEN_REPEATED':
+    case 'TEST_TIMEOUT_INCONCLUSIVE':
     case 'MODEL_UNAVAILABLE':
     case 'NONE':
       return null;
@@ -359,6 +407,68 @@ export class KeyAllocator {
       }
     }
     return candidates.length > 0 ? Math.min(...candidates) : null;
+  }
+
+  public getMinFallbackWaitInfo(
+    now: number,
+    fallbackModel: string,
+    attemptedPairs?: Set<string>,
+    excludedProjectNumbers?: Set<string>,
+  ): { waitMs: number; candidateKeyIds: string[] } | null {
+    const state = this.getState();
+    const rawKeysById = this.getRawKeysById();
+    const entries: Array<{ keyId: string; waitMs: number }> = [];
+
+    for (const k of state.keys) {
+      if (k.status === 'disabled') continue;
+      if (!rawKeysById.has(k.id)) continue;
+      if (k.detectedProjectNumber && excludedProjectNumbers?.has(k.detectedProjectNumber)) {
+        continue;
+      }
+      if (attemptedPairs?.has(`${k.id}::${fallbackModel}`)) {
+        continue;
+      }
+
+      const keyCooldownUntil = k.status === 'cooldown' ? (k.cooldownUntil ?? 0) : 0;
+      const modelCooldownUntil = k.modelCooldowns?.[fallbackModel] ?? 0;
+      const readyAtMs = Math.max(keyCooldownUntil, modelCooldownUntil);
+      if (readyAtMs > now) {
+        entries.push({ keyId: k.id, waitMs: readyAtMs - now });
+      }
+    }
+
+    if (entries.length === 0) return null;
+    const minWaitMs = Math.min(...entries.map((e) => e.waitMs));
+    const candidateKeyIds = entries
+      .filter((e) => e.waitMs <= FALLBACK_COOLDOWN_WAIT_CAP_MS && e.waitMs <= minWaitMs + 500)
+      .map((e) => e.keyId);
+    return {
+      waitMs: minWaitMs,
+      candidateKeyIds,
+    };
+  }
+
+  public hasPendingProbeBlockForModel(
+    modelName: string,
+    now: number,
+    excludedKeyIds?: Set<string>,
+    excludedProjectNumbers?: Set<string>,
+    attemptedPairs?: Set<string>,
+  ): boolean {
+    const state = this.getState();
+    const rawKeysById = this.getRawKeysById();
+    return state.keys.some((k) => {
+      if (k.status !== 'ready') return false;
+      if (!k.pendingProbe || this.getInFlightCount(k.id) === 0) return false;
+      if (excludedKeyIds?.has(k.id)) return false;
+      if (k.detectedProjectNumber && excludedProjectNumbers?.has(k.detectedProjectNumber)) {
+        return false;
+      }
+      if (!rawKeysById.has(k.id)) return false;
+      if (attemptedPairs?.has(`${k.id}::${modelName}`)) return false;
+      if (this.isModelCoolingDown(k, modelName, now)) return false;
+      return true;
+    });
   }
 
   public sweep(now = Date.now()): boolean {
@@ -574,6 +684,7 @@ export class KeyAllocator {
         : Math.round(key.stats.avgLatencyMs * 0.7 + ttfbLatencyMs * 0.3);
 
     key.consecutiveErrors = 0;
+    key.consecutiveForbiddenErrors = 0;
     key.cooldownUntil = null;
     key.cooldownReason = 'NONE';
     key.pendingProbe = false;
@@ -753,15 +864,41 @@ export class KeyAllocator {
         maskedKey: key.maskedKey,
         fromStatus: prevStatus,
         toStatus: 'disabled',
-        reason: 'AUTH_INVALID_KEY (401/403)',
+        reason: 'AUTH_INVALID_KEY (401/key_invalid)',
       });
       this.onStateMutated(true);
       return;
     }
 
+    if (classified.category === 'AUTH_FORBIDDEN_AMBIGUOUS') {
+      const nextForbidden = (key.consecutiveForbiddenErrors ?? 0) + 1;
+      key.consecutiveForbiddenErrors = nextForbidden;
+      if (nextForbidden >= 5) {
+        key.status = 'disabled';
+        key.healthScore = 0;
+        key.cooldownUntil = null;
+        key.cooldownReason = 'AUTH_FORBIDDEN_REPEATED';
+        this.appendLog({
+          timestamp: now,
+          keyId: key.id,
+          maskedKey: key.maskedKey,
+          fromStatus: prevStatus,
+          toStatus: 'disabled',
+          reason: 'AUTH_FORBIDDEN_REPEATED (5x 403)',
+        });
+        this.onStateMutated(true);
+        return;
+      }
+    }
+
+    const cooldownCountArg =
+      classified.category === 'AUTH_FORBIDDEN_AMBIGUOUS'
+        ? (key.consecutiveForbiddenErrors ?? 1)
+        : key.consecutiveErrors;
+
     const cooldownMs = computeCooldownDurationMs(
       classified.category,
-      key.consecutiveErrors,
+      cooldownCountArg,
       classified.retryDelaySec,
       now,
       disableJitter,
@@ -770,22 +907,30 @@ export class KeyAllocator {
     const scorePenaltyMap: Record<KeyErrorCategory, number> = {
       NONE: 0,
       MODEL_UNAVAILABLE: 0,
+      TEST_TIMEOUT_INCONCLUSIVE: 0,
       NETWORK_OR_5XX: 10,
       UNKNOWN: 10,
+      AUTH_FORBIDDEN_AMBIGUOUS: 10,
       RATE_LIMIT_RPM: 15,
       QUOTA_DAILY_EXHAUSTED: 40,
       QUOTA_PROJECT_ZERO: 60,
+      API_NOT_ENABLED: 60,
       AUTH_INVALID_KEY: 100,
+      AUTH_FORBIDDEN_REPEATED: 100,
     };
     const scoreFloorMap: Record<KeyErrorCategory, number> = {
       NONE: 0,
       MODEL_UNAVAILABLE: 0,
+      TEST_TIMEOUT_INCONCLUSIVE: 0,
       NETWORK_OR_5XX: 20,
       UNKNOWN: 20,
+      AUTH_FORBIDDEN_AMBIGUOUS: 20,
       RATE_LIMIT_RPM: 15,
       QUOTA_DAILY_EXHAUSTED: 10,
       QUOTA_PROJECT_ZERO: 5,
+      API_NOT_ENABLED: 5,
       AUTH_INVALID_KEY: 0,
+      AUTH_FORBIDDEN_REPEATED: 0,
     };
 
     const penalty = scorePenaltyMap[classified.category] ?? 10;
@@ -807,9 +952,11 @@ export class KeyAllocator {
     });
 
     // Lan truyền cool down tới các key đã biết cùng GCP project_number (E3-01)
+    // Tường minh: AUTH_FORBIDDEN_AMBIGUOUS KHÔNG lan truyền theo project
     if (
       classified.projectNumber &&
       (classified.category === 'QUOTA_PROJECT_ZERO' ||
+        classified.category === 'API_NOT_ENABLED' ||
         classified.category === 'QUOTA_DAILY_EXHAUSTED' ||
         classified.category === 'RATE_LIMIT_RPM')
     ) {
@@ -857,6 +1004,7 @@ export class KeyAllocator {
     key.cooldownReason = 'NONE';
     key.modelCooldowns = {};
     key.consecutiveErrors = 0;
+    key.consecutiveForbiddenErrors = 0;
     key.healthScore = Math.max(key.healthScore, 75);
     key.lastScoreRecoveryAt = now;
     key.updatedAt = now;
@@ -879,20 +1027,47 @@ export class KeyAllocator {
     latencyMs: number,
     classified?: ClassifiedGeminiError,
     now = Date.now(),
+    options?: {
+      modelTested?: string;
+      isDefaultModel?: boolean;
+      disableJitter?: boolean;
+    },
   ): void {
     const state = this.getState();
     const key = state.keys.find((k) => k.id === keyId);
     if (!key) return;
+
+    const isDefaultModel = options?.isDefaultModel ?? true;
+    const modelTested = options?.modelTested || state.modelConfig.defaultModel;
 
     key.stats.lastTestLatencyMs = Math.round(latencyMs);
     key.stats.lastTestedAt = now;
     key.stats.lastUsedAt = now;
 
     if (ok) {
+      if (!isDefaultModel) {
+        // Thử model phụ thành công: KHÔNG được "rửa" khóa về ready / healthScore 100
+        if (key.modelCooldowns?.[modelTested]) {
+          delete key.modelCooldowns[modelTested];
+        }
+        key.updatedAt = now;
+        this.appendLog({
+          timestamp: now,
+          keyId: key.id,
+          maskedKey: key.maskedKey,
+          fromStatus: key.status,
+          toStatus: key.status,
+          reason: `MANUAL_MODEL_TEST_PASSED (model=${modelTested}, ${Math.round(latencyMs)}ms, status preserved)`,
+        });
+        this.onStateMutated(true);
+        return;
+      }
+
       const prevStatus = key.status;
       key.status = 'ready';
       key.pendingProbe = false;
       key.consecutiveErrors = 0;
+      key.consecutiveForbiddenErrors = 0;
       key.cooldownUntil = null;
       key.cooldownReason = 'NONE';
       key.modelCooldowns = {};
@@ -905,14 +1080,58 @@ export class KeyAllocator {
         maskedKey: key.maskedKey,
         fromStatus: prevStatus,
         toStatus: 'ready',
-        reason: `MANUAL_TEST_PASSED (${Math.round(latencyMs)}ms)`,
+        reason: `MANUAL_TEST_PASSED (model=${modelTested}, ${Math.round(latencyMs)}ms)`,
       });
       this.onStateMutated(true);
       return;
     }
 
     if (classified) {
-      this.recordFailure(keyId, classified, now);
+      if (!isDefaultModel) {
+        // Khi thử model phụ:
+        // - Lỗi AUTH / API_NOT_ENABLED / NETWORK_OR_5XX -> recordFailure như thường
+        // - Lỗi model-scoped (MODEL_UNAVAILABLE 503/404, RATE_LIMIT_RPM 429/TPM, QUOTA_DAILY_EXHAUSTED trên model phụ)
+        //   -> chỉ ghi nhận modelCooldowns[modelTested], không hạ trạng thái tổng của khóa
+        if (
+          classified.category === 'MODEL_UNAVAILABLE' ||
+          classified.category === 'RATE_LIMIT_RPM'
+        ) {
+          this.recordModelIssue(
+            keyId,
+            modelTested,
+            classified,
+            now,
+            options?.disableJitter ?? false,
+            state.modelConfig.defaultModel,
+            state.modelConfig.fallbackModel,
+          );
+          return;
+        }
+        if (classified.category === 'QUOTA_DAILY_EXHAUSTED') {
+          if (!key.modelCooldowns) key.modelCooldowns = {};
+          const cdMs =
+            computeCooldownDurationMs('QUOTA_DAILY_EXHAUSTED', 1, classified.retryDelaySec, now, options?.disableJitter ?? false) ??
+            3600 * 1000;
+          key.modelCooldowns[modelTested] = now + cdMs;
+          if (classified.projectNumber) {
+            key.detectedProjectNumber = classified.projectNumber;
+          }
+          key.updatedAt = now;
+          this.appendLog({
+            timestamp: now,
+            keyId: key.id,
+            maskedKey: key.maskedKey,
+            fromStatus: key.status,
+            toStatus: key.status,
+            reason: `MANUAL_MODEL_DAILY_COOLDOWN (model=${modelTested}, key status preserved)`,
+            cooldownSeconds: Math.round(cdMs / 1000),
+          });
+          this.onStateMutated(true);
+          return;
+        }
+      }
+
+      this.recordFailure(keyId, classified, now, options?.disableJitter ?? false);
     }
   }
 }

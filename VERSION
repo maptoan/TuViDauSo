@@ -1,3 +1,4 @@
-1.5.0
-Ngày cập nhật: 20/11/2026
-Trạng thái: Bản ổn định (stable) — CSDL Nền Tri Thức 300 mục đã kiểm toán hoàn thiện và đã nạp; kiểm chứng live tầng AI đạt ở model chính gemini-3.5-flash-lite (sinh hồ sơ, vận hạn, lưu niên, cơ chế failover giữa các key đều đạt). Ghi chú: chân dự phòng gemini-3.8-flash chưa kiểm chứng live được vì model này không khả dụng ở free tier tại thời điểm kiểm chứng (lỗi 503 phía Google); sẽ kiểm chứng bổ sung khi model khả dụng trở lại.
+1.5.5
+Ngày cập nhật: 25/11/2026
+Trạng thái: Bản ổn định (stable) — BRIEF 1.5.5 v2 hoàn tất 3 nhóm khắc phục 20 lỗi hồ sơ: Nhóm X (chặn rò rỉ `.ts`, tách thẻ đa ID `[Nguồn: ...]` đồng bộ server/client, đồng bộ danh mục tham chiếu X3), Nhóm Y (sát `[Bản mệnh Hóa]` bên sao, làm rõ cung kích hoạt Lưu Niên, nhãn Bộ Kình Đà lưu niên, Việt hóa `pat.level`, tiêu đề `### Cung Mệnh`, đồng bộ horizon giữ nguyên trần chat <= 13.100), Nhóm Z (bắt buộc phân tích Đại Hạn kỳ từng cung, sàn 900–1.300 từ Lưu Niên, sanitizer Z3, quy tắc Không Kiếp Z4, và V2 nghiêm ngặt theo câu Z5).
+

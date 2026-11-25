@@ -2,12 +2,123 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.0` *(đồng bộ với `/VERSION`)*
-- **Cập nhật lần cuối**: `20/11/2026`
-- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`
+- **Áp dụng cho phiên bản ứng dụng**: `1.5.5` *(đồng bộ với `/VERSION`)*
+- **Cập nhật lần cuối**: `25/11/2026`
+- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/InsightPanel.tsx`
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.5.5] — 25/11/2026
+
+### Khắc Phục 20 Lỗi Hồ Sơ (`BRIEF 1.5.5 v2` — Nhóm X / Nhóm Y / Nhóm Z)
+- **Nhóm X — Chặn rò rỉ trích dẫn học thuật (`server.ts`, `server/knowledge-base/verifier.ts`, `src/lib/ziwei/text-sanitizer.ts`)**:
+  - **X1**: Gỡ tên file `.ts` khỏi 3 tiêu đề mục trích đoạn trong `buildStrictPeriodAiPrompt` (`[Cách cục nhận diện từ lá số]:`, `[Tính chất tinh diệu]:`, `[Nguyên lý Tứ Hóa & Tinh hệ]:`).
+  - **X2 (`P1–P3`)**: Mở rộng `CITATION_TAG_M3_REGEX` và `CITATION_TAG_SCAN_RE` thành `/\[Nguồn:\s*([^\]]*)\]/giu`; thêm parser dùng chung `parseCitationTagInner` (cắt hậu tố chú thích sau `·`/`|` trước khi tách ID theo `,`/`;`/`/`, chuẩn hóa `.trim().toUpperCase()`, kiểm `^[A-Z0-9_-]{4,24}$`, bắt thẻ rỗng/dấu phân cách là V1 và scrub sạch). Đồng bộ `scrubInvalidCitationTags` phía client để tách thẻ đa ID thành thẻ đơn `[Nguồn: ID1] [Nguồn: ID2]`.
+  - **X3**: Loại khỏi `validCitationIds` / `usedValidEntries` / mục tài liệu tham chiếu mọi ID nằm trong `scrubbedInvalidIds` để danh mục tham chiếu khớp 100% với thân bài sau scrub.
+- **Nhóm Y — Sửa định dạng gây hiểu sai (`src/lib/ziwei/yunxian-context.ts`, `src/lib/ziwei/dossier-context.ts`, `server.ts`)**:
+  - **Y1 (`P4`)**: Di chuyển `[Bản mệnh Hóa X]` lên ngay sau `[Độ sáng]` bên trong cụm in đậm đầu dòng của `formatPeriodSiHuaFactLine`, giữ nguyên `${layerTag} ${prefix}` và cụm đối cung xung chiếu.
+  - **Y2 (`P5`)**: Bổ sung `Kích hoạt cung Bản Mệnh gốc {Tên} ({Can Chi}) — nơi Cung Lưu Mệnh Cung tọa thủ` cho `periodTitleVi` nhánh Lưu Niên (giữ nguyên nhánh Đại Hạn) và hậu tố `— nơi Cung ${prefix} Mệnh Cung tọa thủ` trên dòng `Cung bản mệnh được kích hoạt`.
+  - **Y3**: Đổi nhãn `• **Bộ Kình Đà (Dương Đà giáp Lộc)**:` thành `• **Bộ Kình Đà lưu niên (kẹp hai bên cung Lưu Lộc Tồn)**:`.
+  - **Y4**: Ánh xạ `pat.level` sang tiếng Việt (`Thượng cách`, `Cát cách`, `Trung bình`, `Hung cách`) trong `buildNatalOverviewFactSheetVi`.
+  - **Y5**: Chuẩn hóa tiêu đề cung Mệnh trong `formatCanonicalPalaceHeading` thành `### Cung Mệnh ({Can Chi}) {badges}` thay vì `### Cung Mệnh Cung`.
+  - **Y6 (`P6`, `P7`)**: Trong `detailLines` của `buildMultiYearHorizonContext`, cập nhật nhãn Đại Hạn sang chuẩn `[Tứ Hóa Đại Hạn HIỆN TẠI ...]` / `[Tứ Hóa Đại Hạn Kỳ ...]`, cập nhật `periodCtxLabelDynStars` sang đủ Can Chi `({TênCung} - {Can Chi})`, gắn chú thích năm Lưu Mệnh trùng Mệnh gốc tại `chart.mingGongBranch`, và bổ sung quy tắc bắt buộc mẫu đối cung xung chiếu `(xung Cung Lưu ...)` vào prompt horizon. Giữ nguyên `dynamicStarsSummaryVi` dạng chi-only và `compactMatrixMarkdown` để bảo vệ trần bảng chat `<= 13,100` ký tự; trần mới `horizon_5y <= 14,200`, `horizon_10y <= 37,800`.
+- **Nhóm Z — Prompt & Sanitizer (`server.ts`, `src/lib/ziwei/text-sanitizer.ts`, `server/knowledge-base/verifier.ts`)**:
+  - **Z1**: Bắt buộc phân tích dòng `[Tứ Hóa Đại Hạn Kỳ X–Y]` bên cạnh `[Phi Tinh Can Cung ...]` cho mỗi cung Chương 2/3/4 trong `buildStrictDossierSectionPrompt`.
+  - **Z2 (`P10`)**: Bổ sung sàn độ dài **900–1.300 từ** cho chương Lưu Niên, phân tích Tam Phương Tứ Chính và giao thoa Đại Hạn gốc chi phối hiện hành (dạng tổng quát, không hardcode lá số mẫu), yêu cầu đủ tên Hóa + tên sao + độ sáng và tên cung gốc của sao lưu, cấm câu dẫn nhập đầu bài.
+  - **Z3 (`P8`)**: Bổ sung bộ lọc từ điển hẹp (số thứ tự trượt đặt dạng dài trước dạng ngắn, lỗi Telex `Thân Cuv`/`Venh Khúc`/`Venh Xương`, nhãn enum dự phòng, `khiâm đau`, 7 cặp từ sai ngữ cảnh có rào `bảo ninh` chữ thường để bảo vệ địa danh `"Bảo Ninh"`, `HOÁ` chỉ sửa trước 4 tên Tứ Hóa, `trục thế Mạnh`, `### Cung Mệnh Cung`).
+  - **Z4**: Bổ sung quy tắc `"Không Kiếp"` (chỉ cặp Địa Không + Địa Kiếp) vào cả `buildStrictDossierSectionPrompt` và `buildStrictPeriodAiPrompt`.
+  - **Z5 (`P9`, `P10`)**: Chuyển kiểm V2 trong `verifyAcademicCitationsAndClaims` từ mức khối sang mức câu trên block thô qua `splitRawBlockIntoSentences` (bảo toàn số thập phân, `.ts`, số thứ tự đầu dòng và cặp `[...]`), đồng bộ hướng dẫn vị trí gắn thẻ sang `"ngay cuối câu có viện dẫn hoặc trích dẫn đó"`, và bổ sung kỷ luật trích dẫn + tiêu đề thống nhất `### 1.`..`### 4.` / cấm dẫn nhập cho chương horizon (`C-06.3`).
+
+---
+
+## [1.5.4] — 25/11/2026
+
+### Tầng Nội Dung & Hậu Kiểm (`BRIEF 1.5.4` — Gói A/B/C/D)
+- **Gói A — KP-1 (Ngữ cảnh Tứ Hóa theo kỳ, sao lưu, mượn sao hai chiều & giới tính)**:
+  - **A1**: Bổ sung dòng `[Tứ Hóa Đại Hạn Kỳ {startAge}–{endAge} (đóng tại {TênCungVi} · Can {CanVi})]` riêng cho từng cung trong `buildPalaceGroupFactSheetVi` (`src/lib/ziwei/dossier-context.ts`) bằng `getSiHuaByStem`, tách biệt hoàn toàn với `[Phi Tinh Can Cung ...]`; giữ nguyên không chèn vào tổng quan, bảng chat hay `buildMultiYearHorizonContext`.
+  - **A2**: Đổi tiền tố Tứ Hóa Đại Hạn hiện tại trong `getAllSiHuaTagsForChart` thành `[Tứ Hóa Đại Hạn HIỆN TẠI ({startAge}–{endAge} · Can {X})]` đồng bộ cho tổng quan, nhóm cung và bảng chat.
+  - **A3 & A6 (`server.ts`)**: Bổ sung quy tắc dùng đúng Can/bộ sao theo dòng `[Tứ Hóa Đại Hạn Kỳ ...]` trong `buildStrictDossierSectionPrompt`; bổ sung dòng `• Đương số: {Âm|Dương} {Nam|Nữ}` ở đầu 3 fact sheet nhóm cung và quy tắc không dùng khuôn nữ cho đương số nam (và ngược lại) khi luận cung `Phu Thê` ở `palaces_family`.
+  - **A4 (`src/lib/ziwei/yunxian-context.ts`)**: Thêm `natalGanZhiVi` vào `PeriodDynamicStarItem` và đổi `formatDynamicStar` sang `*(trùng cung Bản Mệnh gốc {natalPalaceNameVi} - {natalGanZhiVi})*`.
+  - **A5 (`src/lib/ziwei/dossier-context.ts`)**: Theo chốt của chủ dự án, gắn ghi chú mượn sao hai chiều **chỉ trên dòng `Chính tinh` của cung cho mượn trong `buildPalaceGroupFactSheetVi`** (không gắn vào `formatPalaceMajorsList` / `formatChartSummaryVi`, không lặp lại trong Tam Phương Tứ Chính).
+  - **A7**: Áp dụng trần nới đã duyệt cho lá số mẫu (`palaces_core <= 5,100`, `palaces_family <= 4,550`, `palaces_social_health <= 4,580`, `chapter_overview <= 3,650`, `chat <= 13,100`); giữ nguyên `### Cung ...`, `[Đại hạn ...]`, `SI_HUA_TABLE` và `buildMultiYearHorizonContext`.
+- **Gói B — KP-4 (Chuẩn hóa điểm nối continuation seam)**:
+  - Thêm `normalizeContinuationSeam` trong `server/key-pool/executor.ts` áp dụng duy nhất cho chunk đầu tiên phát ra của mỗi lượt nối tiếp (`continuationCount > 0`) và cập nhật hướng dẫn nối mạch trong `buildContinuationPrompt`; giữ nguyên các pattern của `text-sanitizer.ts`.
+- **Gói C — KP-3-lite (`PALACE_GANZHI_MISMATCH`)**:
+  - Thêm `verifyPalaceGanZhiMentions` (`server/knowledge-base/verifier.ts`) và `PalaceGanZhiMismatch` (`server/knowledge-base/types.ts`) bắt sai lệch Can Chi cho `Cung {TênCung} ({Can} {Chi})` / `Cung {TênCung} tại {Can} {Chi}` (bỏ qua `Cung Lưu ...`, `Cung Đại Hạn ...` và Can Chi độc lập); nối vào 3 điểm gọi trong `server.ts` và gộp vào payload `citationAudit` hiện hữu.
+- **Gói D — KP-7 Parser Patch**:
+  - Cập nhật `parseBatchKeys` (`server/key-pool/parser.ts`) tách theo dấu `,` khi 1 dòng không chứa `{}` có `> 1` khóa `AIza...` / `AQ....`, bảo toàn nhãn khi dùng chuỗi 1 dòng `P…:Khóa` trong UI import lẫn `GEMINI_API_KEYS`.
+
+---
+
+## [1.5.3] — 24/11/2026
+
+### Chốt Gemma 31B Làm Model Dự Phòng Mặc Định (`Pha 3, Bước 4` — `BRIEF 1.5.3`)
+- **Đổi hằng số model dự phòng mặc định (`server/key-pool/types.ts`, `src/components/KeyPoolModal.tsx`)**:
+  - Cập nhật `FALLBACK_MODEL = 'gemma-4-31b-it'` (thay `'gemini-3.8-flash'`) theo quyết định ngày `24/11/2026` (Pha 3, Bước 4 — Kế hoạch thử nghiệm model v3, Mục 6.3).
+  - Cập nhật giá trị khởi tạo state `fallbackModel` trong `src/components/KeyPoolModal.tsx` thành `'gemma-4-31b-it'`.
+  - Giữ nguyên `DEFAULT_MODEL = 'gemini-3.5-flash-lite'`, giữ nguyên `DEFAULT_SUPPORTED_MODELS` và danh sách lựa chọn dropdown (vẫn hỗ trợ chọn tay `gemini-3.8-flash`), và giữ nguyên ưu tiên cấu hình đã lưu trong kho mã hóa (`parsed.modelConfig?.fallbackModel || FALLBACK_MODEL`).
+  - Giữ nguyên toàn bộ cơ chế ngân sách 1.5.2, prompt, `SI_HUA_TABLE`, retriever và CSDL tri thức.
+- **Cấu hình hoàn nguyên khi chạm kill-switch**:
+  - Cấu hình cũ (`DEFAULT_MODEL = 'gemini-3.5-flash-lite'`, `FALLBACK_MODEL = 'gemini-3.8-flash'`) là cấu hình hoàn nguyên chính thức (cùng gói nguồn `1.5.2` / `1.5.0` stable) khi chạm một trong các ngưỡng trigger kill-switch:
+    1. Quota model chính = `0`;
+    2. Cạn RPD trước `18:00` ở `>= 2` ngày;
+    3. Tỷ lệ lỗi thật `> 10%/ngày` trong `7` ngày thử thách.
+
+---
+
+## [1.5.2] — 23/11/2026
+
+### Ngân Sách Riêng Cho Chân Dự Phòng & Đường Truyền Gemma (`BRIEF 1.5.2 v2` — `H1–H4`, `ĐK-152-01..12`)
+- **H1 (`ĐK-152-03` merge, `ĐK-152-09`) — `firstChunkTimeoutMs` theo profile model & gộp cấp trường**:
+  - Bổ sung `firstChunkTimeoutMs?: number` vào `ModelProfileConfig` (`server/key-pool/types.ts`) cùng giá trị mặc định trong `DEFAULT_MODEL_PROFILES`: `gemma-4-31b-it = 60_000`, `gemma-4-26b-a4b-it = 60_000`, `gemini-4-hydrogen = 30_000`; các model khác giữ toàn cục `FIRST_CHUNK_TIMEOUT_MS = 12_000`.
+  - Đổi `cloneProfiles` thành `mergeModelProfiles` (`server/key-pool/crypto-store.ts`) và cập nhật `mergeProfiles` / `updateModelConfig` (`server/key-pool/index.ts`) sang gộp cấp trường để profile lưu cũ không ghi đè mất trường mặc định mới; kẹp `firstChunkTimeoutMs` trong `[5_000, 120_000]` kèm `console.warn` và lùi về mặc định model nếu ngoài khoảng hoặc không phải số hữu hạn.
+  - Công thức timeout chunk đầu trong `server/key-pool/executor.ts` lấy `min(profileTimeout, ngân sách còn lại của chân đang chạy, ngân sách còn lại tới trần 200s)` (sàn an toàn `1_000ms` cho phép kết nối).
+- **H2 (`ĐK-152-01, 06, 10, 11`) — Ngân sách riêng `150s / 5 lượt` cho chân dự phòng**:
+  - Tách bộ đếm và đồng hồ chân dự phòng trong `server/key-pool/types.ts` & `server/key-pool/executor.ts`: `FALLBACK_LEG_TIME_BUDGET_MS = 150_000` tính từ lần đầu mở chân dự phòng (`fallbackLegStartMs`), `MAX_FALLBACK_KEY_ATTEMPTS = 5`, và trần mềm toàn request `ABSOLUTE_REQUEST_BUDGET_MS = 200_000` (không cắt luồng đang stream vượt 200s, chỉ chặn mở lượt thử lại hoặc nối tiếp mới).
+  - Giữ nguyên ngân sách chân chính `35_000ms / 5` lượt và không áp quy tắc đơn điệu (chân chính vẫn có thể chạy lại trên khóa mới chừng nào chưa cạn; chỉ khóa chân dự phòng sau khi chân chính cạn hẳn). Giữ quy tắc không mở chân dự phòng sau fast-sweep thuần (`primaryKeyAttemptsUsed === 0 && fallbackKeyAttemptsUsed === 0 && fastEliminatedSweeps > 0`).
+  - Bổ sung guard `ĐK-152-10` vô hiệu hóa H2/H3 khi không có `fallbackModel` tách biệt (`fallback === ''`, `fallback === default`, hoặc `preferredModel === fallback`). Bổ sung `fallbackLegUsed: boolean` và `fallbackLegLatencyMs?: number` vào `StreamExecutionMeta` & `AiExecutionMeta`.
+- **H3 (`ĐK-152-02, 05`) — Chờ cooldown có nắp `≤ 30s` trước khi cạn kiệt**:
+  - Thêm `getMinFallbackWaitInfo` và `hasPendingProbeBlockForModel` vào `server/key-pool/allocator.ts` (giữ nguyên `getMinRemainingCooldownSec`).
+  - Khi sẵn sàng sử dụng bằng `0` (trước vòng lặp hoặc khi `acquireLease` trả `null`) và đã bật H2/H3, nếu có khóa không thuộc `excludedProjectNumbers`, không mang cooldown dài quá `30_000ms` cho `fallbackModel` và không vướng `keyId::fallbackModel`, executor chờ `minWaitMs + 500` qua `sleepFn` có tôn trọng `AbortSignal`, giải phóng có chọn lọc khóa đã hết hạn và chạy `fallbackModel`; nếu đụng `pendingProbe` thử chờ thêm đúng `1 × 500ms`. Sau khi chờ H3, chỉ xét `fallbackModel` ở các lượt hồi phục kế tiếp.
+- **H4 (`ĐK-152-07`) — Meta cuối và `partialLength` khi ngắt luồng (`interrupted`)**:
+  - Bổ sung `partialLength?: number` vào `StreamExecutionMeta` (`server/key-pool/types.ts`) và `AiExecutionMeta` (`src/lib/dossier-chat-ui.ts`), điền đầy đủ tại mọi nhánh `return` của `executeStream`.
+  - Bỏ cổng chặn phát khung `sendSseJson(res, { meta: finalMeta, done: true })` trước `data: [DONE]` tại cả 5 endpoint AI trong `server.ts` (`/api/interpret-period`, `/api/interpret-dossier-section`, `/api/interpret-chat`, `/api/interpret`, `/api/heming`) mà vẫn giữ guard `!wasInterrupted` cho hậu kiểm Tứ Hóa và `citationAudit`.
+- **Hạ tầng kèm theo (`ĐK-152-03` lease, `ĐK-152-04, 08, 12`)**:
+  - Nâng `LEASE_MAX_TTL_MS = 65_000` và `LEASE_ABSOLUTE_MAX_TTL_MS = 210_000` (`server/key-pool/types.ts`).
+  - Thêm `onSseKeepAliveRequired` kích hoạt sau `15_000ms` chờ chunk đầu hoặc trước khi ngủ H3, nối vào `ensureSseStarted` tại `/api/interpret-period`, `/api/interpret-dossier-section`, `/api/interpret-chat` (`server.ts`).
+  - Cập nhật `testKey` cho họ Gemma (`server/key-pool/index.ts`) dùng `min(profile.firstChunkTimeoutMs ?? 60_000, 65_000)` và chú thích giao diện trong `src/components/KeyPoolModal.tsx`.
+  - Khi nối luồng gặp `TPM_GUARD_SKIP` (`ĐK-152-12`), kiểm tra TPM trước khi đánh dấu mở chân dự phòng để thoát sạch mà không kích hoạt H3.
+- **Kiểm thử (`scripts/verify-key-pool.ts`)**:
+  - Mở rộng từ `24` lên `31` bài (`BÀI 25–31`, phủ `B1, B2, B2a, B2b, B3, B4, B5` kèm SSE HTTP thật trên `/api/interpret-chat`, `B6, B7`, merge cấp trường, validate `[5s..120s]` và `testKey` Gemma 25s).
+
+---
+
+## [1.5.1] — 21/11/2026
+
+### Nâng cấp Kho Khóa, Phân Loại Lỗi & Đường Ống Cấu Hình Model (Bước 2 — 6 Hạng Mục)
+- **B1 (`ĐK-151-01, 02`) — Hỗ trợ khóa định dạng `AQ.` trong parser & che log**:
+  - Mở rộng `GEMINI_KEY_REGEX` trong `server/key-pool/parser.ts` nhận cả `AIza[A-Za-z0-9_-]{31,41}` lẫn `AQ\.[A-Za-z0-9_-]{48,54}` và cập nhật thông điệp lỗi định dạng; `loadState` ghi `console.warn` nếu bỏ qua bản ghi giải mã sai định dạng.
+  - Bổ sung pattern `/\bAQ\.[0-9A-Za-z_-]{12,64}/g` → `AQ.••••[REDACTED]` trong `sanitizeSecretText` (`server/key-pool/allocator.ts`), tách biệt với `AIza••••[REDACTED]`.
+- **B2 + HT-02 (`ĐK-151-03..06`) — Sửa phép thử khóa (`testKey`) & giao diện thử theo model**:
+  - Tăng `TEST_KEY_TIMEOUT_MS` từ `8_000ms` lên `20_000ms`; khi quá giờ (`TEST_TIMEOUT_INCONCLUSIVE`) trả `ok: false, inconclusive: true` và bảo toàn nguyên trạng thái `status`, `healthScore`, `consecutiveErrors`, `cooldownUntil` của khóa.
+  - Hỗ trợ `POST /api/key-pool/:id/test { model?: string }` để thử từng model mỗi lượt; thử model phụ thành công không "rửa" khóa đang nguội về `ready` / `100` điểm; lỗi model-scoped chỉ ghi `modelCooldowns[model]`.
+  - Áp dụng `thinkingConfig` từ profile của model và `TEST_KEY_MAX_OUTPUT_TOKENS = 256` (>= 64), kiểm tra `res.text.trim()` khác rỗng; UI `KeyPoolModal.tsx` & `src/lib/key-pool-ui.ts` hiển thị tên model đang thử, nút thử dự phòng, nhãn lỗi mới và trạng thái `inconclusive` cảnh báo vàng trong batch probe.
+- **C2 (`ĐK-151-18`) — Dọn rác triển khai trong `public/assets/aistudio/`**:
+  - Đối chiếu 0 tham chiếu mã nguồn và xóa 14 tệp snapshot KB cũ (`*.kb_*.json`) cùng brief cũ (`load-rc1-brief_215595ab.md`), giữ nguyên tệp mới đính kèm và toàn vẹn 100% SHA-256 của 7 tệp KB chính thức trong `server/knowledge-base/data/`.
+- **HT-01 (`ĐK-151-07..10`) — Tách lỗi 403 & nhận diện `API_NOT_ENABLED`**:
+  - Chỉ xếp `AUTH_INVALID_KEY` cho HTTP `401` (`UNAUTHENTICATED`) hoặc marker chết key tường minh (`API_KEY_INVALID`, `API key not valid`, `reported as leaked`, `API key expired`, `key_invalid`, `API_KEY_EXPIRED`).
+  - Thêm `API_NOT_ENABLED` (`SERVICE_DISABLED` / `has not been used in project` / `it is disabled`, trích project qua `in project NNN` và `?project=NNN`), cooldown `1 giờ`, hỗ trợ Fast-Sweep và lan truyền cùng GCP project.
+  - Thêm `AUTH_FORBIDDEN_AMBIGUOUS` cho các lỗi `403` còn lại với bộ đếm `consecutiveForbiddenErrors`, thang cooldown leo thang `[30s, 60s, 120s, 300s]`, chỉ vô hiệu hóa (`AUTH_FORBIDDEN_REPEATED`) khi lặp đủ 5 lần liên tiếp, không lan truyền sang peer cùng project và reset bộ đếm khi thành công / kích hoạt lại / thử mặc định đạt.
+- **HT-04 (`ĐK-151-11..13`) — Cổng TPM 15K cho họ Gemma**:
+  - Thêm ngưỡng `GEMMA_TPM_GUARD_THRESHOLD = 15_000`, `GEMMA_TPM_CHARS_PER_TOKEN_VI = 2.4`, `GEMMA_TPM_DEFAULT_OUTPUT_ESTIMATE = 3_000` và `estimateRequestInputTokens(prompt, systemInstruction?)` đo trước khi gọi SDK.
+  - Khi ước lượng vượt 15.000 token đối với họ `/^(?:models\/)?gemma-/i`, bỏ qua model cho toàn bộ các khóa còn lại trong request đó mà không phạt khóa hay tăng `keyAttemptsUsed`; nếu cả model mặc định lẫn dự phòng đều bị bỏ qua thì thoát ngay với thông báo `TPM_GUARD_SKIP` (không ném `PoolExhaustedError`).
+- **HT-05 (`ĐK-151-14..16`) — Đường ống cấu hình theo model (`maxOutputTokens`, `thinkingConfig`, `profiles`) & phát hiện `MAX_TOKENS`**:
+  - Mở rộng `isSupportedGemini35Plus` nhận `^gemma-4-[a-z0-9.-]+$`, thêm `gemma-4-31b-it` và `gemma-4-26b-a4b-it` vào `DEFAULT_SUPPORTED_MODELS`, và thêm `DEFAULT_MODEL_PROFILES` (`gemini-4-hydrogen`: `LOW` / `32_768`, `gemma-4-*`: `MINIMAL` / `32_768` / `3_000`), tự động merge khi nạp store legacy hoặc cập nhật `updateModelConfig`.
+  - Truyền `maxOutputTokens` và `thinkingConfig` vào SDK khi model có profile hoặc caller chỉ định (giữ nguyên hành vi model mặc định `gemini-3.5-flash-lite` không có profile).
+  - Đọc `chunk?.candidates?.[0]?.finishReason` trước khi bỏ qua chunk rỗng text để ghi `finishReason` và `truncatedByMaxTokens` vào `StreamExecutionMeta`, đồng thời phát frame SSE `{ meta: finalMeta, done: true }` trước `data: [DONE]` tại 5 endpoint AI trong `server.ts`.
 
 ---
 

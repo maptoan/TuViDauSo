@@ -123,6 +123,7 @@ export interface CooldownProbeKeyShape {
 export type BatchCooldownOutcome =
   | 'recovered'
   | 'still_failing'
+  | 'inconclusive'
   | 'skipped_same_project'
   | 'disabled'
   | 'deferred_debounce';
@@ -131,6 +132,7 @@ export type BatchSingleProbeResponse =
   | {
       kind: 'probed';
       ok: boolean;
+      inconclusive?: boolean;
       latencyMs: number;
       modelUsed: string;
       status: 'ready' | 'cooldown' | 'disabled' | string;
@@ -170,6 +172,7 @@ export interface BatchCooldownItemResult {
 export interface BatchCooldownCounts {
   recovered: number;
   stillFailing: number;
+  inconclusive: number;
   skippedSameProject: number;
   disabled: number;
   deferred: number;
@@ -257,6 +260,7 @@ function emptyBatchCounts(): BatchCooldownCounts {
   return {
     recovered: 0,
     stillFailing: 0,
+    inconclusive: 0,
     skippedSameProject: 0,
     disabled: 0,
     deferred: 0,
@@ -460,8 +464,41 @@ export async function runClientBatchCooldownProbe<T extends CooldownProbeKeyShap
       continue;
     }
 
+    if (resp.inconclusive || resp.errorCategory === 'TEST_TIMEOUT_INCONCLUSIVE') {
+      const preservedStatus: 'ready' | 'cooldown' | 'disabled' =
+        key.status === 'ready' || key.status === 'cooldown' || key.status === 'disabled'
+          ? key.status
+          : 'cooldown';
+      const inconclusiveItem: BatchCooldownItemResult = {
+        id: key.id,
+        maskedKey: key.maskedKey,
+        label: key.label,
+        outcome: 'inconclusive',
+        isRealProbe: true,
+        detectedProjectNumber: resolvedProj,
+        newStatus: preservedStatus,
+        healthScore: key.healthScore,
+        latencyMs: resp.latencyMs,
+        modelUsed: resp.modelUsed,
+        errorCategory: 'TEST_TIMEOUT_INCONCLUSIVE',
+        sanitizedMessage:
+          resp.sanitizedMessage ||
+          'Hết thời gian chờ khi thử khóa — chưa kết luận trạng thái khóa.',
+        cooldownUntil: key.cooldownUntil,
+      };
+      counts.inconclusive += 1;
+      results.push(inconclusiveItem);
+      params.onItemCompleted?.(inconclusiveItem);
+      emitProgress(null, true);
+      continue;
+    }
+
     const errCat = resp.errorCategory || 'UNKNOWN';
-    if (resp.status === 'disabled' || errCat === 'AUTH_INVALID_KEY') {
+    if (
+      resp.status === 'disabled' ||
+      errCat === 'AUTH_INVALID_KEY' ||
+      errCat === 'AUTH_FORBIDDEN_REPEATED'
+    ) {
       const disabledItem: BatchCooldownItemResult = {
         id: key.id,
         maskedKey: key.maskedKey,
@@ -474,7 +511,7 @@ export async function runClientBatchCooldownProbe<T extends CooldownProbeKeyShap
         latencyMs: resp.latencyMs,
         modelUsed: resp.modelUsed,
         errorCategory: errCat,
-        sanitizedMessage: resp.sanitizedMessage || 'Key không hợp lệ (401/403)',
+        sanitizedMessage: resp.sanitizedMessage || `Khóa bị vô hiệu hóa (${errCat})`,
         cooldownUntil: null,
       };
       counts.disabled += 1;
@@ -554,7 +591,7 @@ export function applyBatchItemToSnapshot<
     summary: { total: number; ready: number; cooldown: number; disabled: number };
   },
 >(snapshot: S, item: BatchCooldownItemResult, nowMs = Date.now()): S {
-  if (item.outcome === 'deferred_debounce') {
+  if (item.outcome === 'deferred_debounce' || item.outcome === 'inconclusive') {
     return snapshot;
   }
 

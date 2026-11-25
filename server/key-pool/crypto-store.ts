@@ -3,12 +3,16 @@ import fs from 'fs';
 import path from 'path';
 import {
   DEFAULT_MODEL,
+  DEFAULT_MODEL_PROFILES,
   DEFAULT_SUPPORTED_MODELS,
   type EncryptedPayload,
   FALLBACK_MODEL,
+  FIRST_CHUNK_TIMEOUT_MAX_MS,
+  FIRST_CHUNK_TIMEOUT_MIN_MS,
   type GeminiKeyRecord,
   type KeyPoolState,
   MAX_RECENT_LOGS,
+  type ModelProfileConfig,
 } from './types.ts';
 import {
   computeKeyFingerprint,
@@ -29,6 +33,73 @@ export class SerializedWriteQueue {
     this.tail = next.catch(() => {});
     return next;
   }
+}
+
+export function normalizeProfileFirstChunkTimeoutMs(
+  modelName: string,
+  profile: ModelProfileConfig,
+): ModelProfileConfig {
+  if (profile.firstChunkTimeoutMs === undefined) {
+    return profile;
+  }
+  const raw = profile.firstChunkTimeoutMs;
+  if (
+    typeof raw === 'number' &&
+    Number.isFinite(raw) &&
+    raw >= FIRST_CHUNK_TIMEOUT_MIN_MS &&
+    raw <= FIRST_CHUNK_TIMEOUT_MAX_MS
+  ) {
+    return profile;
+  }
+  const modelDefault = DEFAULT_MODEL_PROFILES[modelName]?.firstChunkTimeoutMs;
+  console.warn(
+    `[KeyPoolProfile] Invalid firstChunkTimeoutMs=${String(raw)} for model="${modelName}" (allowed [${FIRST_CHUNK_TIMEOUT_MIN_MS}, ${FIRST_CHUNK_TIMEOUT_MAX_MS}]); falling back to model default (${modelDefault ?? 'global'}).`,
+  );
+  const next: ModelProfileConfig = { ...profile };
+  if (modelDefault !== undefined) {
+    next.firstChunkTimeoutMs = modelDefault;
+  } else {
+    delete next.firstChunkTimeoutMs;
+  }
+  return next;
+}
+
+export function mergeModelProfiles(
+  base?: Record<string, ModelProfileConfig>,
+  override?: Record<string, ModelProfileConfig>,
+): Record<string, ModelProfileConfig> {
+  const merged: Record<string, ModelProfileConfig> = {};
+  for (const [k, v] of Object.entries(DEFAULT_MODEL_PROFILES)) {
+    merged[k] = { ...v };
+  }
+  const applyLayer = (layer?: Record<string, ModelProfileConfig>) => {
+    if (!layer || typeof layer !== 'object') return;
+    for (const [k, v] of Object.entries(layer)) {
+      if (!v || typeof v !== 'object') continue;
+      const existingBase = merged[k] ?? DEFAULT_MODEL_PROFILES[k];
+      if (typeof v.maxOutputTokens !== 'number' && !existingBase) continue;
+      const cleanFields: Partial<ModelProfileConfig> = {};
+      for (const [fk, fv] of Object.entries(v)) {
+        if (fv !== undefined) {
+          (cleanFields as Record<string, unknown>)[fk] = fv;
+        }
+      }
+      const combined = {
+        ...(existingBase ?? {}),
+        ...cleanFields,
+      } as ModelProfileConfig;
+      merged[k] = normalizeProfileFirstChunkTimeoutMs(k, combined);
+    }
+  };
+  applyLayer(base);
+  applyLayer(override);
+  return merged;
+}
+
+function cloneProfiles(
+  profiles?: Record<string, ModelProfileConfig>,
+): Record<string, ModelProfileConfig> {
+  return mergeModelProfiles(profiles);
 }
 
 export class KeyPoolCryptoStore {
@@ -125,6 +196,7 @@ export class KeyPoolCryptoStore {
         defaultModel: DEFAULT_MODEL,
         fallbackModel: FALLBACK_MODEL,
         supportedModels: [...DEFAULT_SUPPORTED_MODELS],
+        profiles: cloneProfiles(),
       },
       keys: [],
       recentLogs: [],
@@ -150,10 +222,19 @@ export class KeyPoolCryptoStore {
       for (const rec of Array.isArray(parsed.keys) ? parsed.keys : []) {
         try {
           const rawKey = this.decryptKey(rec.encryptedKey);
-          if (!isValidGeminiApiKey(rawKey)) continue;
+          if (!isValidGeminiApiKey(rawKey)) {
+            console.warn(
+              `[KeyPoolStore] Skipped invalid key format record ${rec?.id ?? 'unknown'} (${rec?.maskedKey ?? 'masked'})`,
+            );
+            continue;
+          }
           rawKeysById.set(rec.id, rawKey);
           validKeys.push({
             ...rec,
+            consecutiveForbiddenErrors:
+              typeof rec.consecutiveForbiddenErrors === 'number'
+                ? rec.consecutiveForbiddenErrors
+                : 0,
             modelCooldowns:
               rec.modelCooldowns && typeof rec.modelCooldowns === 'object'
                 ? rec.modelCooldowns
@@ -178,6 +259,7 @@ export class KeyPoolCryptoStore {
           defaultModel: parsed.modelConfig?.defaultModel || DEFAULT_MODEL,
           fallbackModel: parsed.modelConfig?.fallbackModel || FALLBACK_MODEL,
           supportedModels: Array.from(supportedSet),
+          profiles: cloneProfiles(parsed.modelConfig?.profiles),
         },
         keys: validKeys,
         recentLogs: Array.isArray(parsed.recentLogs)
@@ -240,6 +322,7 @@ export class KeyPoolCryptoStore {
       healthScore: 100,
       lastScoreRecoveryAt: now,
       consecutiveErrors: 0,
+      consecutiveForbiddenErrors: 0,
       cooldownUntil: null,
       cooldownReason: 'NONE',
       modelCooldowns: {},

@@ -2,11 +2,15 @@ import {
   CN_TO_VI_PALACE,
   CN_TO_VI_STAR,
 } from '../../src/lib/ziwei/vi-i18n.ts';
-import { scrubInvalidCitationTags } from '../../src/lib/ziwei/text-sanitizer.ts';
+import {
+  parseCitationTagInner,
+  scrubInvalidCitationTags,
+} from '../../src/lib/ziwei/text-sanitizer.ts';
 import type {
   CitationAuditResult,
   CitationViolation,
   DistilledKnowledgeEntry,
+  PalaceGanZhiMismatch,
 } from './types.ts';
 
 export const AUTHORITY_M1_REGEX =
@@ -17,8 +21,7 @@ const M2_INTRO_REGEX =
 
 const M2_QUOTED_TEXT_REGEX = /["""'«„]([^"""'»]{12,120})["""'»]/gu;
 
-export const CITATION_TAG_M3_REGEX =
-  /\[Nguồn:\s*([A-Z0-9_-]{4,24})(?:\s*[·,|]\s*[^\]]+)?\]/giu;
+export const CITATION_TAG_M3_REGEX = /\[Nguồn:\s*([^\]]*)\]/giu;
 
 const MAX_SEMANTIC_BLOCK_CHARS = 800;
 
@@ -258,14 +261,185 @@ export function buildChatCitationFooter(params: {
   return parts.join('\n\n');
 }
 
+const NATAL_PALACE_CANONICAL_BY_LOWER = new Map<string, string>([
+  ['mệnh cung', 'Mệnh Cung'],
+  ['mệnh', 'Mệnh Cung'],
+  ['huynh đệ', 'Huynh Đệ'],
+  ['phu thê', 'Phu Thê'],
+  ['tử nữ', 'Tử Nữ'],
+  ['tài bạch', 'Tài Bạch'],
+  ['tật ách', 'Tật Ách'],
+  ['thiên di', 'Thiên Di'],
+  ['giao hữu', 'Giao Hữu'],
+  ['quan lộc', 'Quan Lộc'],
+  ['điền trạch', 'Điền Trạch'],
+  ['phúc đức', 'Phúc Đức'],
+  ['phụ mẫu', 'Phụ Mẫu'],
+]);
+
+const STEM_CANONICAL_BY_LOWER = new Map<string, string>(
+  ['Giáp', 'Ất', 'Bính', 'Đinh', 'Mậu', 'Kỷ', 'Canh', 'Tân', 'Nhâm', 'Quý'].map((s) => [
+    s.toLowerCase(),
+    s,
+  ]),
+);
+
+const BRANCH_CANONICAL_BY_LOWER = new Map<string, string>(
+  ['Tý', 'Sửu', 'Dần', 'Mão', 'Thìn', 'Tỵ', 'Ngọ', 'Mùi', 'Thân', 'Dậu', 'Tuất', 'Hợi'].map((b) => [
+    b.toLowerCase(),
+    b,
+  ]),
+);
+
+const PALACE_GANZHI_MENTION_RE =
+  /(?<!\p{L})Cung\s+(?:(Lưu|Đại\s+Hạn)\s+)?(Mệnh\s+Cung|Mệnh|Huynh\s+Đệ|Phu\s+Thê|Tử\s+Nữ|Tài\s+Bạch|Tật\s+Ách|Thiên\s+Di|Giao\s+Hữu|Quan\s+Lộc|Điền\s+Trạch|Phúc\s+Đức|Phụ\s+Mẫu)(?:\s*\(\s*(Giáp|Ất|Bính|Đinh|Mậu|Kỷ|Canh|Tân|Nhâm|Quý)\s+(Tý|Sửu|Dần|Mão|Thìn|Tỵ|Ngọ|Mùi|Thân|Dậu|Tuất|Hợi)\s*\)|\s+tại\s+(Giáp|Ất|Bính|Đinh|Mậu|Kỷ|Canh|Tân|Nhâm|Quý)\s+(Tý|Sửu|Dần|Mão|Thìn|Tỵ|Ngọ|Mùi|Thân|Dậu|Tuất|Hợi)(?!\p{L}))/giu;
+
 /**
- * ĐN-4 & ĐN-6: Hậu kiểm chống bịa 3 lớp (V1, V2, V3) theo Khối Đoạn văn / Bullet (<= 800 ký tự).
+ * KP-3-lite (C1): Soát lỗi gán sai Can Chi của 12 cung Bản Mệnh trong văn bản luận giải.
+ * - Chỉ khớp mẫu `Cung {TênCung} ({Can} {Chi})` và `Cung {TênCung} tại {Can} {Chi}`.
+ * - Bỏ qua các nhắc tới đứng ngay sau "Lưu" hoặc "Đại Hạn" (VD: Cung Lưu Quan Lộc, Cung Đại Hạn Tài Bạch).
+ * - Bỏ qua Can Chi đứng độc lập (VD: "năm Canh Ngọ 1990").
+ */
+export function verifyPalaceGanZhiMentions(
+  text: string,
+  palaceGanZhiMap: Record<string, string>,
+): PalaceGanZhiMismatch[] {
+  if (!text || !palaceGanZhiMap) return [];
+  const normalized = text.normalize('NFC');
+  const results: PalaceGanZhiMismatch[] = [];
+  const seen = new Set<string>();
+
+  PALACE_GANZHI_MENTION_RE.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = PALACE_GANZHI_MENTION_RE.exec(normalized)) !== null) {
+    if (match[1]) {
+      // Đứng ngay sau "Lưu" hoặc "Đại Hạn" -> thuộc kỳ hạn, bỏ qua
+      continue;
+    }
+
+    const beforeWindow = normalized.slice(Math.max(0, match.index - 16), match.index);
+    if (/(?:Lưu|Đại\s+Hạn)\s+$/iu.test(beforeWindow)) {
+      continue;
+    }
+
+    const rawPalace = (match[2] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const canonicalPalace = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace);
+    if (!canonicalPalace) continue;
+
+    const expectedRaw =
+      palaceGanZhiMap[canonicalPalace] ??
+      (canonicalPalace === 'Mệnh Cung' ? palaceGanZhiMap['Mệnh'] : undefined);
+    if (!expectedRaw) continue;
+    const expectedGanZhi = expectedRaw.normalize('NFC').replace(/\s+/g, ' ').trim();
+
+    const rawStem = (match[3] ?? match[5] ?? '').trim().toLowerCase();
+    const rawBranch = (match[4] ?? match[6] ?? '').trim().toLowerCase();
+    const foundStem = STEM_CANONICAL_BY_LOWER.get(rawStem);
+    const foundBranch = BRANCH_CANONICAL_BY_LOWER.get(rawBranch);
+    if (!foundStem || !foundBranch) continue;
+
+    const foundGanZhi = `${foundStem} ${foundBranch}`;
+    if (foundGanZhi.toLowerCase() === expectedGanZhi.toLowerCase()) continue;
+
+    const dedupKey = `${canonicalPalace}::${foundGanZhi}`;
+    if (seen.has(dedupKey)) continue;
+    seen.add(dedupKey);
+
+    results.push({
+      type: 'PALACE_GANZHI_MISMATCH',
+      palaceVi: canonicalPalace,
+      foundGanZhi,
+      expectedGanZhi,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Z5 (P9): Tách khối ngữ nghĩa THÔ (chưa xóa thẻ `[Nguồn: ...]`) thành từng câu để kiểm V2 theo câu.
+ * - Không cắt bên trong cặp `[...]` (bảo toàn thẻ `[Nguồn: ...]` dù chứa dấu `.`, `;`, `,`).
+ * - Tách theo `\n`, `;`, hoặc dấu kết câu `.` `!` `?` `…` theo sau bởi khoảng trắng / hết chuỗi / `[`.
+ * - Không cắt dấu chấm giữa 2 chữ số (`1.2`, `1.000`, `105.85`), tên file (`.ts`), hoặc số thứ tự đầu dòng (`^\s*\d+\.`).
+ */
+export function splitRawBlockIntoSentences(rawBlock: string): string[] {
+  if (!rawBlock || !rawBlock.trim()) return [];
+  const sentences: string[] = [];
+  let bracketDepth = 0;
+  let start = 0;
+  let lineStart = 0;
+
+  for (let i = 0; i < rawBlock.length; i += 1) {
+    const ch = rawBlock[i];
+    if (ch === '[') {
+      bracketDepth += 1;
+      continue;
+    }
+    if (ch === ']') {
+      if (bracketDepth > 0) bracketDepth -= 1;
+      continue;
+    }
+    if (bracketDepth > 0) continue;
+
+    if (ch === '\n') {
+      const part = rawBlock.slice(start, i).trim();
+      if (part) sentences.push(part);
+      start = i + 1;
+      lineStart = i + 1;
+      continue;
+    }
+
+    if (ch === ';') {
+      const part = rawBlock.slice(start, i + 1).trim();
+      if (part) sentences.push(part);
+      start = i + 1;
+      continue;
+    }
+
+    if (ch === '.' || ch === '!' || ch === '?' || ch === '…') {
+      if (ch === '.') {
+        const prevCh = i > 0 ? rawBlock[i - 1] : '';
+        const nextCh = i + 1 < rawBlock.length ? rawBlock[i + 1] : '';
+        if (/\d/.test(prevCh) && /\d/.test(nextCh)) {
+          continue;
+        }
+        if (/^\s*\d+$/.test(rawBlock.slice(lineStart, i))) {
+          continue;
+        }
+        if (nextCh === '.') {
+          continue;
+        }
+      }
+
+      let j = i + 1;
+      while (j < rawBlock.length && /["'”’»)*]/.test(rawBlock[j])) {
+        j += 1;
+      }
+      const atBoundary =
+        j >= rawBlock.length || /\s/.test(rawBlock[j]) || rawBlock[j] === '[';
+      if (atBoundary) {
+        const part = rawBlock.slice(start, j).trim();
+        if (part) sentences.push(part);
+        start = j;
+        i = j - 1;
+      }
+    }
+  }
+
+  const tail = rawBlock.slice(start).trim();
+  if (tail) sentences.push(tail);
+  return sentences;
+}
+
+/**
+ * ĐN-4 & ĐN-6 & X2/X3/Z5: Hậu kiểm chống bịa 3 lớp (V1, V2 theo câu, V3 theo khối).
  * - TUYỆT ĐỐI không sửa/viết lại chữ trong câu văn tiếng Việt của AI.
- * - Chỉ gỡ bỏ token `[Nguồn: ID]` sai (`V1` hoặc `V3`) và nối khối tham chiếu / ghi chú kiểm chứng.
+ * - Chỉ gỡ bỏ token `[Nguồn: ...]` sai (`V1` hoặc `V3`), tách thẻ đa ID thành thẻ đơn và đồng bộ danh mục tham chiếu (X3).
  */
 export function verifyAcademicCitationsAndClaims(
   text: string,
   allowedEntries: readonly DistilledKnowledgeEntry[],
+  options?: { palaceGanZhiMap?: Record<string, string> },
 ): CitationAuditResult {
   const normalized = (text || '').normalize('NFC');
   const allowedById = new Map<string, DistilledKnowledgeEntry>();
@@ -286,64 +460,116 @@ export function verifyAcademicCitationsAndClaims(
     if (!block || isGeneratedMetaOrNoticeBlock(block)) continue;
 
     CITATION_TAG_M3_REGEX.lastIndex = 0;
-    const foundTags: Array<{ rawTag: string; idUpper: string }> = [];
+    const foundRawInners: string[] = [];
     let tagMatch: RegExpExecArray | null;
     while ((tagMatch = CITATION_TAG_M3_REGEX.exec(block)) !== null) {
-      foundTags.push({
-        rawTag: tagMatch[0],
-        idUpper: (tagMatch[1] ?? '').trim().toUpperCase(),
-      });
+      foundRawInners.push(tagMatch[1] ?? '');
     }
 
     const blockWithoutTags = block.replace(CITATION_TAG_M3_REGEX, ' ');
-    let validTagsInBlock = 0;
+    const validIdsInBlockSet = new Set<string>();
 
-    for (const tag of foundTags) {
-      const matchedEntry = allowedById.get(tag.idUpper);
-      if (!matchedEntry) {
-        v1InvalidIdsSet.add(tag.idUpper);
+    for (const rawInner of foundRawInners) {
+      const parsed = parseCitationTagInner(rawInner);
+      if (parsed.isEmptyTag || parsed.candidates.length === 0) {
+        const emptyMarker = '(EMPTY)';
+        v1InvalidIdsSet.add(emptyMarker);
         violations.push({
           rule: 'V1',
-          citationId: tag.idUpper,
+          citationId: emptyMarker,
           blockIndex: idx,
           blockExcerpt: block.slice(0, 140),
-          reasonVi: `Thẻ [Nguồn: ${tag.idUpper}] không nằm trong danh sách mục tri thức đã nạp cho lượt sinh này.`,
+          reasonVi: 'Thẻ [Nguồn: ...] rỗng hoặc chỉ chứa dấu phân cách.',
         });
         continue;
       }
 
-      if (!hasEntityOverlapWithEntry(blockWithoutTags, matchedEntry)) {
-        v3MismatchIdsSet.add(tag.idUpper);
-        violations.push({
-          rule: 'V3',
-          citationId: matchedEntry.id,
-          blockIndex: idx,
-          blockExcerpt: block.slice(0, 140),
-          reasonVi: `Thẻ [Nguồn: ${matchedEntry.id}] được gắn vào khối không nhắc tới sao/cung/cách cục nào của mục nguồn.`,
-        });
-        continue;
-      }
+      for (const cand of parsed.candidates) {
+        if (!cand.isValidFormat) {
+          v1InvalidIdsSet.add(cand.idUpper);
+          violations.push({
+            rule: 'V1',
+            citationId: cand.idUpper,
+            blockIndex: idx,
+            blockExcerpt: block.slice(0, 140),
+            reasonVi: `Mã nguồn "${cand.idUpper}" trong thẻ [Nguồn: ...] không đúng định dạng cho phép.`,
+          });
+          continue;
+        }
 
-      validTagsInBlock += 1;
-      if (!validIdsSeen.has(matchedEntry.id)) {
-        validIdsSeen.add(matchedEntry.id);
-        validIdsInOrder.push(matchedEntry.id);
+        const matchedEntry = allowedById.get(cand.idUpper);
+        if (!matchedEntry) {
+          v1InvalidIdsSet.add(cand.idUpper);
+          violations.push({
+            rule: 'V1',
+            citationId: cand.idUpper,
+            blockIndex: idx,
+            blockExcerpt: block.slice(0, 140),
+            reasonVi: `Thẻ [Nguồn: ${cand.idUpper}] không nằm trong danh sách mục tri thức đã nạp cho lượt sinh này.`,
+          });
+          continue;
+        }
+
+        if (!hasEntityOverlapWithEntry(blockWithoutTags, matchedEntry)) {
+          v3MismatchIdsSet.add(cand.idUpper);
+          violations.push({
+            rule: 'V3',
+            citationId: matchedEntry.id,
+            blockIndex: idx,
+            blockExcerpt: block.slice(0, 140),
+            reasonVi: `Thẻ [Nguồn: ${matchedEntry.id}] được gắn vào khối không nhắc tới sao/cung/cách cục nào của mục nguồn.`,
+          });
+          continue;
+        }
+
+        validIdsInBlockSet.add(cand.idUpper);
+        if (!validIdsSeen.has(matchedEntry.id)) {
+          validIdsSeen.add(matchedEntry.id);
+          validIdsInOrder.push(matchedEntry.id);
+        }
       }
     }
 
-    AUTHORITY_M1_REGEX.lastIndex = 0;
-    const hasM1 = AUTHORITY_M1_REGEX.test(blockWithoutTags);
-    const hasM2 = hasM2QuotedFormulaClaim(blockWithoutTags);
+    // Z5 (P9): Kiểm V2 nghiêm ngặt theo TỪNG CÂU trên block THÔ trước khi xóa thẻ.
+    const sentences = splitRawBlockIntoSentences(block);
+    let blockHasV2Violation = false;
+    for (const sentence of sentences) {
+      const sentenceWithoutTags = sentence.replace(CITATION_TAG_M3_REGEX, ' ');
+      AUTHORITY_M1_REGEX.lastIndex = 0;
+      const hasM1 = AUTHORITY_M1_REGEX.test(sentenceWithoutTags);
+      const hasM2 = hasM2QuotedFormulaClaim(sentenceWithoutTags);
 
-    if ((hasM1 || hasM2) && validTagsInBlock === 0) {
-      v2UncitedBlocks.push(idx);
-      violations.push({
-        rule: 'V2',
-        blockIndex: idx,
-        blockExcerpt: block.slice(0, 140),
-        reasonVi:
-          'Khối có viện dẫn tác giả/trường phái/cổ thư hoặc trích khẩu quyết nhưng không gắn thẻ [Nguồn: ...] hợp lệ.',
-      });
+      if (!hasM1 && !hasM2) continue;
+
+      CITATION_TAG_M3_REGEX.lastIndex = 0;
+      let sentenceHasValidTag = false;
+      let sTagMatch: RegExpExecArray | null;
+      while ((sTagMatch = CITATION_TAG_M3_REGEX.exec(sentence)) !== null) {
+        const parsedSentenceTag = parseCitationTagInner(sTagMatch[1] ?? '');
+        if (
+          !parsedSentenceTag.isEmptyTag &&
+          parsedSentenceTag.candidates.some(
+            (c) => c.isValidFormat && validIdsInBlockSet.has(c.idUpper),
+          )
+        ) {
+          sentenceHasValidTag = true;
+          break;
+        }
+      }
+
+      if (!sentenceHasValidTag) {
+        if (!blockHasV2Violation) {
+          v2UncitedBlocks.push(idx);
+          blockHasV2Violation = true;
+        }
+        violations.push({
+          rule: 'V2',
+          blockIndex: idx,
+          blockExcerpt: sentence.slice(0, 140),
+          reasonVi:
+            'Câu có viện dẫn tác giả/trường phái/cổ thư hoặc trích khẩu quyết nhưng không gắn thẻ [Nguồn: ...] hợp lệ ngay trong câu.',
+        });
+      }
     }
   }
 
@@ -353,17 +579,29 @@ export function verifyAcademicCitationsAndClaims(
     new Set([...v1InvalidIds, ...v3MismatchIds]),
   );
 
-  const scrubbedText =
-    scrubbedInvalidIds.length > 0
-      ? scrubInvalidCitationTags(normalized, { invalidIds: scrubbedInvalidIds })
-      : normalized;
+  const scrubbedText = scrubInvalidCitationTags(normalized, {
+    invalidIds: scrubbedInvalidIds,
+  });
 
-  const usedValidEntries = validIdsInOrder
+  // X3: Loại khỏi danh mục tham chiếu mọi ID nằm trong scrubbedInvalidIds
+  // (bảo đảm đồng bộ 100% giữa thẻ sống trong thân bài sau scrub và mục tham chiếu).
+  const scrubbedSetUpper = new Set(
+    scrubbedInvalidIds.map((id) => id.trim().toUpperCase()),
+  );
+  const finalValidIdsInOrder = validIdsInOrder.filter(
+    (id) => !scrubbedSetUpper.has(id.trim().toUpperCase()),
+  );
+
+  const usedValidEntries = finalValidIdsInOrder
     .map((id) => allowedById.get(id.toUpperCase()))
     .filter((e): e is DistilledKnowledgeEntry => Boolean(e));
 
   const hasUncitedClaims =
     v2UncitedBlocks.length > 0 || v3MismatchIds.length > 0 || v1InvalidIds.length > 0;
+
+  const palaceGanZhiMismatches = options?.palaceGanZhiMap
+    ? verifyPalaceGanZhiMentions(normalized, options.palaceGanZhiMap)
+    : [];
 
   const referenceBlockMarkdown = buildReferenceAddendumBlock(usedValidEntries);
   const warningBlockMarkdown = buildVerificationWarningBlock(hasUncitedClaims);
@@ -373,7 +611,7 @@ export function verifyAcademicCitationsAndClaims(
   });
 
   return {
-    validCitationIds: validIdsInOrder,
+    validCitationIds: finalValidIdsInOrder,
     usedValidEntries,
     v1InvalidIds,
     v2UncitedBlocks,
@@ -381,6 +619,7 @@ export function verifyAcademicCitationsAndClaims(
     scrubbedInvalidIds,
     hasUncitedClaims,
     violations,
+    palaceGanZhiMismatches,
     scrubbedText,
     referenceBlockMarkdown,
     warningBlockMarkdown,

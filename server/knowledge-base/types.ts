@@ -216,6 +216,13 @@ export interface CitationViolation {
   reasonVi: string;
 }
 
+export interface PalaceGanZhiMismatch {
+  type: 'PALACE_GANZHI_MISMATCH';
+  palaceVi: string;
+  foundGanZhi: string;
+  expectedGanZhi: string;
+}
+
 export interface CitationAuditResult {
   validCitationIds: string[];
   usedValidEntries: DistilledKnowledgeEntry[];
@@ -225,6 +232,7 @@ export interface CitationAuditResult {
   scrubbedInvalidIds: string[];
   hasUncitedClaims: boolean;
   violations: CitationViolation[];
+  palaceGanZhiMismatches: PalaceGanZhiMismatch[];
   scrubbedText: string;
   referenceBlockMarkdown: string;
   warningBlockMarkdown: string;

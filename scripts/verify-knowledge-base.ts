@@ -22,7 +22,10 @@ import {
   retrieveKnowledgeForPeriod,
 } from '../server/knowledge-base/retriever.ts';
 import type { DistilledKnowledgeEntry } from '../server/knowledge-base/types.ts';
-import { verifyAcademicCitationsAndClaims } from '../server/knowledge-base/verifier.ts';
+import {
+  verifyAcademicCitationsAndClaims,
+  verifyPalaceGanZhiMentions,
+} from '../server/knowledge-base/verifier.ts';
 import { sanitizeDossierChapterText } from '../src/lib/dossier-chat-ui.ts';
 import { generateChart } from '../src/lib/ziwei/algorithm.ts';
 import { scrubInvalidCitationTags } from '../src/lib/ziwei/text-sanitizer.ts';
@@ -31,6 +34,7 @@ import {
   translatePalaceName,
   translateStarName,
   VI_BRANCHES,
+  VI_STEMS,
 } from '../src/lib/ziwei/vi-i18n.ts';
 import { buildYunxianPeriodContext } from '../src/lib/ziwei/yunxian-context.ts';
 import { auditKnowledgeBaseData } from './kb-audit-quality.ts';
@@ -1141,8 +1145,282 @@ function runVerification() {
     assert.ok(cleanedOnce.includes('[Nguồn: NH-STAR-001]'));
     assert.ok(!cleanedOnce.includes('NH-FAKE-999'));
 
+    // ── Gate C (KP-3-lite): Kiểm thử verifyPalaceGanZhiMentions trên lá số mẫu 26/07/1977 giờ Tỵ ──
+    {
+      const sampleChart1977 = generateChart({
+        name: 'Mẫu 1977',
+        year: 1977,
+        month: 7,
+        day: 26,
+        hour: 5,
+        gender: 'male',
+      });
+      const palaceGanZhiMap: Record<string, string> = {};
+      for (const p of sampleChart1977.palaces) {
+        palaceGanZhiMap[translatePalaceName(p.name)] = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+      }
+      assert.strictEqual(palaceGanZhiMap['Quan Lộc'], 'Bính Ngọ');
+      assert.strictEqual(palaceGanZhiMap['Mệnh Cung'], 'Nhâm Dần');
+
+      // 1) Sai Can Chi trong ngoặc -> 1 finding
+      const badParens = verifyPalaceGanZhiMentions(
+        'Xét Cung Quan Lộc (Canh Ngọ) có nhiều biến động.',
+        palaceGanZhiMap,
+      );
+      assert.deepStrictEqual(badParens, [
+        {
+          type: 'PALACE_GANZHI_MISMATCH',
+          palaceVi: 'Quan Lộc',
+          foundGanZhi: 'Canh Ngọ',
+          expectedGanZhi: 'Bính Ngọ',
+        },
+      ]);
+
+      // 2) Sai Can Chi dạng "tại <Can Chi>" + khử trùng lặp -> 1 finding
+      const badTai = verifyPalaceGanZhiMentions(
+        'Cung Quan Lộc tại Canh Ngọ và nhắc lại Cung Quan Lộc (Canh Ngọ).',
+        palaceGanZhiMap,
+      );
+      assert.strictEqual(badTai.length, 1);
+      assert.strictEqual(badTai[0].expectedGanZhi, 'Bính Ngọ');
+
+      // 3) Can Chi đứng độc lập -> 0 finding
+      assert.strictEqual(
+        verifyPalaceGanZhiMentions('Vận trình năm Canh Ngọ 1990 rất đáng nhớ.', palaceGanZhiMap).length,
+        0,
+      );
+
+      // 4) Cung Lưu / Cung Đại Hạn -> bỏ qua (0 finding)
+      assert.strictEqual(
+        verifyPalaceGanZhiMentions(
+          'Cung Lưu Quan Lộc (Canh Ngọ) và Cung Đại Hạn Tài Bạch (Canh Ngọ).',
+          palaceGanZhiMap,
+        ).length,
+        0,
+      );
+
+      // 5) Đúng Can Chi bản mệnh -> 0 finding
+      assert.strictEqual(
+        verifyPalaceGanZhiMentions('Cung Quan Lộc (Bính Ngọ) và Cung Mệnh Cung (Nhâm Dần).', palaceGanZhiMap).length,
+        0,
+      );
+
+      // 6) Tích hợp qua verifyAcademicCitationsAndClaims
+      const integratedAudit = verifyAcademicCitationsAndClaims(
+        'Cung Quan Lộc (Canh Ngọ) gặp sát tinh.',
+        [],
+        { palaceGanZhiMap },
+      );
+      assert.strictEqual(integratedAudit.palaceGanZhiMismatches.length, 1);
+      assert.strictEqual(integratedAudit.palaceGanZhiMismatches[0].expectedGanZhi, 'Bính Ngọ');
+    }
+
+    // ── Gate D (BRIEF 1.5.5 v2): X1, X2a–X2h, X3, Z4, Z5a–Z5d ────────────────
+    {
+      console.log('\n[BRIEF 1.5.5] Kiểm thử X1, X2a–X2h, X3, Z4 & Z5a–Z5d...');
+
+      // X1: prompt kỳ hạn không chứa tên file `.ts` trong tiêu đề mục trích đoạn
+      assert.ok(!pPeriod.prompt.includes('patterns.ts'));
+      assert.ok(!pPeriod.prompt.includes('school-data.ts'));
+      assert.ok(!pPeriod.prompt.includes('constants.ts'));
+      assert.ok(!pPeriod.prompt.includes('heming-knowledge.ts'));
+      if (p2026.knowledgeExcerpts.patterns.length > 0) {
+        assert.ok(pPeriod.prompt.includes('[Cách cục nhận diện từ lá số]:'));
+      }
+      if (p2026.knowledgeExcerpts.starPrinciples.length > 0) {
+        assert.ok(pPeriod.prompt.includes('[Tính chất tinh diệu]:'));
+      }
+      if (p2026.knowledgeExcerpts.fuqiAndSihua.length > 0) {
+        assert.ok(pPeriod.prompt.includes('[Nguyên lý Tứ Hóa & Tinh hệ]:'));
+      }
+
+      // Z4 & Z5 wording trong cả 2 prompt
+      assert.ok(pPeriod.systemInstruction.includes('Không Kiếp'));
+      assert.ok(pPeriod.systemInstruction.includes('ngay cuối câu có viện dẫn hoặc trích dẫn đó'));
+      assert.ok(pDossier.systemInstruction.includes('Không Kiếp'));
+      assert.ok(pDossier.systemInstruction.includes('ngay cuối câu có viện dẫn hoặc trích dẫn đó'));
+
+      const pHorizonCheck = buildStrictDossierSectionPrompt(chart, 'horizon_5y');
+      assert.ok(
+        pHorizonCheck.systemInstruction.includes('không gắn thẻ Tứ Hóa chuyên đề đơn lẻ vào câu liệt kê danh sách 4 sao Tứ Hóa Đại Hạn'),
+      );
+      assert.ok(pHorizonCheck.systemInstruction.includes('không lặp lại tên chương ở đầu bài'));
+
+      // Corpus mẫu cho X2/X3/Z5
+      const x2Corpus: DistilledKnowledgeEntry[] = [
+        makeEntry('CL-TT-015', {
+          starsVi: ['Thiên Cơ', 'Thái Âm'],
+          palacesVi: ['Mệnh Cung', 'Thân Cung'],
+          patternsVi: ['Cơ Nguyệt Đồng Lương'],
+        }),
+        makeEntry('CL-CTP-013', {
+          starsVi: ['Thiên Cơ'],
+          palacesVi: ['Mệnh Cung'],
+        }),
+        makeEntry('NH-STAR-001', {
+          starsVi: ['Thiên Cơ', 'Hóa Khoa'],
+          palacesVi: ['Mệnh Cung'],
+        }),
+        makeEntry('NH-PAL-014-GEN', {
+          starsVi: ['Thái Âm'],
+          palacesVi: ['Tài Bạch'],
+        }),
+      ];
+
+      // X2a: [Nguồn: school-data.ts / constants.ts] -> V1 + scrub sạch
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Sao Thiên Cơ tọa Mệnh Cung chủ trí tuệ [Nguồn: school-data.ts / constants.ts].',
+          x2Corpus,
+        );
+        assert.ok(audit.v1InvalidIds.includes('SCHOOL-DATA.TS'));
+        assert.ok(audit.v1InvalidIds.includes('CONSTANTS.TS'));
+        assert.ok(!audit.scrubbedText.includes('[Nguồn:'));
+        assert.strictEqual(audit.validCitationIds.length, 0);
+      }
+
+      // X2b: [Nguồn: CL-TT-015, CL-CTP-013] -> kiểm V1/V3 riêng và cả 2 vào mục tham chiếu
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Cung Mệnh có Thiên Cơ và Thái Âm hội chiếu [Nguồn: CL-TT-015, CL-CTP-013].',
+          x2Corpus,
+        );
+        assert.strictEqual(audit.v1InvalidIds.length, 0);
+        assert.strictEqual(audit.v3MismatchIds.length, 0);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015', 'CL-CTP-013']);
+        assert.ok(audit.referenceBlockMarkdown.includes('[CL-TT-015]'));
+        assert.ok(audit.referenceBlockMarkdown.includes('[CL-CTP-013]'));
+        assert.ok(audit.scrubbedText.includes('[Nguồn: CL-TT-015] [Nguồn: CL-CTP-013]'));
+      }
+
+      // X2c: [Nguồn: CL-TT-015, FAKE-999] -> FAKE-999 bị V1 + scrub, CL-TT-015 giữ nguyên (server & client)
+      {
+        const raw = 'Cung Mệnh có sao Thiên Cơ sáng [Nguồn: CL-TT-015, FAKE-999].';
+        const audit = verifyAcademicCitationsAndClaims(raw, x2Corpus);
+        assert.deepStrictEqual(audit.v1InvalidIds, ['FAKE-999']);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015']);
+        assert.ok(audit.scrubbedText.includes('[Nguồn: CL-TT-015]'));
+        assert.ok(!audit.scrubbedText.includes('FAKE-999'));
+        const clientScrub = scrubInvalidCitationTags(raw, { invalidIds: audit.scrubbedInvalidIds });
+        assert.strictEqual(clientScrub, audit.scrubbedText);
+      }
+
+      // X2d: thẻ đơn kèm hậu tố chú thích vẫn hợp lệ
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Mệnh Cung hợp cách Cơ Nguyệt Đồng Lương [Nguồn: CL-TT-015 · Cách Cơ Nguyệt Đồng Lương].',
+          x2Corpus,
+        );
+        assert.strictEqual(audit.violations.length, 0);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015']);
+      }
+
+      // X2e: thẻ rỗng / chỉ dấu phân cách -> V1 + scrub sạch vỏ thẻ
+      for (const emptyTagSample of [
+        'Cung Mệnh vững vàng [Nguồn: ].',
+        'Cung Mệnh vững vàng [Nguồn: , ; ].',
+        'Cung Mệnh vững vàng [Nguồn: ·].',
+      ]) {
+        const audit = verifyAcademicCitationsAndClaims(emptyTagSample, x2Corpus);
+        assert.ok(audit.v1InvalidIds.length >= 1, `Phải báo V1 cho ${emptyTagSample}`);
+        assert.ok(audit.violations.some((v) => v.rule === 'V1'));
+        assert.ok(!audit.scrubbedText.includes('[Nguồn:'), `Phải scrub sạch vỏ thẻ: ${audit.scrubbedText}`);
+        assert.strictEqual(scrubInvalidCitationTags(emptyTagSample, { invalidIds: [] }), 'Cung Mệnh vững vàng.');
+      }
+
+      // X2f: [Nguồn: cl-tt-015] chữ thường -> chuẩn hóa CL-TT-015, hợp lệ
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Cung Mệnh có sao Thiên Cơ sáng [Nguồn: cl-tt-015].',
+          x2Corpus,
+        );
+        assert.strictEqual(audit.violations.length, 0);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015']);
+        assert.ok(audit.scrubbedText.includes('[Nguồn: CL-TT-015]'));
+      }
+
+      // X2g: [Nguồn: CL-TT-015 · Luận cung Mệnh, Thân] -> dấu phẩy trong chú thích không tạo ứng viên mới
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Cung Mệnh có sao Thiên Cơ [Nguồn: CL-TT-015 · Luận cung Mệnh, Thân].',
+          x2Corpus,
+        );
+        assert.strictEqual(audit.v1InvalidIds.length, 0);
+        assert.strictEqual(audit.v3MismatchIds.length, 0);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015']);
+      }
+
+      // X2h: [Nguồn: CL-TT-015 / CL-CTP-013] -> cả hai ID hợp lệ được giữ
+      {
+        const audit = verifyAcademicCitationsAndClaims(
+          'Sao Thiên Cơ tại Mệnh Cung chủ trí tuệ [Nguồn: CL-TT-015 / CL-CTP-013].',
+          x2Corpus,
+        );
+        assert.strictEqual(audit.violations.length, 0);
+        assert.deepStrictEqual(audit.validCitationIds, ['CL-TT-015', 'CL-CTP-013']);
+        assert.ok(audit.scrubbedText.includes('[Nguồn: CL-TT-015] [Nguồn: CL-CTP-013]'));
+      }
+
+      // X3: ID dùng đúng ở đoạn A và sai chủ đề (V3) ở đoạn B -> bị xóa khỏi thân bài VÀ khỏi danh mục tham chiếu
+      {
+        const textX3 = [
+          'Cung Tài Bạch có Thái Âm vượng địa giữ tài chính bền vững [Nguồn: NH-PAL-014-GEN].',
+          '',
+          'Cung Phu Thê có Tham Lang Đào Hoa dễ biến động tình cảm [Nguồn: NH-PAL-014-GEN].',
+        ].join('\n');
+        const audit = verifyAcademicCitationsAndClaims(textX3, x2Corpus);
+        assert.ok(audit.v3MismatchIds.includes('NH-PAL-014-GEN'));
+        assert.ok(!audit.scrubbedText.includes('NH-PAL-014-GEN'));
+        assert.ok(!audit.validCitationIds.includes('NH-PAL-014-GEN'));
+        assert.ok(!audit.referenceBlockMarkdown.includes('NH-PAL-014-GEN'));
+      }
+
+      // Z5a: câu 1 trích khẩu quyết không thẻ + câu 2 có thẻ hợp lệ -> V2 vẫn bắt câu 1
+      {
+        const z5aText =
+          'Cổ nhân có câu "Thiên Cơ tại Mệnh chủ trí tuệ mưu lược". Sao Thiên Cơ tại Mệnh Cung rất sáng [Nguồn: NH-STAR-001].';
+        const audit = verifyAcademicCitationsAndClaims(z5aText, x2Corpus);
+        assert.strictEqual(audit.v2UncitedBlocks.length, 1);
+        assert.ok(audit.violations.some((v) => v.rule === 'V2'));
+      }
+
+      // Z5b: câu chứa "mục 1.2", "1.000", "105.85" và có thẻ hợp lệ -> KHÔNG lỗi V2 giả
+      {
+        const z5bText =
+          'Theo Nghê Hải Hạ tại mục 1.2 với 1.000 mẫu lá số và kinh độ 105.85, sao Thiên Cơ tại Mệnh chủ linh hoạt [Nguồn: NH-STAR-001].';
+        const audit = verifyAcademicCitationsAndClaims(z5bText, x2Corpus);
+        assert.strictEqual(audit.v2UncitedBlocks.length, 0);
+        assert.strictEqual(audit.violations.length, 0);
+      }
+
+      // Z5c: câu 1 viện dẫn M1 không thẻ + câu 2 có thẻ -> V2 bắt câu 1; gắn thẻ cuối câu 1 -> hết lỗi
+      {
+        const z5cUncited =
+          'Theo hệ thống Thiên Kỷ của Nghê Hải Hạ, sao Thiên Cơ tại Mệnh chủ về trí tuệ linh hoạt. Khi gặp Hóa Khoa đồng độ thì năng lực học thuật càng xuất sắc [Nguồn: NH-STAR-001].';
+        const auditFail = verifyAcademicCitationsAndClaims(z5cUncited, x2Corpus);
+        assert.strictEqual(auditFail.v2UncitedBlocks.length, 1);
+
+        const z5cCited =
+          'Theo hệ thống Thiên Kỷ của Nghê Hải Hạ, sao Thiên Cơ tại Mệnh chủ về trí tuệ linh hoạt [Nguồn: NH-STAR-001]. Khi gặp Hóa Khoa đồng độ thì năng lực học thuật càng xuất sắc [Nguồn: NH-STAR-001].';
+        const auditPass = verifyAcademicCitationsAndClaims(z5cCited, x2Corpus);
+        assert.strictEqual(auditPass.v2UncitedBlocks.length, 0);
+        assert.strictEqual(auditPass.violations.length, 0);
+      }
+
+      // Z5d: câu trích khẩu quyết CÓ thẻ ngay cuối câu đó -> KHÔNG lỗi V2
+      {
+        const z5dText =
+          'Cổ nhân có câu "Thiên Cơ tại Mệnh chủ trí tuệ mưu lược" [Nguồn: NH-STAR-001]. Câu thứ hai chỉ bình luận thêm về cung Mệnh.';
+        const audit = verifyAcademicCitationsAndClaims(z5dText, x2Corpus);
+        assert.strictEqual(audit.v2UncitedBlocks.length, 0);
+        assert.strictEqual(audit.violations.length, 0);
+      }
+
+      console.log('  -> ĐẠT [BRIEF 1.5.5]: X1, X2a–X2h, X3, Z4 & Z5a–Z5d đạt 100%.');
+    }
+
     resetKnowledgeBaseCache();
-    console.log('  -> ĐẠT: 3 Prompt Builders & Sanitizer tích hợp chuẩn xác.');
+    console.log('  -> ĐẠT: 3 Prompt Builders, Sanitizer & KP-3-lite verifyPalaceGanZhiMentions tích hợp chuẩn xác.');
   }
 
   console.log('\n[PASS] TOÀN BỘ KIỂM THỬ verify:kb ĐẠT 100%!');

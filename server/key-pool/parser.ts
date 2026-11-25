@@ -5,7 +5,8 @@ import {
   type PreviewSessionEntry,
 } from './types.ts';
 
-const GEMINI_KEY_REGEX = /^AIza[A-Za-z0-9_-]{31,41}$/;
+const GEMINI_KEY_REGEX = /^(?:AIza[A-Za-z0-9_-]{31,41}|AQ\.[A-Za-z0-9_-]{48,54})$/;
+const INLINE_GEMINI_KEY_PATTERN = /(?:AIza[A-Za-z0-9_-]{31,41}|AQ\.[A-Za-z0-9_-]{48,54})/g;
 const SIMPLE_LABELED_LINE_REGEX =
   /^([A-Za-zÀ-ỹ0-9_.\-\s]{1,32})\s*[:=]\s*['"]?([^\s'",;]+)['"]?[;,\s]*$/u;
 
@@ -150,12 +151,11 @@ export function parseBatchKeys(
   if (jsonTokens !== null) {
     extracted.push(...jsonTokens);
   } else {
-    // Pha 1: Tiền xử lý từng dòng (bỏ dòng trống, bỏ comment #, //, bắt nhãn đơn giản Label: key)
+    // Pha 1: Tiền xử lý từng dòng (bỏ dòng trống, bỏ comment #, //, tách dòng chứa >1 khóa ngăn cách bởi dấu phẩy, bắt nhãn đơn giản Label: key)
     const lines = normalized.split('\n');
-    for (const rawLine of lines) {
-      const line = rawLine.trim();
+    const processSingleLine = (line: string) => {
       if (!line || line.startsWith('#') || line.startsWith('//')) {
-        continue;
+        return;
       }
 
       const isUrlLine = /^https?:\/\//i.test(line);
@@ -170,7 +170,7 @@ export function parseBatchKeys(
           rawToken: rawCandidate,
           customLabel: isEnvName ? undefined : rawLabel,
         });
-        continue;
+        return;
       }
 
       // Pha 2: Tách đa dấu phân cách: phẩy, khoảng trắng, tab, chấm phẩy + dọn cặp JSON/CSV
@@ -185,6 +185,23 @@ export function parseBatchKeys(
         // Bỏ qua placeholder mẫu trong .env.example
         if (cleaned === 'MY_GEMINI_API_KEY') continue;
         extracted.push({ rawToken: cleaned });
+      }
+    };
+
+    for (const rawLine of lines) {
+      const trimmedLine = rawLine.trim();
+      if (!trimmedLine || trimmedLine.startsWith('#') || trimmedLine.startsWith('//')) {
+        continue;
+      }
+
+      const hasBraces = trimmedLine.includes('{') || trimmedLine.includes('}');
+      const inlineKeyMatches = !hasBraces ? trimmedLine.match(INLINE_GEMINI_KEY_PATTERN) : null;
+      if (inlineKeyMatches && inlineKeyMatches.length > 1 && trimmedLine.includes(',')) {
+        for (const segment of trimmedLine.split(',')) {
+          processSingleLine(segment.trim());
+        }
+      } else {
+        processSingleLine(trimmedLine);
       }
     }
   }
@@ -206,7 +223,7 @@ export function parseBatchKeys(
       items.push({
         maskedToken: maskInvalidToken(token),
         status: 'invalid_format',
-        reason: 'Không đúng định dạng Gemini API key (tiền tố AIza, dài 35–45 ký tự hợp lệ)',
+        reason: 'Không đúng định dạng Gemini API key (tiền tố AIza dài 35–45 ký tự hoặc AQ. dài 51–57 ký tự hợp lệ)',
       });
       continue;
     }

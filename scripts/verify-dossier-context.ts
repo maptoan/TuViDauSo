@@ -6,15 +6,20 @@ process.env.ZIWEI_DISABLE_AUTO_LISTEN = '1';
 
 import { generateChart } from '../src/lib/ziwei/algorithm.ts';
 import { PALACE_NAMES_ORDER } from '../src/lib/ziwei/constants.ts';
-import { translatePalaceName } from '../src/lib/ziwei/vi-i18n.ts';
-import { buildYunxianPeriodContext } from '../src/lib/ziwei/yunxian-context.ts';
+import { translatePalaceName, formatChartSummaryVi } from '../src/lib/ziwei/vi-i18n.ts';
+import {
+  buildYunxianPeriodContext,
+  formatPeriodSiHuaFactLine,
+} from '../src/lib/ziwei/yunxian-context.ts';
 import {
   DOSSIER_PALACE_GROUPS,
   VALID_DOSSIER_SECTION_IDS,
+  buildChatFactTableForContextVi,
   buildDossierSectionFactSheetVi,
   buildMultiYearHorizonContext,
   buildNatalOverviewFactSheetVi,
   buildPalaceGroupFactSheetVi,
+  periodCtxLabelDynStars,
 } from '../src/lib/ziwei/dossier-context.ts';
 import {
   CHAT_MAX_EXCERPT_LEN,
@@ -23,6 +28,7 @@ import {
   CHAT_MAX_QUESTION_LEN,
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
+  buildStrictPeriodAiPrompt,
   registerApiRoutes,
   sanitizeChatHistoryAndExcerpt,
 } from '../server.ts';
@@ -393,7 +399,248 @@ async function runTests() {
     console.log('  -> Đạt [TEST-3]: Đủ 12 cung Lưu Niên năm 2027, Lưu Tài Bạch@Mão=Mệnh Cung, đối cung & Ch.7/8 giữ đủ trường PeriodSiHuaImpact.');
   }
 
-  console.log('\n=== TẤT CẢ 6 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & PHA 1 ĐỀU ĐẠT ===');
+  // ── BÀI 7 (BRIEF 1.5.4 · GÓI A — KP-1): Kiểm chứng lá số mẫu 26/07/1977 giờ Tỵ Hà Nội & trần A7 ─
+  {
+    console.log('\n[7/7] [BRIEF 1.5.4 · GÓI A] Kiểm thử A1–A7 trên lá số mẫu nam 26/07/1977 giờ Tỵ, Hà Nội...');
+    const sample1977 = generateChart({
+      name: '',
+      year: 1977,
+      month: 7,
+      day: 26,
+      hour: 5,
+      gender: 'male',
+      city: 'Hà Nội',
+      longitude: 105.85,
+    });
+    const yangMale1990 = generateChart({
+      name: 'Mẫu Dương Nam',
+      year: 1990,
+      month: 5,
+      day: 15,
+      hour: 0,
+      gender: 'male',
+      city: 'Hà Nội',
+      longitude: 105.85,
+    });
+
+    const ov1977 = buildNatalOverviewFactSheetVi(sample1977).factSheetMarkdown;
+    const core1977 = buildPalaceGroupFactSheetVi(sample1977, 'core').factSheetMarkdown;
+    const fam1977 = buildPalaceGroupFactSheetVi(sample1977, 'family').factSheetMarkdown;
+    const soc1977 = buildPalaceGroupFactSheetVi(sample1977, 'social_health').factSheetMarkdown;
+    const chat1977 = buildChatFactTableForContextVi(sample1977, {
+      contextMode: 'natal',
+      includeHorizonStart: 2026,
+      includeHorizonEnd: 2035,
+    });
+
+    // A1: Tứ Hóa Đại Hạn theo kỳ ở fact sheet nhóm cung
+    assert.ok(
+      fam1977.includes('[Tứ Hóa Đại Hạn Kỳ 24–33 (đóng tại Phu Thê · Can Nhâm)]'),
+      'palaces_family phải có dòng Tứ Hóa Đại Hạn Kỳ 24–33 tại Phu Thê Can Nhâm',
+    );
+    assert.ok(fam1977.includes('Thiên Lương Hóa Lộc → Quan Lộc'));
+    assert.ok(fam1977.includes('Tử Vi Hóa Quyền → Phụ Mẫu'));
+    assert.ok(fam1977.includes('Tả Phù Hóa Khoa → Tật Ách'));
+    assert.ok(fam1977.includes('Vũ Khúc Hóa Kỵ → Tử Nữ'));
+    assert.ok(
+      core1977.includes('[Tứ Hóa Đại Hạn Kỳ 44–53 (đóng tại Tài Bạch · Can Canh)]'),
+      'palaces_core phải có dòng Tứ Hóa Đại Hạn Kỳ 44–53 tại Tài Bạch Can Canh',
+    );
+    assert.ok(!ov1977.includes('[Tứ Hóa Đại Hạn Kỳ '), 'chapter_overview không chèn dòng từng kỳ A1');
+    assert.ok(!chat1977.includes('[Tứ Hóa Đại Hạn Kỳ '), 'bảng chat không chèn dòng từng kỳ A1');
+
+    // A2: Thẻ hiện tại mang nhãn "HIỆN TẠI (44–53 · Can Canh)"
+    assert.ok(core1977.includes('[Tứ Hóa Đại Hạn HIỆN TẠI (44–53 · Can Canh)]'));
+    assert.ok(fam1977.includes('[Tứ Hóa Đại Hạn HIỆN TẠI (44–53 · Can Canh)]'));
+    assert.ok(ov1977.includes('[Tứ Hóa Đại Hạn HIỆN TẠI (44–53 · Can Canh)]'));
+    assert.ok(chat1977.includes('[Tứ Hóa Đại Hạn HIỆN TẠI (44–53 · Can Canh)]'));
+
+    // A3 & A6 prompt rules
+    const famPrompt1977 = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
+    assert.ok(famPrompt1977.systemInstruction.includes('Thẻ [Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại'));
+    assert.ok(famPrompt1977.systemInstruction.includes('đương số nam thì không dùng khuôn diễn đạt dành cho nữ'));
+
+    // A4: Can Chi đầy đủ trên dòng sao lưu trong yunxian-context
+    const ctx2026 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 });
+    assert.ok(ctx2026);
+    assert.ok(
+      ctx2026.dynamicStars.every((d) => Boolean(d.natalGanZhiVi)),
+      'Mọi dynamicStar phải có natalGanZhiVi',
+    );
+    assert.ok(
+      ctx2026.factTableMarkdown.includes('trùng cung Bản Mệnh gốc Quan Lộc - Bính Ngọ'),
+      'Dòng sao lưu rơi vào Quan Lộc phải ghi rõ "trùng cung Bản Mệnh gốc Quan Lộc - Bính Ngọ"',
+    );
+
+    // A5: Mượn sao hai chiều chỉ trên dòng Chính tinh của cung cho mượn trong buildPalaceGroupFactSheetVi
+    assert.ok(
+      core1977.includes('Chính tinh tại cung này được đối cung Thiên Di vô chính diệu mượn để tham chiếu; cung này KHÔNG mượn sao của Thiên Di.'),
+      'palaces_core phải có ghi chú hai chiều trên Mệnh Cung cho Thiên Di mượn',
+    );
+    assert.ok(
+      soc1977.includes('Chính tinh tại cung này được đối cung Tật Ách vô chính diệu mượn để tham chiếu; cung này KHÔNG mượn sao của Tật Ách.'),
+      'palaces_social_health phải có ghi chú hai chiều trên Phụ Mẫu cho Tật Ách mượn',
+    );
+    assert.ok(!ov1977.includes('KHÔNG mượn sao'), 'A5 không gắn vào chapter_overview');
+    assert.ok(!chat1977.includes('KHÔNG mượn sao'), 'A5 không gắn vào bảng chat');
+    const thienDiBlock = core1977.slice(core1977.indexOf('### Cung Thiên Di'));
+    assert.ok(!thienDiBlock.includes('KHÔNG mượn sao của Thiên Di'), 'A5 không lặp lại trong Tam Phương Tứ Chính của đối cung');
+
+    // A6: Dòng Đương số ở 3 fact sheet nhóm cung
+    assert.ok(core1977.includes('Đương số: Âm Nam'));
+    assert.ok(fam1977.includes('Đương số: Âm Nam'));
+    assert.ok(soc1977.includes('Đương số: Âm Nam'));
+    assert.ok(buildPalaceGroupFactSheetVi(yangMale1990, 'family').factSheetMarkdown.includes('Đương số: Dương Nam'));
+
+    // A7: Trần ký tự đã duyệt (nới trần 3 nhóm cung)
+    assert.ok(core1977.length <= 5_100, `palaces_core vượt trần 5100: ${core1977.length}`);
+    assert.ok(fam1977.length <= 4_550, `palaces_family vượt trần 4550: ${fam1977.length}`);
+    assert.ok(soc1977.length <= 4_580, `palaces_social_health vượt trần 4580: ${soc1977.length}`);
+    assert.ok(ov1977.length <= 3_650, `chapter_overview vượt trần 3650: ${ov1977.length}`);
+    assert.ok(chat1977.length <= 13_100, `chat vượt trần 13100: ${chat1977.length}`);
+    console.log(
+      `  -> Đạt [GÓI A]: A1–A7 hợp lệ (core=${core1977.length}/5100, family=${fam1977.length}/4550, social=${soc1977.length}/4580, overview=${ov1977.length}/3650, chat=${chat1977.length}/13100).`,
+    );
+  }
+
+  // ── BÀI 8 (BRIEF 1.5.5 v2): Y1–Y6, Z1, Z2, Z4 & trần ĐK-155-04 trên lá số mẫu 26/07/1977 ──
+  {
+    console.log('\n[8/8] [BRIEF 1.5.5 v2] Kiểm thử Y1–Y6, Z1, Z2, Z4 & trần horizon/chat ĐK-155-04...');
+    const sample1977 = generateChart({
+      name: '',
+      year: 1977,
+      month: 7,
+      day: 26,
+      hour: 5,
+      gender: 'male',
+      city: 'Hà Nội',
+      longitude: 105.85,
+    });
+
+    const ov1977 = buildNatalOverviewFactSheetVi(sample1977).factSheetMarkdown;
+    const core1977 = buildPalaceGroupFactSheetVi(sample1977, 'core').factSheetMarkdown;
+    const fam1977 = buildPalaceGroupFactSheetVi(sample1977, 'family').factSheetMarkdown;
+    const soc1977 = buildPalaceGroupFactSheetVi(sample1977, 'social_health').factSheetMarkdown;
+    const h5 = buildDossierSectionFactSheetVi(sample1977, 'horizon_5y');
+    const h10 = buildDossierSectionFactSheetVi(sample1977, 'horizon_10y');
+    const chat1977 = buildChatFactTableForContextVi(sample1977, {
+      contextMode: 'natal',
+      includeHorizonStart: 2026,
+      includeHorizonEnd: 2035,
+    });
+    const ctx2026 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 })!;
+    const ctxDahan = buildYunxianPeriodContext(sample1977, { mode: 'dahan', daXianIndex: 4 })!;
+
+    // Y1: formatPeriodSiHuaFactLine đưa [Bản mệnh Hóa X] lên sau [Độ sáng], trước cụm đối cung xung chiếu
+    const shWithNatal = ctx2026.periodSiHua.find((s) => Boolean(s.natalMutagenVi))!;
+    assert.ok(shWithNatal, 'Năm 2026 lá số 1977 phải có ít nhất 1 sao có natalMutagenVi');
+    const lineY1 = formatPeriodSiHuaFactLine(shWithNatal, 'Lưu');
+    const natalPos = lineY1.indexOf(`[${shWithNatal.natalMutagenVi}]`);
+    const oppPos = lineY1.indexOf('— đối cung xung chiếu:');
+    assert.ok(natalPos > 0 && oppPos > natalPos, `Y1: [Bản mệnh Hóa] phải đứng trước đối cung xung chiếu: ${lineY1}`);
+    assert.ok(
+      lineY1.includes(`[${shWithNatal.brightnessVi}] · [${shWithNatal.natalMutagenVi}]**`),
+      `Y1: [Bản mệnh Hóa] phải nằm sát độ sáng bên trong cụm in đậm: ${lineY1}`,
+    );
+    const dahanLineY1 = formatPeriodSiHuaFactLine(shWithNatal, 'Đại Hạn');
+    assert.ok(dahanLineY1.startsWith('• **[Tứ Hóa Đại Hạn] Đại Hạn '), 'Y1/P4 phải giữ ${layerTag} ${prefix} cho Đại Hạn');
+
+    // Y2: periodTitleVi nhánh Lưu Niên & dòng Cung bản mệnh được kích hoạt
+    assert.ok(ctx2026.periodTitleVi.includes('Kích hoạt cung Bản Mệnh gốc'));
+    assert.ok(ctx2026.periodTitleVi.includes('nơi Cung Lưu Mệnh Cung tọa thủ'));
+    assert.ok(!ctxDahan.periodTitleVi.includes('nơi Cung Lưu Mệnh Cung tọa thủ'), 'Y2/P5 không đụng periodTitleVi nhánh Đại Hạn');
+    assert.ok(ctx2026.factTableMarkdown.includes('— nơi Cung Lưu Mệnh Cung tọa thủ'));
+    assert.ok(ctxDahan.factTableMarkdown.includes('— nơi Cung Đại Hạn Mệnh Cung tọa thủ'));
+
+    // Y3: Bộ Kình Đà lưu niên
+    assert.ok(ctx2026.factTableMarkdown.includes('Bộ Kình Đà lưu niên (kẹp hai bên cung Lưu Lộc Tồn)'));
+    assert.ok(!ctx2026.factTableMarkdown.includes('(Dương Đà giáp Lộc)'));
+
+    // Y4: dịch pat.level sang tiếng Việt trong fact sheet tổng quan
+    assert.ok(ov1977.includes('[Thượng cách]') || ov1977.includes('[Cát cách]'));
+    for (const rawLevel of ['[excellent]', '[good]', '[neutral]', '[bad]', '[caution]']) {
+      assert.ok(!ov1977.includes(rawLevel), `Y4: không được lọt nhãn thô ${rawLevel}`);
+    }
+
+    // Y5: ### Cung Mệnh (Nhâm Dần), không có ### Cung Mệnh Cung
+    assert.ok(core1977.includes('### Cung Mệnh (Nhâm Dần)'));
+    assert.ok(!core1977.includes('### Cung Mệnh Cung'));
+
+    // Y6a: prompt horizon chứa quy tắc bắt buộc mẫu đối cung xung chiếu cho 4 Lưu Tứ Hóa
+    const horizonPrompt = buildStrictDossierSectionPrompt(sample1977, 'horizon_5y');
+    assert.ok(horizonPrompt.systemInstruction.includes('(xung Cung Lưu {C} [trùng {D}])'));
+
+    // Y6b: periodCtxLabelDynStars xuất đầy đủ Can Chi trong detailLines, còn dynamicStarsSummaryVi giữ chi-only
+    const row2026 = h5.horizon!.rows[0];
+    const dynDetail2026 = periodCtxLabelDynStars(row2026.dynamicStars);
+    const firstDyn = row2026.dynamicStars[0];
+    assert.ok(dynDetail2026.includes(`(${firstDyn.natalPalaceNameVi} - ${firstDyn.natalGanZhiVi})`));
+    assert.ok(
+      row2026.dynamicStars.some((d) => dynDetail2026.includes(`(${d.natalPalaceNameVi} - ${d.natalGanZhiVi})`)),
+    );
+    // Tìm sao rơi vào Điền Trạch - Ất Tỵ trên lá số 1977 (năm 2026 Bính Ngọ: Kình Dương @ Ngọ, ... hay kiểm tra trực tiếp 1 sao ở Điền Trạch)
+    assert.ok(
+      periodCtxLabelDynStars([
+        {
+          starLabelVi: 'Lưu Thiên Mã',
+          category: 'loc_ma',
+          branch: 5,
+          branchVi: 'Tỵ',
+          natalPalaceNameVi: 'Điền Trạch',
+          natalGanZhiVi: 'Ất Tỵ',
+          periodPalaceRoleVi: 'Lưu Điền Trạch',
+        },
+      ]).includes('Điền Trạch - Ất Tỵ'),
+    );
+
+    // Y6c: Năm 2034 (Giáp Dần) Lưu Mệnh trùng Mệnh gốc tại Dần trên lá số 1977 có chú thích trong detailLines, KHÔNG có trong compactMatrixMarkdown
+    const overlapNote =
+      '*(Lưu Mệnh trùng Mệnh gốc tại Dần nên cả 12 cung Lưu Niên năm này trùng tên với 12 cung Bản Mệnh)*';
+    assert.ok(h10.horizon!.factSheetMarkdown.includes(overlapNote), 'Y6c: năm 2034 phải có chú thích trùng Mệnh trong detailLines');
+    assert.ok(!h10.horizon!.compactMatrixMarkdown.includes(overlapNote), 'Y6c/P7: không nhét chú thích vào compactMatrixMarkdown');
+    assert.ok(h5.horizon!.factSheetMarkdown.includes('[Tứ Hóa Đại Hạn HIỆN TẠI (44–53 · Can Canh)]'));
+    assert.ok(h5.horizon!.factSheetMarkdown.includes('[Tứ Hóa Đại Hạn Kỳ 54–63 (đóng tại Tật Ách · Can Kỷ)]'));
+
+    // Y6d: dynamicStarsSummaryVi (compactMatrix) giữ chi-only & chat giữ <= 13.100
+    assert.ok(
+      row2026.dynamicStarsSummaryVi.includes(`(${firstDyn.natalPalaceNameVi} - ${firstDyn.branchVi})`),
+      'Y6d/P7: dynamicStarsSummaryVi phải giữ nguyên dạng chi-only',
+    );
+    assert.ok(
+      !row2026.dynamicStarsSummaryVi.includes(`(${firstDyn.natalPalaceNameVi} - ${firstDyn.natalGanZhiVi})`),
+      'Y6d/P7: không chèn Can Chi vào dynamicStarsSummaryVi',
+    );
+
+    // Z1: prompt nhóm cung bắt buộc dòng [Tứ Hóa Đại Hạn Kỳ X–Y]
+    const groupPrompt = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
+    assert.ok(groupPrompt.systemInstruction.includes('[Tứ Hóa Đại Hạn Kỳ X–Y]'));
+    assert.ok(groupPrompt.systemInstruction.includes('Không Kiếp'));
+
+    // Z2 & Z4: prompt kỳ hạn chứa sàn 900–1.300 từ, tên sao+độ sáng, Không Kiếp, và KHÔNG hardcode 1977
+    const periodPrompt = buildStrictPeriodAiPrompt(ctx2026, formatChartSummaryVi(sample1977), sample1977);
+    assert.ok(periodPrompt.systemInstruction.includes('900–1.300 từ'));
+    assert.ok(periodPrompt.systemInstruction.includes('tên Hóa + tên sao + độ sáng'));
+    assert.ok(periodPrompt.systemInstruction.includes('Không Kiếp'));
+    assert.ok(
+      !periodPrompt.systemInstruction.includes('44–53 tuổi tại Tài Bạch · Can Canh'),
+      'Z2/P10: không được hardcode dữ kiện lá số 1977 vào systemInstruction',
+    );
+
+    // ĐK-155-04: Trần kích thước trên lá số mẫu 26/07/1977
+    assert.ok(core1977.length <= 5_100, `core vượt trần 5100: ${core1977.length}`);
+    assert.ok(fam1977.length <= 4_550, `family vượt trần 4550: ${fam1977.length}`);
+    assert.ok(soc1977.length <= 4_580, `social vượt trần 4580: ${soc1977.length}`);
+    assert.ok(ov1977.length <= 3_650, `overview vượt trần 3650: ${ov1977.length}`);
+    assert.ok(chat1977.length <= 13_100, `chat vượt trần 13100: ${chat1977.length}`);
+    assert.ok(h5.factSheetMarkdown.length <= 14_200, `horizon_5y vượt trần 14200: ${h5.factSheetMarkdown.length}`);
+    assert.ok(h10.factSheetMarkdown.length <= 37_800, `horizon_10y vượt trần 37800: ${h10.factSheetMarkdown.length}`);
+
+    console.log(
+      `  -> Đạt [BRIEF 1.5.5 v2]: Y1–Y6, Z1, Z2, Z4 hợp lệ (h5=${h5.factSheetMarkdown.length}/14200, h10=${h10.factSheetMarkdown.length}/37800, chat=${chat1977.length}/13100, ov=${ov1977.length}/3650).`,
+    );
+  }
+
+  console.log('\n=== TẤT CẢ 8 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.5 ĐỀU ĐẠT ===');
 }
 
 runTests().catch((err) => {

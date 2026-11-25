@@ -6,15 +6,18 @@ import {
   type KeyPoolState,
   MAX_KEYS_IN_POOL,
   MAX_PREVIEW_SESSIONS,
+  type ModelProfileConfig,
+  type ModelThinkingLevel,
   PREVIEW_SESSION_TTL_MS,
   type PreviewResult,
   type PreviewSessionEntry,
   type StreamExecutionMeta,
   TEST_KEY_DEBOUNCE_MS,
+  TEST_KEY_MAX_OUTPUT_TOKENS,
   TEST_KEY_TIMEOUT_MS,
 } from './types.ts';
 import { computeKeyFingerprint, isValidGeminiApiKey, parseBatchKeys } from './parser.ts';
-import { KeyPoolCryptoStore } from './crypto-store.ts';
+import { KeyPoolCryptoStore, mergeModelProfiles } from './crypto-store.ts';
 import {
   classifyGeminiError,
   isSupportedGemini35Plus,
@@ -26,6 +29,7 @@ import {
   defaultAiClientFactory,
   type ExecuteStreamOptions,
   GeminiStreamExecutor,
+  isGemmaModel,
 } from './executor.ts';
 
 interface StoredPreviewSession {
@@ -218,7 +222,10 @@ export class KeyPoolManager {
       hasAdminPinConfigured: context.hasAdminPinConfigured,
       envSecretPresent: diag.envSecretPresent,
       envSecretActiveInPool: diag.envSecretActiveInPool,
-      modelConfig: { ...this.state.modelConfig },
+      modelConfig: {
+        ...this.state.modelConfig,
+        profiles: this.mergeProfiles(this.state.modelConfig.profiles),
+      },
       summary: {
         total: diag.totalKeys,
         ready: diag.readyKeys,
@@ -228,6 +235,13 @@ export class KeyPoolManager {
       keys,
       recentLogs: [...this.state.recentLogs].reverse(),
     };
+  }
+
+  private mergeProfiles(
+    existing?: Record<string, ModelProfileConfig>,
+    override?: Record<string, ModelProfileConfig>,
+  ): Record<string, ModelProfileConfig> {
+    return mergeModelProfiles(existing, override);
   }
 
   private prunePreviewSessions(now = Date.now()): void {
@@ -364,11 +378,16 @@ export class KeyPoolManager {
 
   public async testKey(
     keyId: string,
-    customClientFactory?: AiClientFactory,
+    optionsOrFactory?:
+      | { model?: string; customClientFactory?: AiClientFactory; disableJitter?: boolean }
+      | AiClientFactory,
+    maybeCustomClientFactory?: AiClientFactory,
   ): Promise<{
     ok: boolean;
+    inconclusive?: boolean;
     latencyMs: number;
     modelUsed: string;
+    isDefaultModel: boolean;
     status: string;
     healthScore: number;
     detectedProjectNumber: string | null;
@@ -381,6 +400,22 @@ export class KeyPoolManager {
     if (!key) {
       throw new Error('Không tìm thấy khóa yêu cầu trong kho.');
     }
+
+    const opts = typeof optionsOrFactory === 'function' ? undefined : optionsOrFactory;
+    const customClientFactory =
+      typeof optionsOrFactory === 'function'
+        ? optionsOrFactory
+        : opts?.customClientFactory ?? maybeCustomClientFactory;
+
+    const requestedModel = opts?.model?.trim();
+    if (requestedModel && !isSupportedGemini35Plus(requestedModel)) {
+      throw new Error(
+        `Model kiểm tra "${requestedModel}" không hợp lệ. Chỉ hỗ trợ Gemini từ 3.5 trở lên hoặc Gemma 4.`,
+      );
+    }
+
+    const modelToTest = requestedModel || this.state.modelConfig.defaultModel;
+    const isDefaultModel = modelToTest === this.state.modelConfig.defaultModel;
 
     if (
       key.stats.lastTestedAt !== null &&
@@ -395,43 +430,89 @@ export class KeyPoolManager {
       throw new Error('Không tìm thấy khóa giải mã trên máy chủ.');
     }
 
-    const modelToTest = this.state.modelConfig.defaultModel;
+    const mergedProfiles = this.mergeProfiles(this.state.modelConfig.profiles);
+    const profile = mergedProfiles[modelToTest];
+    const testTimeoutMs = isGemmaModel(modelToTest)
+      ? Math.min(profile?.firstChunkTimeoutMs ?? 60_000, 65_000)
+      : TEST_KEY_TIMEOUT_MS;
     const factory = customClientFactory ?? defaultAiClientFactory;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(new Error('TEST_KEY_TIMEOUT')), TEST_KEY_TIMEOUT_MS);
+    const timer = setTimeout(() => controller.abort(new Error('TEST_KEY_TIMEOUT')), testTimeoutMs);
     const startMs = Date.now();
 
     try {
       const client = factory(rawKey);
+      const testConfig: {
+        maxOutputTokens: number;
+        thinkingConfig?: {
+          thinkingLevel?: ModelThinkingLevel;
+        };
+        abortSignal: AbortSignal;
+      } = {
+        maxOutputTokens: TEST_KEY_MAX_OUTPUT_TOKENS,
+        abortSignal: controller.signal,
+      };
+      if (profile?.thinkingLevel) {
+        testConfig.thinkingConfig = { thinkingLevel: profile.thinkingLevel };
+      }
+
       const res = await client.models.generateContent({
         model: modelToTest,
         contents: 'Trả lời đúng 1 từ: OK',
-        config: {
-          maxOutputTokens: 8,
-          abortSignal: controller.signal,
-        },
+        config: testConfig,
       });
       const latencyMs = Math.max(1, Date.now() - startMs);
-      if (!res || typeof res.text !== 'string') {
+      if (!res || typeof res.text !== 'string' || !res.text.trim()) {
         throw new Error('AI_EMPTY_RESPONSE');
       }
-      this.allocator.recordManualTestResult(keyId, true, latencyMs, undefined, Date.now());
+      this.allocator.recordManualTestResult(keyId, true, latencyMs, undefined, Date.now(), {
+        modelTested: modelToTest,
+        isDefaultModel,
+        disableJitter: opts?.disableJitter,
+      });
       return {
         ok: true,
         latencyMs,
         modelUsed: modelToTest,
+        isDefaultModel,
         status: key.status,
         healthScore: key.healthScore,
         detectedProjectNumber: key.detectedProjectNumber,
       };
     } catch (err) {
       const latencyMs = Math.max(1, Date.now() - startMs);
+      const isTimeout =
+        controller.signal.aborted ||
+        (err instanceof Error && err.message.includes('TEST_KEY_TIMEOUT')) ||
+        String(err).includes('TEST_KEY_TIMEOUT');
+
+      if (isTimeout) {
+        return {
+          ok: false,
+          inconclusive: true,
+          latencyMs,
+          modelUsed: modelToTest,
+          isDefaultModel,
+          status: key.status,
+          healthScore: key.healthScore,
+          detectedProjectNumber: key.detectedProjectNumber,
+          errorCategory: 'TEST_TIMEOUT_INCONCLUSIVE',
+          sanitizedMessage: `Hết thời gian chờ khi thử khóa trên ${modelToTest} (${Math.round(testTimeoutMs / 1000)}s) — chưa kết luận trạng thái khóa.`,
+          cooldownUntil: key.cooldownUntil,
+        };
+      }
+
       const classified = classifyGeminiError(err, this.rawKeysById.values());
-      this.allocator.recordManualTestResult(keyId, false, latencyMs, classified, Date.now());
+      this.allocator.recordManualTestResult(keyId, false, latencyMs, classified, Date.now(), {
+        modelTested: modelToTest,
+        isDefaultModel,
+        disableJitter: opts?.disableJitter,
+      });
       return {
         ok: false,
         latencyMs,
         modelUsed: modelToTest,
+        isDefaultModel,
         status: key.status,
         healthScore: key.healthScore,
         detectedProjectNumber: key.detectedProjectNumber,
@@ -448,18 +529,19 @@ export class KeyPoolManager {
     defaultModel: string;
     fallbackModel: string;
     customSupportedModels?: string[];
+    profiles?: Record<string, ModelProfileConfig>;
   }) {
     const defaultModel = input.defaultModel?.trim();
     const fallbackModel = input.fallbackModel?.trim();
 
     if (!defaultModel || !isSupportedGemini35Plus(defaultModel)) {
       throw new Error(
-        `Model mặc định "${defaultModel}" không hợp lệ. Chỉ hỗ trợ các model Gemini từ 3.5 trở lên.`,
+        `Model mặc định "${defaultModel}" không hợp lệ. Chỉ hỗ trợ các model Gemini từ 3.5 trở lên hoặc Gemma 4.`,
       );
     }
     if (!fallbackModel || !isSupportedGemini35Plus(fallbackModel)) {
       throw new Error(
-        `Model dự phòng "${fallbackModel}" không hợp lệ. Chỉ hỗ trợ các model Gemini từ 3.5 trở lên.`,
+        `Model dự phòng "${fallbackModel}" không hợp lệ. Chỉ hỗ trợ các model Gemini từ 3.5 trở lên hoặc Gemma 4.`,
       );
     }
 
@@ -478,13 +560,19 @@ export class KeyPoolManager {
     supported.add(defaultModel);
     supported.add(fallbackModel);
 
+    const mergedProfiles = this.mergeProfiles(this.state.modelConfig.profiles, input.profiles);
+
     this.state.modelConfig = {
       defaultModel,
       fallbackModel,
       supportedModels: Array.from(supported),
+      profiles: mergedProfiles,
     };
     this.scheduleSave(true);
-    return { ...this.state.modelConfig };
+    return {
+      ...this.state.modelConfig,
+      profiles: this.mergeProfiles(this.state.modelConfig.profiles),
+    };
   }
 
   public executeStream(options: ExecuteStreamOptions): Promise<StreamExecutionMeta> {

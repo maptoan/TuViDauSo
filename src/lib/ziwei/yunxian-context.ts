@@ -173,7 +173,8 @@ export function formatPeriodSiHuaFactLine(
   prefix: 'Đại Hạn' | 'Lưu' = 'Lưu',
 ): string {
   const layerTag = prefix === 'Lưu' ? '[Tứ Hóa Lưu Niên]' : '[Tứ Hóa Đại Hạn]';
-  return `• **${layerTag} ${prefix} ${sh.mutagenVi} → Sao ${sh.starNameVi} [${sh.brightnessVi}]**: tọa thủ tại **Cung ${sh.periodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.natalPalaceNameVi} - ${sh.natalPalaceGanZhiVi})* — đối cung xung chiếu: **Cung ${sh.oppositePeriodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.oppositePalaceNameVi} - ${sh.oppositePalaceGanZhiVi})*${sh.natalMutagenVi ? ` · [${sh.natalMutagenVi}]` : ''}.`;
+  const natalNote = sh.natalMutagenVi ? ` · [${sh.natalMutagenVi}]` : '';
+  return `• **${layerTag} ${prefix} ${sh.mutagenVi} → Sao ${sh.starNameVi} [${sh.brightnessVi}]${natalNote}**: tọa thủ tại **Cung ${sh.periodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.natalPalaceNameVi} - ${sh.natalPalaceGanZhiVi})* — đối cung xung chiếu: **Cung ${sh.oppositePeriodPalaceRoleVi}** *(trùng Bản Mệnh gốc: ${sh.oppositePalaceNameVi} - ${sh.oppositePalaceGanZhiVi})*.`;
 }
 
 export interface PeriodDynamicStarItem {
@@ -182,6 +183,7 @@ export interface PeriodDynamicStarItem {
   branch: number;
   branchVi: string;
   natalPalaceNameVi: string;
+  natalGanZhiVi: string;
   periodPalaceRoleVi: string;
 }
 
@@ -364,9 +366,10 @@ export function buildYunxianPeriodContext(
     const activePalace = chart.palaces.find((p) => p.branch === branchIndex) ?? chart.palaces[0];
     const ganZhi = `${VI_STEMS[stemIndex]} ${VI_BRANCHES[branchIndex]}`;
 
+    const activePalaceGanZhi = `${activePalace.stem >= 0 ? VI_STEMS[activePalace.stem] : ''} ${VI_BRANCHES[activePalace.branch]}`.trim();
     periodId = `liunian_${year}`;
     ageRangeOrYearVi = `Năm ${year} (${ganZhi} · ${nominalAge} tuổi âm lịch)`;
-    periodTitleVi = `Lưu Niên ${year} — Năm ${ganZhi} (${nominalAge} tuổi) · Kích hoạt cung ${translatePalaceName(activePalace.name)}`;
+    periodTitleVi = `Lưu Niên ${year} — Năm ${ganZhi} (${nominalAge} tuổi) · Kích hoạt cung Bản Mệnh gốc ${translatePalaceName(activePalace.name)} (${activePalaceGanZhi}) — nơi Cung Lưu Mệnh Cung tọa thủ`;
     periodScopeNoteVi = 'Lưu Niên (1 năm) phản ánh biến chuyển cụ thể, sự kiện kích hoạt và điểm ứng kỳ trong năm đó, vận hành bên trong khung Đại Hạn 10 năm.';
 
     const effDxIdx = resolveEffectiveDaXianIndex(chart, 'liunian', year);
@@ -503,6 +506,7 @@ export function buildYunxianPeriodContext(
       branch: spec.branch,
       branchVi: VI_BRANCHES[spec.branch],
       natalPalaceNameVi: translatePalaceName(p.name),
+      natalGanZhiVi: `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`,
       periodPalaceRoleVi: getPeriodPalaceRoleVi(spec.branch),
     };
   });
@@ -593,7 +597,7 @@ export function buildYunxianPeriodContext(
     );
   }
   factLines.push(
-    `• **Cung bản mệnh được kích hoạt**: Cung **${translatePalaceName(activePalace.name)} (${activePalace.stem >= 0 ? VI_STEMS[activePalace.stem] : ''} ${VI_BRANCHES[activePalace.branch]})** — ${natalRoleDesc}`,
+    `• **Cung bản mệnh được kích hoạt**: Cung **${translatePalaceName(activePalace.name)} (${activePalace.stem >= 0 ? VI_STEMS[activePalace.stem] : ''} ${VI_BRANCHES[activePalace.branch]})** — ${natalRoleDesc} — nơi Cung ${prefix} Mệnh Cung tọa thủ`,
   );
   factLines.push(
     `• **Tinh hệ bản mệnh tại cung kích hoạt**: Chính tinh: **${activeMajors.summary}** | Cát tinh: ${activeLuckys.join(', ') || 'Không'} | Sát tinh: ${activeShas.join(', ') || 'Không'}`,
@@ -606,7 +610,7 @@ export function buildYunxianPeriodContext(
 
   factLines.push(`\n**[Các Sao Lưu / Vận Hạn Theo Engine (Can ${VI_STEMS[stemIndex]} · Chi ${VI_BRANCHES[branchIndex]})]**`);
   const formatDynamicStar = (d: PeriodDynamicStarItem): string =>
-    `**${d.starLabelVi}** tại **Cung ${d.periodPalaceRoleVi}** *(trùng ${d.natalPalaceNameVi} - ${d.branchVi})*`;
+    `**${d.starLabelVi}** tại **Cung ${d.periodPalaceRoleVi}** *(trùng cung Bản Mệnh gốc ${d.natalPalaceNameVi} - ${d.natalGanZhiVi})*`;
 
   const locMaStr = dynamicStars
     .filter((d) => d.category === 'loc_ma')
@@ -632,7 +636,7 @@ export function buildYunxianPeriodContext(
   factLines.push(`• **Bộ Lộc Mã**: ${locMaStr}`);
   factLines.push(`• **Bộ Khôi Việt · Xương Khúc**: ${catTinhStr}`);
   factLines.push(`• **Bộ Đào Hồng Hỷ**: ${daoHoaStr}`);
-  factLines.push(`• **Bộ Kình Đà (Dương Đà giáp Lộc)**: ${satTinhStr}`);
+  factLines.push(`• **Bộ Kình Đà lưu niên (kẹp hai bên cung Lưu Lộc Tồn)**: ${satTinhStr}`);
   factLines.push(`• **Vòng Tuế Tiền · Tướng Tiền**: ${tueTuongStr}`);
 
   factLines.push(`\n**[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn (Tra Cứu Cố Định — Không Tự Nhẩm Địa Chi)]**`);

@@ -48,6 +48,11 @@ export interface AiExecutionMeta {
   continuedFromPartial?: boolean;
   continuationCount?: number;
   interrupted?: boolean;
+  partialLength?: number;
+  finishReason?: string;
+  truncatedByMaxTokens?: boolean;
+  fallbackLegUsed?: boolean;
+  fallbackLegLatencyMs?: number;
 }
 
 export interface AiPeriodEntry {

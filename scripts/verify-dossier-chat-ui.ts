@@ -6,6 +6,7 @@ import {
   enforceCanonicalPalaceGroupHeadings,
   sanitizeAiVietnameseOutput,
   sanitizeLayer3AOnly,
+  scrubInvalidCitationTags,
   verifyAndEnsureCompletePeriodSiHua,
 } from '../src/lib/ziwei/text-sanitizer';
 import { formatChartSummaryVi } from '../src/lib/ziwei/vi-i18n';
@@ -1285,6 +1286,48 @@ runTest('[QĐ-H5 · TEST-14] Header khi có origInput nhưng chưa chọn kinh �
   const pCtx2026 = buildYunxianPeriodContext(chartNoLon, { mode: 'liunian', year: 2026 })!;
   const built = buildStrictPeriodAiPrompt(pCtx2026, formatChartSummaryVi(chartNoLon));
   assert.ok(built.systemInstruction.includes('[Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn'));
+});
+
+runTest('[BRIEF 1.5.5 · TEST-15] Z3 bộ lọc sanitizer từ vựng/Telex/enum/rào Bảo Ninh & HOÁ + X2 scrub phía client', () => {
+  const dirty = [
+    '### Cung Mệnh Cung (Nhâm Dần)',
+    'Lớp Thứ firstNumber, Thứ secondNumber, Thứ second, Thứ thirdNumber tại Thân Cuv và thân cuv.',
+    'Cặp sao Venh Xương và Venh Khúc hội cùng [excellent], [good], [neutral], [bad].',
+    'Chú ý khiâm đau dễ mệt; giữ đồng điệu mật khẩu, tránh dùng tôi tớ.',
+    'Các cát tinh hoa tụ giúp nền tảng bề vững, bảo ninh tài sản và giữ danh uy uy tín tại xã Bảo Ninh.',
+    'Khi gặp HOÁ Quyền, Hoá Lộc, HÓA Kỵ trên trục thế Mạnh cần tỉnh táo; giữ nguyên tiêu đề HOÁ GIẢI VẬN HẠN.',
+  ].join('\n');
+
+  const cleaned = sanitizeAiVietnameseOutput(dirty);
+  assert.ok(cleaned.includes('### Cung Mệnh (Nhâm Dần)'));
+  assert.equal(cleaned.includes('### Cung Mệnh Cung'), false);
+  assert.ok(cleaned.includes('Thứ nhất, Thứ hai, Thứ hai, Thứ ba'));
+  assert.equal(cleaned.includes('haiNumber'), false);
+  assert.ok(cleaned.includes('Thân Cư và thân cư.'));
+  assert.ok(cleaned.includes('Văn Xương và Văn Khúc'));
+  assert.ok(cleaned.includes('[Thượng cách], [Cát cách], [Trung bình], [Hung cách]'));
+  assert.ok(cleaned.includes('khi ốm đau'));
+  assert.ok(cleaned.includes('đồng điệu mật thiết'));
+  assert.ok(cleaned.includes('tránh sự tự ái'));
+  assert.ok(cleaned.includes('hội tụ giúp nền tảng bền vững, bảo toàn tài sản'));
+  assert.ok(cleaned.includes('danh tiếng và uy tín'));
+  assert.ok(cleaned.includes('xã Bảo Ninh'), 'Z3/P8: địa danh Bảo Ninh viết hoa phải được giữ nguyên');
+  assert.ok(cleaned.includes('Hóa Quyền, Hóa Lộc, Hóa Kỵ'));
+  assert.ok(cleaned.includes('trục thế mạnh'));
+  assert.ok(cleaned.includes('HOÁ GIẢI VẬN HẠN'), 'Z3/P8: HOÁ không đứng trước tên Tứ Hóa phải giữ nguyên');
+  assert.equal(sanitizeAiVietnameseOutput(cleaned), cleaned, 'Z3 phải lũy đẳng 100%');
+
+  // Client-side X2c & X2e scrubInvalidCitationTags
+  const clientMixed = scrubInvalidCitationTags(
+    'Thiên Cơ sáng [Nguồn: CL-TT-015, FAKE-999] và rỗng [Nguồn: ] [Nguồn: ·].',
+    { invalidIds: ['FAKE-999'] },
+  );
+  assert.equal(clientMixed, 'Thiên Cơ sáng [Nguồn: CL-TT-015] và rỗng.');
+  assert.equal(
+    scrubInvalidCitationTags(clientMixed, { invalidIds: ['FAKE-999'] }),
+    clientMixed,
+    'scrubInvalidCitationTags phải lũy đẳng',
+  );
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);
