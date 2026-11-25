@@ -24,7 +24,9 @@ import {
   shouldShowInterruptedContinuationBadge,
 } from '../lib/key-pool-ui';
 import {
+  APP_VERSION,
   classifyDossierFailure,
+  formatReauditTimestampVi,
   normalizeKnownBareCitationTags,
   type AiExecutionMeta,
   type AiPeriodEntry,
@@ -46,6 +48,7 @@ import {
   CheckCircle2,
   KeyRound,
   BookOpen,
+  ShieldCheck,
 } from 'lucide-react';
 
 const TOPICS = [
@@ -99,10 +102,15 @@ export default function InsightPanel({
   const setAiPeriodCache = propOnAiPeriodCacheChange ?? setLocalAiPeriodCache;
   const [incompleteTopicKeys, setIncompleteTopicKeys] = useState<Record<string, boolean>>({});
   const [aiPeriodLoading, setAiPeriodLoading] = useState(false);
+  const [aiRetryingNoticeVi, setAiRetryingNoticeVi] = useState<string | null>(null);
+  const [aiPeriodReauditing, setAiPeriodReauditing] = useState(false);
 
   const abortRef = useRef<AbortController | null>(null);
   const aiPeriodAbortRef = useRef<AbortController | null>(null);
   const aiSectionRef = useRef<HTMLDivElement | null>(null);
+  const periodReauditInFlightRef = useRef<Set<string>>(new Set());
+  const periodAutoReauditAttemptedRef = useRef<Set<string>>(new Set());
+  const currentPeriodCacheKeyRef = useRef<string>('');
 
   // Tầng khung xác định (Deterministic Layer) — tính ngay lập tức từ yunxian-context.ts + engine
   const periodContext: YunxianPeriodContext | null = useMemo(
@@ -116,6 +124,7 @@ export default function InsightPanel({
       }),
     [chart, activeSihua]
   );
+  currentPeriodCacheKeyRef.current = periodContext?.cacheKey ?? '';
 
   useEffect(() => {
     setCache({});
@@ -156,6 +165,7 @@ export default function InsightPanel({
       aiPeriodAbortRef.current = controller;
 
       setAiLoadingState(true);
+      setAiRetryingNoticeVi(null);
       setAiPeriodCache((prev) => {
         const next = { ...prev };
         delete next[pKey];
@@ -240,6 +250,33 @@ export default function InsightPanel({
           if (data === '[DONE]') return true;
           try {
             const parsed = JSON.parse(data);
+            if (typeof parsed?.retryingForCitations === 'boolean') {
+              setAiRetryingNoticeVi(
+                parsed.retryingForCitations
+                  ? typeof parsed.message === 'string' && parsed.message
+                    ? parsed.message
+                    : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...'
+                  : null,
+              );
+              if (typeof parsed?.replaceChapterText !== 'string') {
+                return false;
+              }
+            }
+            if (typeof parsed?.replaceChapterText === 'string') {
+              accumulated = sanitizeAiVietnameseOutput(parsed.replaceChapterText);
+              if (parsed.meta) {
+                receivedMeta = parsed.meta as AiExecutionMeta;
+              }
+              setAiRetryingNoticeVi(null);
+              setAiPeriodCache((prev) => ({
+                ...prev,
+                [pKey]: {
+                  text: accumulated,
+                  meta: receivedMeta,
+                },
+              }));
+              return false;
+            }
             if (parsed?.meta) {
               receivedMeta = parsed.meta as AiExecutionMeta;
               setAiPeriodCache((prev) => ({
@@ -350,8 +387,7 @@ export default function InsightPanel({
           ).patchedText;
         }
 
-        const persistedAuditFlags =
-          receivedAuditFlags.length > 0 ? receivedAuditFlags : undefined;
+        const persistedAuditFlags = receivedAuditFlags;
 
         if (wasInterrupted) {
           const failure = classifyDossierFailure({
@@ -373,7 +409,7 @@ export default function InsightPanel({
               minRemainingCooldownSec: failure.minRemainingCooldownSec,
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
               error: failure.userMessageVi,
-              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              auditFlags: persistedAuditFlags,
             },
           }));
         } else if (streamError) {
@@ -394,7 +430,7 @@ export default function InsightPanel({
               minRemainingCooldownSec: failure.minRemainingCooldownSec,
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
               error: failure.userMessageVi,
-              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              auditFlags: persistedAuditFlags,
             },
           }));
         } else if (!accumulated.trim()) {
@@ -414,7 +450,9 @@ export default function InsightPanel({
             [pKey]: {
               text: accumulated,
               meta: receivedMeta,
-              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              auditFlags: persistedAuditFlags,
+              reauditedForVersion: APP_VERSION,
+              reauditedAt: Date.now(),
             },
           }));
         }
@@ -432,11 +470,100 @@ export default function InsightPanel({
           }));
         }
       } finally {
+        setAiRetryingNoticeVi(null);
         setAiLoadingState(false);
       }
     },
     [chart, periodContext, aiPeriodCache, setAiPeriodCache, setAiLoadingState]
   );
+
+  const handleReauditPeriodEntry = useCallback(
+    async (entry: AiPeriodEntry, forceManual = false) => {
+      if (!periodContext) return;
+      const targetText = entry.text?.trim() ? entry.text : entry.incompleteText;
+      if (!targetText?.trim()) return;
+      if (!forceManual && entry.reauditedForVersion === APP_VERSION) return;
+
+      const pKey = periodContext.cacheKey;
+      const inflightKey = `${pKey}::${APP_VERSION}`;
+      if (periodReauditInFlightRef.current.has(inflightKey)) return;
+
+      periodReauditInFlightRef.current.add(inflightKey);
+      setAiPeriodReauditing(true);
+      try {
+        const res = await fetch('/api/audit-dossier-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chart,
+            periodContext,
+            text: targetText,
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          auditFlags?: Kp3AuditFlag[];
+          reauditedForVersion?: string;
+          reauditedAt?: number;
+        };
+        const nextFlags: Kp3AuditFlag[] = Array.isArray(data.auditFlags)
+          ? data.auditFlags.filter(
+              (f): f is Kp3AuditFlag =>
+                Boolean(f) &&
+                typeof f === 'object' &&
+                typeof f.code === 'string' &&
+                typeof f.messageVi === 'string',
+            )
+          : [];
+        const nextVersion =
+          typeof data.reauditedForVersion === 'string' && data.reauditedForVersion
+            ? data.reauditedForVersion
+            : APP_VERSION;
+        const nextAt =
+          typeof data.reauditedAt === 'number' && Number.isFinite(data.reauditedAt)
+            ? data.reauditedAt
+            : Date.now();
+
+        setAiPeriodCache((prev) => {
+          const existing = prev[pKey];
+          if (!existing) return prev;
+          return {
+            ...prev,
+            [pKey]: {
+              ...existing,
+              auditFlags: nextFlags,
+              reauditedForVersion: nextVersion,
+              reauditedAt: nextAt,
+            },
+          };
+        });
+      } catch {
+        // Bỏ qua lỗi mạng khi kiểm chứng lại âm thầm
+      } finally {
+        periodReauditInFlightRef.current.delete(inflightKey);
+        setAiPeriodReauditing(false);
+      }
+    },
+    [chart, periodContext, setAiPeriodCache]
+  );
+
+  // B4: Tự động kiểm chứng lại đúng 1 lần theo APP_VERSION cho kỳ hạn đang mở (nếu lưu đệm ở bản cũ)
+  useEffect(() => {
+    if (!periodContext || aiPeriodLoading) return;
+    const entry = aiPeriodCache[periodContext.cacheKey];
+    if (!hasValidCachedPeriodEntry(entry)) return;
+    if (entry.reauditedForVersion === APP_VERSION) return;
+
+    const attemptKey = `${periodContext.cacheKey}::${APP_VERSION}`;
+    if (
+      periodAutoReauditAttemptedRef.current.has(attemptKey) ||
+      periodReauditInFlightRef.current.has(attemptKey)
+    ) {
+      return;
+    }
+    periodAutoReauditAttemptedRef.current.add(attemptKey);
+    void handleReauditPeriodEntry(entry, false);
+  }, [periodContext, aiPeriodLoading, aiPeriodCache, handleReauditPeriodEntry]);
 
   // Nhận tín hiệu bấm nút "Luận giải AI cho kỳ này" từ thanh TimeNav
   useEffect(() => {
@@ -895,6 +1022,20 @@ export default function InsightPanel({
                       : 'Luận giải AI cho kỳ này'}
                   </span>
                 </button>
+                {(currentAiEntry?.text?.trim() || currentAiEntry?.incompleteText?.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => handleReauditPeriodEntry(currentAiEntry, true)}
+                    disabled={aiPeriodLoading || aiPeriodReauditing}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-sky-500/45 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                    title="Quét lại quy tắc KP-3 & trích dẫn nguồn (0 token AI)"
+                  >
+                    <ShieldCheck
+                      className={`w-3.5 h-3.5 ${aiPeriodReauditing ? 'animate-pulse' : ''}`}
+                    />
+                    <span>{aiPeriodReauditing ? 'Đang kiểm tra lại...' : 'Kiểm tra lại'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
@@ -932,6 +1073,13 @@ export default function InsightPanel({
                     </span>
                   </>
                 )}
+              </div>
+            )}
+
+            {aiPeriodLoading && aiRetryingNoticeVi && (
+              <div className="rounded-lg px-3 py-2 border border-sky-500/45 bg-sky-950/25 text-xs text-sky-200 flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-sky-300" />
+                <span>{aiRetryingNoticeVi}</span>
               </div>
             )}
 
@@ -991,28 +1139,47 @@ export default function InsightPanel({
             )}
 
             {currentAiEntry?.auditFlags &&
-              currentAiEntry.auditFlags.length > 0 &&
-              !aiPeriodLoading && (
-                <div className="rounded-lg p-3 border border-amber-500/45 bg-amber-950/20 text-xs space-y-1.5">
-                  <div className="font-semibold text-amber-300 flex items-center gap-1.5">
+            currentAiEntry.auditFlags.length > 0 &&
+            !aiPeriodLoading ? (
+              <div className="rounded-lg p-3 border border-amber-500/45 bg-amber-950/20 text-xs space-y-1.5">
+                <div className="font-semibold text-amber-300 flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center gap-1.5">
                     <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
                     <span>Kiểm Chứng KP-3 ({currentAiEntry.auditFlags.length} cờ đối chiếu)</span>
-                  </div>
-                  <ul className="space-y-1 text-[11px]">
-                    {currentAiEntry.auditFlags.map((flag, idx) => (
-                      <li
-                        key={`${flag.code}-${idx}`}
-                        className={
-                          flag.severity === 'critical' ? 'text-rose-200' : 'text-amber-100'
-                        }
-                      >
-                        <span className="font-mono font-bold mr-1">[{flag.code}]</span>
-                        {flag.messageVi}
-                      </li>
-                    ))}
-                  </ul>
+                  </span>
+                  {typeof currentAiEntry.reauditedAt === 'number' && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-950/50 text-amber-200">
+                      Kiểm chứng lại ngày {formatReauditTimestampVi(currentAiEntry.reauditedAt)} (v{currentAiEntry.reauditedForVersion || APP_VERSION})
+                    </span>
+                  )}
                 </div>
-              )}
+                <ul className="space-y-1 text-[11px]">
+                  {currentAiEntry.auditFlags.map((flag, idx) => (
+                    <li
+                      key={`${flag.code}-${idx}`}
+                      className={
+                        flag.severity === 'critical' ? 'text-rose-200' : 'text-amber-100'
+                      }
+                    >
+                      <span className="font-mono font-bold mr-1">[{flag.code}]</span>
+                      {flag.messageVi}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : !aiPeriodLoading && typeof currentAiEntry?.reauditedAt === 'number' ? (
+              <div className="rounded-lg px-3 py-2 border border-emerald-500/40 bg-emerald-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-emerald-200">
+                <span className="inline-flex items-center gap-1.5 font-medium">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span>
+                    Đã kiểm chứng lại (v{currentAiEntry.reauditedForVersion || APP_VERSION}): 0 cờ cảnh báo
+                  </span>
+                </span>
+                <span className="text-[11px] font-mono text-emerald-300/80">
+                  {formatReauditTimestampVi(currentAiEntry.reauditedAt)}
+                </span>
+              </div>
+            ) : null}
 
             {currentAiEntry?.text ? (
               <div className="rounded-lg p-3.5 bg-[var(--t-surface)] border border-[var(--t-border)] text-xs sm:text-sm leading-relaxed">

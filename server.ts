@@ -16,7 +16,10 @@ import {
   VI_STEMS,
 } from './src/lib/ziwei/vi-i18n.ts';
 import type { ZiweiChart } from './src/lib/ziwei/types.ts';
-import type { YunxianPeriodContext } from './src/lib/ziwei/yunxian-context.ts';
+import {
+  buildYunxianPeriodContext,
+  type YunxianPeriodContext,
+} from './src/lib/ziwei/yunxian-context.ts';
 import {
   buildChatFactTableForContextVi,
   buildDossierSectionFactSheetVi,
@@ -41,13 +44,86 @@ import {
   retrieveKnowledgeForDossierSection,
   retrieveKnowledgeForPeriod,
 } from './server/knowledge-base/retriever.ts';
-import { verifyAcademicCitationsAndClaims } from './server/knowledge-base/verifier.ts';
-import type { KnowledgeRetrievalResult } from './server/knowledge-base/types.ts';
+import {
+  shouldRetryForZeroCitations,
+  verifyAcademicCitationsAndClaims,
+} from './server/knowledge-base/verifier.ts';
+import type {
+  CitationAuditResult,
+  KnowledgeRetrievalResult,
+} from './server/knowledge-base/types.ts';
+import { APP_VERSION } from './src/lib/app-version.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PORT = 3000;
+
+const AUDIT_MAX_TEXT_LEN = 60_000;
+
+const CITATION_RETRY_PROMPT_ADDENDUM =
+  '\n\n[CHỈ THỊ SIẾT TRÍCH DẪN BẮT BUỘC — LẦN SINH LẠI]: Lần sinh trước chưa có mã `[Nguồn: <ID>]` hợp lệ nào từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU]. Lần này BẮT BUỘC toàn chương có ít nhất 1 thẻ `[Nguồn: <ID>]` hợp lệ nằm trong danh sách đã nạp ngay cuối câu viện dẫn (ưu tiên mỗi cung có mục khớp điều kiện); không gắn gượng khi điều kiện không khớp lá số, chỉ miễn nếu thật sự 0 mục nào khớp và ghi rõ luận thuần túy từ dữ kiện tinh đẩu.';
+
+function resolvePeriodSectionId(
+  periodContext?: YunxianPeriodContext | null,
+): 'year_2026' | 'year_2027' | undefined {
+  if (!periodContext || periodContext.mode !== 'liunian') return undefined;
+  if (
+    periodContext.periodId === 'liunian_2026' ||
+    periodContext.cacheKey?.endsWith('__liunian_2026') ||
+    periodContext.cacheKey === 'liunian_2026'
+  ) {
+    return 'year_2026';
+  }
+  if (
+    periodContext.periodId === 'liunian_2027' ||
+    periodContext.cacheKey?.endsWith('__liunian_2027') ||
+    periodContext.cacheKey === 'liunian_2027'
+  ) {
+    return 'year_2027';
+  }
+  return undefined;
+}
+
+function computePeriodSiHuaAddendum(
+  text: string,
+  periodContext: YunxianPeriodContext,
+): { addendumText: string; textWithSiHua: string } {
+  if (!Array.isArray(periodContext.periodSiHua) || periodContext.periodSiHua.length === 0) {
+    return { addendumText: '', textWithSiHua: text };
+  }
+  const siHuaCheck = verifyAndEnsureCompletePeriodSiHua(text, periodContext);
+  if (siHuaCheck.isComplete) {
+    return { addendumText: '', textWithSiHua: text };
+  }
+  const marker = '> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**';
+  const markerIdx = siHuaCheck.patchedText.indexOf(marker);
+  if (markerIdx < 0) {
+    return { addendumText: '', textWithSiHua: text };
+  }
+  const addendumBlock = siHuaCheck.patchedText.slice(markerIdx);
+  const leadingSep = text.endsWith('\n\n') ? '' : text.endsWith('\n') ? '\n' : '\n\n';
+  const addendumText = `${leadingSep}${addendumBlock}`;
+  return { addendumText, textWithSiHua: `${text}${addendumText}` };
+}
+
+function logScrubbedCitationWarn(
+  endpointTag: string,
+  sectionIdLabel: string,
+  audit: CitationAuditResult,
+  rawLength: number,
+): void {
+  if (audit.scrubbedInvalidIds.length === 0) return;
+  console.warn(
+    `[${endpointTag}] Scrubbed invalid/mismatched citations:`,
+    JSON.stringify({
+      sectionId: sectionIdLabel,
+      scrubbedInvalidIds: audit.scrubbedInvalidIds,
+      rawLength,
+      validCitationCount: audit.validCitationIds.length,
+    }),
+  );
+}
 
 function buildPalaceGanZhiMap(chart: ZiweiChart): Record<string, string> {
   const map: Record<string, string> = {};
@@ -271,7 +347,8 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
     - Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
    - Khi sử dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tới Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó (ví dụ: \`[Nguồn: NH-SIHUA-001]\`).
-   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách; phần không có trích đoạn đối chiếu thì luận giải thuần túy theo Bảng dữ kiện lá số mà không viện dẫn tên sách/cổ quyết.
+   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách.
+   - Khi bảng đối chiếu không rỗng, BẮT BUỘC toàn chương ≥ 1 thẻ \`[Nguồn: <ID>]\` hợp lệ (ưu tiên từng mục có dữ kiện khớp); chỉ gắn khi khớp điều kiện lá số (không gán Nữ mệnh cho Nam hay Hóa Kỵ xung Mệnh khi thiếu), nếu 0 mục khớp thì ghi rõ luận thuần túy từ dữ kiện tinh đẩu.
 6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), tuyệt đối không mở đầu chương bằng câu dẫn nhập kiểu "Dưới đây là phần luận giải chi tiết cho kỳ hạn …" — vào thẳng đề mục \`### 1. …\`, trình bày bằng Markdown theo đúng 4 đề mục:
    ### 1. Chủ Đề Kỳ Hạn (${isDahan ? 'Xu Thế 10 Năm' : 'Sự Kiện Trong Năm'})
    ### 2. Điểm Cát & Động Lực Thuận Lợi
@@ -501,7 +578,8 @@ QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
 ${sectionRules}
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
    - Khi áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên trường phái / tác giả / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` nằm trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó.
-   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc trích nguyên văn khẩu quyết ngoài danh sách; với phần không có trích đoạn đi kèm, chỉ luận giải thuần túy từ dữ kiện tinh đẩu trên lá số.
+   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc trích nguyên văn khẩu quyết ngoài danh sách.
+   - Khi bảng đối chiếu không rỗng, BẮT BUỘC toàn chương ≥ 1 thẻ \`[Nguồn: <ID>]\` hợp lệ (ưu tiên mỗi cung có mục khớp); chỉ gắn khi khớp điều kiện (không gán Nữ mệnh cho Nam hay Hóa Kỵ xung Mệnh khi thiếu), nếu 0 mục khớp thì ghi rõ luận thuần túy từ dữ kiện tinh đẩu.
 6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
 7. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
 
@@ -920,51 +998,124 @@ export function registerApiRoutes(app: express.Express) {
           });
         },
       });
-      if (
-        !wasInterrupted &&
-        accumulatedText.trim() &&
-        Array.isArray(periodContext.periodSiHua) &&
-        periodContext.periodSiHua.length > 0 &&
-        sseStarted &&
-        !res.writableEnded
-      ) {
-        const siHuaCheck = verifyAndEnsureCompletePeriodSiHua(
-          accumulatedText,
-          periodContext,
-        );
-        if (!siHuaCheck.isComplete) {
-          const marker = '> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**';
-          const markerIdx = siHuaCheck.patchedText.indexOf(marker);
-          if (markerIdx >= 0) {
-            const addendumBlock = siHuaCheck.patchedText.slice(markerIdx);
-            const leadingSep = accumulatedText.endsWith('\n\n')
-              ? ''
-              : accumulatedText.endsWith('\n')
-                ? '\n'
-                : '\n\n';
-            sendSseText(res, `${leadingSep}${addendumBlock}`);
-            accumulatedText += `${leadingSep}${addendumBlock}`;
-          }
-        }
-      }
+      let chosenMeta = finalMeta;
       if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
-        const periodSectionId =
-          periodContext.mode === 'liunian' &&
-          (periodContext.cacheKey === 'liunian_2026' || periodContext.cacheKey === 'liunian_2027')
-            ? (`year_${periodContext.cacheKey.slice(-4)}` as 'year_2026' | 'year_2027')
-            : undefined;
-        const citationAudit = verifyAcademicCitationsAndClaims(
-          accumulatedText,
+        const palaceGanZhiMap = buildPalaceGanZhiMap(chart);
+        const periodSectionId = resolvePeriodSectionId(periodContext);
+        const sectionLogLabel = periodSectionId ?? periodContext.periodId ?? 'period';
+        const { addendumText: pass1Addendum, textWithSiHua: pass1TextWithSiHua } =
+          computePeriodSiHuaAddendum(accumulatedText, periodContext);
+
+        const firstAudit = verifyAcademicCitationsAndClaims(
+          pass1TextWithSiHua,
           knowledgeResult.entries,
           {
             chart,
             sectionId: periodSectionId,
             chapterMode: 'period',
             periodContext,
-            palaceGanZhiMap: buildPalaceGanZhiMap(chart),
+            palaceGanZhiMap,
           },
         );
-        const criticalFlags = citationAudit.auditFlags.filter(
+
+        let chosenAudit = firstAudit;
+        let chosenBodyForSep = pass1TextWithSiHua;
+        let pendingAddendumToStream = pass1Addendum;
+
+        if (
+          shouldRetryForZeroCitations({
+            validCitationIds: firstAudit.validCitationIds,
+            allowedEntriesCount: knowledgeResult.entries.length,
+            chapterMode: 'period',
+            wasInterrupted,
+            alreadyRetried: false,
+          }) &&
+          !abortController.signal.aborted &&
+          !res.writableEnded
+        ) {
+          sendSseJson(res, {
+            retryingForCitations: true,
+            message: 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật hợp lệ...',
+          });
+
+          let retryAccumulated = '';
+          let retryInterrupted = false;
+          let retryMeta = finalMeta;
+
+          try {
+            retryMeta = await keyPoolManager.executeStream({
+              prompt: `${prompt}${CITATION_RETRY_PROMPT_ADDENDUM}`,
+              systemInstruction,
+              signal: abortController.signal,
+              onMeta: (m) => {
+                retryMeta = m;
+              },
+              onChunk: (text) => {
+                const safeChunk = sanitizeLayer3AOnly(text);
+                if (safeChunk) {
+                  retryAccumulated += safeChunk;
+                }
+              },
+              onInterrupted: () => {
+                retryInterrupted = true;
+              },
+            });
+          } catch (retryErr) {
+            retryInterrupted = true;
+            console.warn(
+              `[interpret-period] Citation retry failed (${sectionLogLabel}):`,
+              keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
+            );
+          }
+
+          let replacedWithRetry = false;
+          if (!retryInterrupted && retryAccumulated.trim() && !res.writableEnded) {
+            const { textWithSiHua: retryTextWithSiHua } = computePeriodSiHuaAddendum(
+              retryAccumulated,
+              periodContext,
+            );
+            const retryAudit = verifyAcademicCitationsAndClaims(
+              retryTextWithSiHua,
+              knowledgeResult.entries,
+              {
+                chart,
+                sectionId: periodSectionId,
+                chapterMode: 'period',
+                periodContext,
+                palaceGanZhiMap,
+              },
+            );
+            if (retryAudit.validCitationIds.length > firstAudit.validCitationIds.length) {
+              replacedWithRetry = true;
+              chosenAudit = retryAudit;
+              chosenMeta = retryMeta ?? finalMeta;
+              chosenBodyForSep = retryTextWithSiHua;
+              pendingAddendumToStream = '';
+              sendSseJson(res, {
+                replaceChapterText: retryTextWithSiHua,
+                meta: chosenMeta,
+                retryingForCitations: false,
+              });
+            }
+          }
+
+          if (!replacedWithRetry && !res.writableEnded) {
+            sendSseJson(res, { retryingForCitations: false });
+          }
+        }
+
+        if (pendingAddendumToStream && !res.writableEnded) {
+          sendSseText(res, pendingAddendumToStream);
+        }
+
+        logScrubbedCitationWarn(
+          'interpret-period',
+          sectionLogLabel,
+          chosenAudit,
+          chosenBodyForSep.length,
+        );
+
+        const criticalFlags = chosenAudit.auditFlags.filter(
           (f) => f.severity === 'critical',
         );
         if (criticalFlags.length > 0) {
@@ -975,31 +1126,31 @@ export function registerApiRoutes(app: express.Express) {
         }
         sendSseJson(res, {
           citationAudit: {
-            validIds: citationAudit.validCitationIds,
-            scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
-            normalizedBareIds: citationAudit.normalizedBareIds,
-            hasUncitedClaims: citationAudit.hasUncitedClaims,
-            palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
-            auditFlags: citationAudit.auditFlags,
+            validIds: chosenAudit.validCitationIds,
+            scrubbedInvalidIds: chosenAudit.scrubbedInvalidIds,
+            normalizedBareIds: chosenAudit.normalizedBareIds,
+            hasUncitedClaims: chosenAudit.hasUncitedClaims,
+            palaceGanZhiMismatches: chosenAudit.palaceGanZhiMismatches,
+            auditFlags: chosenAudit.auditFlags,
           },
         });
         const tailBlock = [
-          citationAudit.referenceBlockMarkdown,
-          citationAudit.warningBlockMarkdown,
+          chosenAudit.referenceBlockMarkdown,
+          chosenAudit.warningBlockMarkdown,
         ]
           .filter(Boolean)
           .join('\n\n');
-        if (tailBlock) {
-          const leadingSep = accumulatedText.endsWith('\n\n')
+        if (tailBlock && !res.writableEnded) {
+          const leadingSep = chosenBodyForSep.endsWith('\n\n')
             ? ''
-            : accumulatedText.endsWith('\n')
+            : chosenBodyForSep.endsWith('\n')
               ? '\n'
               : '\n\n';
           sendSseText(res, `${leadingSep}${tailBlock}`);
         }
       }
       if (sseStarted && !res.writableEnded) {
-        sendSseJson(res, { meta: finalMeta, done: true });
+        sendSseJson(res, { meta: chosenMeta, done: true });
       }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1103,6 +1254,7 @@ export function registerApiRoutes(app: express.Express) {
           });
         },
       });
+      let chosenMeta = finalMeta;
       if (!wasInterrupted && accumulatedText.trim() && sseStarted && !res.writableEnded) {
         const chapterMode =
           validated.sectionId === 'palaces_core' ||
@@ -1113,17 +1265,105 @@ export function registerApiRoutes(app: express.Express) {
                 validated.sectionId === 'horizon_10y'
               ? 'horizon'
               : 'overview';
-        const citationAudit = verifyAcademicCitationsAndClaims(
+        const palaceGanZhiMap = buildPalaceGanZhiMap(validated.chart);
+        const firstAudit = verifyAcademicCitationsAndClaims(
           accumulatedText,
           knowledgeResult.entries,
           {
             chart: validated.chart,
             sectionId: validated.sectionId,
             chapterMode,
-            palaceGanZhiMap: buildPalaceGanZhiMap(validated.chart),
+            palaceGanZhiMap,
           },
         );
-        const criticalFlags = citationAudit.auditFlags.filter(
+
+        let chosenAudit = firstAudit;
+        let chosenBodyForSep = accumulatedText;
+
+        if (
+          shouldRetryForZeroCitations({
+            validCitationIds: firstAudit.validCitationIds,
+            allowedEntriesCount: knowledgeResult.entries.length,
+            chapterMode,
+            wasInterrupted,
+            alreadyRetried: false,
+          }) &&
+          !abortController.signal.aborted &&
+          !res.writableEnded
+        ) {
+          sendSseJson(res, {
+            retryingForCitations: true,
+            message: 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật hợp lệ...',
+          });
+
+          let retryAccumulated = '';
+          let retryInterrupted = false;
+          let retryMeta = finalMeta;
+
+          try {
+            retryMeta = await keyPoolManager.executeStream({
+              prompt: `${prompt}${CITATION_RETRY_PROMPT_ADDENDUM}`,
+              systemInstruction,
+              signal: abortController.signal,
+              onMeta: (m) => {
+                retryMeta = m;
+              },
+              onChunk: (text) => {
+                const safeChunk = sanitizeLayer3AOnly(text);
+                if (safeChunk) {
+                  retryAccumulated += safeChunk;
+                }
+              },
+              onInterrupted: () => {
+                retryInterrupted = true;
+              },
+            });
+          } catch (retryErr) {
+            retryInterrupted = true;
+            console.warn(
+              `[interpret-dossier-section] Citation retry failed (${validated.sectionId}):`,
+              keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
+            );
+          }
+
+          let replacedWithRetry = false;
+          if (!retryInterrupted && retryAccumulated.trim() && !res.writableEnded) {
+            const retryAudit = verifyAcademicCitationsAndClaims(
+              retryAccumulated,
+              knowledgeResult.entries,
+              {
+                chart: validated.chart,
+                sectionId: validated.sectionId,
+                chapterMode,
+                palaceGanZhiMap,
+              },
+            );
+            if (retryAudit.validCitationIds.length > firstAudit.validCitationIds.length) {
+              replacedWithRetry = true;
+              chosenAudit = retryAudit;
+              chosenMeta = retryMeta ?? finalMeta;
+              chosenBodyForSep = retryAccumulated;
+              sendSseJson(res, {
+                replaceChapterText: retryAccumulated,
+                meta: chosenMeta,
+                retryingForCitations: false,
+              });
+            }
+          }
+
+          if (!replacedWithRetry && !res.writableEnded) {
+            sendSseJson(res, { retryingForCitations: false });
+          }
+        }
+
+        logScrubbedCitationWarn(
+          'interpret-dossier-section',
+          validated.sectionId,
+          chosenAudit,
+          chosenBodyForSep.length,
+        );
+
+        const criticalFlags = chosenAudit.auditFlags.filter(
           (f) => f.severity === 'critical',
         );
         if (criticalFlags.length > 0) {
@@ -1134,31 +1374,31 @@ export function registerApiRoutes(app: express.Express) {
         }
         sendSseJson(res, {
           citationAudit: {
-            validIds: citationAudit.validCitationIds,
-            scrubbedInvalidIds: citationAudit.scrubbedInvalidIds,
-            normalizedBareIds: citationAudit.normalizedBareIds,
-            hasUncitedClaims: citationAudit.hasUncitedClaims,
-            palaceGanZhiMismatches: citationAudit.palaceGanZhiMismatches,
-            auditFlags: citationAudit.auditFlags,
+            validIds: chosenAudit.validCitationIds,
+            scrubbedInvalidIds: chosenAudit.scrubbedInvalidIds,
+            normalizedBareIds: chosenAudit.normalizedBareIds,
+            hasUncitedClaims: chosenAudit.hasUncitedClaims,
+            palaceGanZhiMismatches: chosenAudit.palaceGanZhiMismatches,
+            auditFlags: chosenAudit.auditFlags,
           },
         });
         const tailBlock = [
-          citationAudit.referenceBlockMarkdown,
-          citationAudit.warningBlockMarkdown,
+          chosenAudit.referenceBlockMarkdown,
+          chosenAudit.warningBlockMarkdown,
         ]
           .filter(Boolean)
           .join('\n\n');
-        if (tailBlock) {
-          const leadingSep = accumulatedText.endsWith('\n\n')
+        if (tailBlock && !res.writableEnded) {
+          const leadingSep = chosenBodyForSep.endsWith('\n\n')
             ? ''
-            : accumulatedText.endsWith('\n')
+            : chosenBodyForSep.endsWith('\n')
               ? '\n'
               : '\n\n';
           sendSseText(res, `${leadingSep}${tailBlock}`);
         }
       }
       if (sseStarted && !res.writableEnded) {
-        sendSseJson(res, { meta: finalMeta, done: true });
+        sendSseJson(res, { meta: chosenMeta, done: true });
       }
       if (sseStarted && !res.writableEnded) {
         res.write('data: [DONE]\n\n');
@@ -1192,6 +1432,163 @@ export function registerApiRoutes(app: express.Express) {
     } finally {
       stopHeartbeat();
     }
+  });
+
+  // POST /api/audit-dossier-section — Kiểm chứng lại nội dung chương/kỳ hạn đã lưu đệm (read-only, 0 token AI)
+  app.post('/api/audit-dossier-section', (req, res) => {
+    const body = req.body as {
+      chart?: ZiweiChart;
+      sectionId?: string;
+      periodContext?: YunxianPeriodContext | null;
+      text?: unknown;
+    } | undefined;
+
+    if (!body || !body.chart || !Array.isArray(body.chart.palaces) || body.chart.palaces.length !== 12) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: 'Thiếu dữ liệu lá số Tử Vi 12 cung hợp lệ.',
+      });
+      return;
+    }
+
+    if (typeof body.text !== 'string' || !body.text.trim() || body.text.length > AUDIT_MAX_TEXT_LEN) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: `Nội dung cần kiểm chứng phải là chuỗi không rỗng và tối đa ${AUDIT_MAX_TEXT_LEN.toLocaleString('vi-VN')} ký tự.`,
+      });
+      return;
+    }
+
+    const chart = body.chart;
+    const palaceGanZhiMap = buildPalaceGanZhiMap(chart);
+    const hasPeriodContext = body.periodContext !== undefined && body.periodContext !== null;
+
+    if (hasPeriodContext) {
+      const pCtx = body.periodContext;
+      const validMode = pCtx && (pCtx.mode === 'dahan' || pCtx.mode === 'liunian');
+      const validBranch =
+        pCtx &&
+        typeof pCtx.branchIndex === 'number' &&
+        Number.isInteger(pCtx.branchIndex) &&
+        pCtx.branchIndex >= 0 &&
+        pCtx.branchIndex <= 11;
+      const validStem =
+        pCtx &&
+        typeof pCtx.stemIndex === 'number' &&
+        Number.isInteger(pCtx.stemIndex) &&
+        pCtx.stemIndex >= 0 &&
+        pCtx.stemIndex <= 9;
+      if (!pCtx || typeof pCtx !== 'object' || !validMode || !validBranch || !validStem) {
+        res.status(400).json({
+          error: 'INVALID_INPUT',
+          message: 'periodContext không hợp lệ.',
+        });
+        return;
+      }
+      if (
+        body.sectionId !== undefined &&
+        body.sectionId !== null &&
+        body.sectionId !== 'year_2026' &&
+        body.sectionId !== 'year_2027'
+      ) {
+        res.status(400).json({
+          error: 'INVALID_INPUT',
+          message: 'sectionId đi kèm periodContext không hợp lệ.',
+        });
+        return;
+      }
+
+      const resolvedSectionId =
+        resolvePeriodSectionId(pCtx) ??
+        (body.sectionId === 'year_2026' || body.sectionId === 'year_2027'
+          ? body.sectionId
+          : undefined);
+      const knowledgeResult = retrieveKnowledgeForPeriod(chart, pCtx);
+      const audit = verifyAcademicCitationsAndClaims(body.text, knowledgeResult.entries, {
+        chart,
+        sectionId: resolvedSectionId,
+        chapterMode: 'period',
+        periodContext: pCtx,
+        palaceGanZhiMap,
+      });
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        auditFlags: audit.auditFlags,
+        validCitationIds: audit.validCitationIds,
+        scrubbedInvalidIds: audit.scrubbedInvalidIds,
+        normalizedBareIds: audit.normalizedBareIds,
+        reauditedForVersion: APP_VERSION,
+        reauditedAt: Date.now(),
+      });
+      return;
+    }
+
+    if (body.sectionId === 'year_2026' || body.sectionId === 'year_2027') {
+      const year = body.sectionId === 'year_2026' ? 2026 : 2027;
+      const derivedCtx = buildYunxianPeriodContext(chart, { mode: 'liunian', year });
+      if (!derivedCtx) {
+        res.status(400).json({
+          error: 'INVALID_INPUT',
+          message: `Không thể dựng ngữ cảnh Lưu Niên cho ${body.sectionId}.`,
+        });
+        return;
+      }
+      const knowledgeResult = retrieveKnowledgeForPeriod(chart, derivedCtx);
+      const audit = verifyAcademicCitationsAndClaims(body.text, knowledgeResult.entries, {
+        chart,
+        sectionId: body.sectionId,
+        chapterMode: 'period',
+        periodContext: derivedCtx,
+        palaceGanZhiMap,
+      });
+
+      res.setHeader('Cache-Control', 'no-store');
+      res.json({
+        auditFlags: audit.auditFlags,
+        validCitationIds: audit.validCitationIds,
+        scrubbedInvalidIds: audit.scrubbedInvalidIds,
+        normalizedBareIds: audit.normalizedBareIds,
+        reauditedForVersion: APP_VERSION,
+        reauditedAt: Date.now(),
+      });
+      return;
+    }
+
+    if (!isValidDossierSectionId(body.sectionId)) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: `sectionId không hợp lệ. Chỉ chấp nhận: ${VALID_DOSSIER_SECTION_IDS.join(', ')}, year_2026, year_2027 hoặc truyền periodContext.`,
+      });
+      return;
+    }
+
+    const sectionId = body.sectionId;
+    const chapterMode =
+      sectionId === 'palaces_core' ||
+      sectionId === 'palaces_family' ||
+      sectionId === 'palaces_social_health'
+        ? 'palace_group'
+        : sectionId === 'horizon_5y' || sectionId === 'horizon_10y'
+          ? 'horizon'
+          : 'overview';
+    const knowledgeResult = retrieveKnowledgeForDossierSection(chart, sectionId);
+    const audit = verifyAcademicCitationsAndClaims(body.text, knowledgeResult.entries, {
+      chart,
+      sectionId,
+      chapterMode,
+      palaceGanZhiMap,
+    });
+
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({
+      auditFlags: audit.auditFlags,
+      validCitationIds: audit.validCitationIds,
+      scrubbedInvalidIds: audit.scrubbedInvalidIds,
+      normalizedBareIds: audit.normalizedBareIds,
+      reauditedForVersion: APP_VERSION,
+      reauditedAt: Date.now(),
+    });
   });
 
   // POST /api/interpret-chat — Chat Hỏi Đáp Chuyên Sâu (Stateless server, ghim dữ kiện lá số)

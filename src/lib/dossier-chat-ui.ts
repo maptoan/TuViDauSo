@@ -34,6 +34,9 @@ import {
   translateYinYang,
 } from './ziwei/vi-i18n';
 import { hasValidCachedPeriodEntry } from './key-pool-ui';
+import { APP_VERSION } from './app-version';
+
+export { APP_VERSION };
 
 // ─── 1. KIỂU DỮ LIỆU CHIA SẺ (Period Cache & AI Meta) ──────────────────────
 
@@ -79,6 +82,8 @@ export interface AiPeriodEntry {
   interruptedReason?: string;
   meta?: AiExecutionMeta;
   auditFlags?: Kp3AuditFlag[];
+  reauditedForVersion?: string;
+  reauditedAt?: number;
   error?: string;
   errorCode?: string;
   errorCategory?: string;
@@ -899,8 +904,31 @@ export interface DossierChapterState {
   restoredNoticeVi?: string;
   meta?: AiExecutionMeta;
   auditFlags?: Kp3AuditFlag[];
+  reauditedForVersion?: string;
+  reauditedAt?: number;
   sourceBadge?: DossierSourceBadge;
   updatedAt?: number;
+}
+
+export function shouldAutoReauditChapter(params: {
+  status?: DossierChapterStatus;
+  text?: string | null;
+  reauditedForVersion?: string | null;
+  currentVersion?: string;
+}): boolean {
+  const version = params.currentVersion ?? APP_VERSION;
+  return (
+    params.status === 'completed' &&
+    Boolean(params.text?.trim()) &&
+    params.reauditedForVersion !== version
+  );
+}
+
+export function formatReauditTimestampVi(timestampMs?: number): string {
+  if (!timestampMs || !Number.isFinite(timestampMs)) return '';
+  const d = new Date(timestampMs);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 export type DossierFailureKind = 'transient' | 'fatal';
@@ -1401,7 +1429,13 @@ export function resolveDossierChapterFromCaches(
         status: 'completed',
         text: sanitizeDossierChapterText(periodEntry.text, spec.id, chart),
         meta: periodEntry.meta,
-        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
+        auditFlags:
+          periodEntry.auditFlags !== undefined
+            ? periodEntry.auditFlags
+            : matchingLocal?.auditFlags,
+        reauditedForVersion:
+          periodEntry.reauditedForVersion ?? matchingLocal?.reauditedForVersion,
+        reauditedAt: periodEntry.reauditedAt ?? matchingLocal?.reauditedAt,
         restoredFromLongerPartial: matchingLocal?.restoredFromLongerPartial,
         restoredNoticeVi: matchingLocal?.restoredNoticeVi,
         sourceBadge:
@@ -1424,7 +1458,13 @@ export function resolveDossierChapterFromCaches(
         restoredFromLongerPartial: matchingLocal?.restoredFromLongerPartial,
         restoredNoticeVi: matchingLocal?.restoredNoticeVi,
         meta: periodEntry.meta,
-        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
+        auditFlags:
+          periodEntry.auditFlags !== undefined
+            ? periodEntry.auditFlags
+            : matchingLocal?.auditFlags,
+        reauditedForVersion:
+          periodEntry.reauditedForVersion ?? matchingLocal?.reauditedForVersion,
+        reauditedAt: periodEntry.reauditedAt ?? matchingLocal?.reauditedAt,
         sourceBadge: matchingLocal?.sourceBadge,
       };
     }
@@ -1438,7 +1478,13 @@ export function resolveDossierChapterFromCaches(
         errorCategory: periodEntry.errorCategory,
         minRemainingCooldownSec: periodEntry.minRemainingCooldownSec,
         meta: periodEntry.meta,
-        auditFlags: periodEntry.auditFlags ?? matchingLocal?.auditFlags,
+        auditFlags:
+          periodEntry.auditFlags !== undefined
+            ? periodEntry.auditFlags
+            : matchingLocal?.auditFlags,
+        reauditedForVersion:
+          periodEntry.reauditedForVersion ?? matchingLocal?.reauditedForVersion,
+        reauditedAt: periodEntry.reauditedAt ?? matchingLocal?.reauditedAt,
       };
     }
   }

@@ -1400,3 +1400,22 @@ export function verifyAcademicCitationsAndClaims(
     chatFooterMarkdown,
   };
 }
+
+/**
+ * A2 (ĐK-157-P04): Chỉ sinh lại tối đa 1 lần khi chương 2–6 hoàn tất (không bị ngắt),
+ * có nạp mục KB (allowedEntriesCount > 0), nhưng 0 thẻ [Nguồn: ...] hợp lệ.
+ */
+export function shouldRetryForZeroCitations(params: {
+  validCitationIds: readonly string[];
+  allowedEntriesCount: number;
+  chapterMode: 'overview' | 'palace_group' | 'period' | 'horizon' | 'chat';
+  wasInterrupted: boolean;
+  alreadyRetried: boolean;
+}): boolean {
+  if (params.wasInterrupted || params.alreadyRetried) return false;
+  if (params.allowedEntriesCount <= 0) return false;
+  if (params.chapterMode !== 'palace_group' && params.chapterMode !== 'period') {
+    return false;
+  }
+  return params.validCitationIds.length === 0;
+}

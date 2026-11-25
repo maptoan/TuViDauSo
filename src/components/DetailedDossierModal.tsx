@@ -8,6 +8,7 @@ import React, {
 import { createPortal } from 'react-dom';
 import { ZiweiChart } from '../lib/ziwei/types';
 import {
+  APP_VERSION,
   AiExecutionMeta,
   AiPeriodEntry,
   ContextualChatContextPayload,
@@ -34,6 +35,7 @@ import {
   classifyDossierFailure,
   createBestPartialSnapshot,
   formatDossierSourceBadge,
+  formatReauditTimestampVi,
   getBrowserSessionStorage,
   getDossierChapterContentLength,
   normalizeKnownBareCitationTags,
@@ -44,6 +46,7 @@ import {
   runDossierSequentialWithDualFuse,
   saveDossierSectionToCache,
   setSharedDossierGenerating,
+  shouldAutoReauditChapter,
   simpleMarkdownToHtml,
   stripInternalExportMetaLines,
 } from '../lib/dossier-chat-ui';
@@ -81,6 +84,7 @@ import {
   Library,
   Trash2,
   RotateCcw,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface DetailedDossierModalProps {
@@ -167,11 +171,18 @@ export default function DetailedDossierModal({
   } | null>(null);
   const [autoRunPass, setAutoRunPass] = useState<1 | 2>(1);
   const [autoRunSummary, setAutoRunSummary] = useState<DualFuseSummary | null>(null);
+  const [retryingChapterId, setRetryingChapterId] =
+    useState<DossierChapterId | null>(null);
+  const [retryingNoticeVi, setRetryingNoticeVi] = useState<string | null>(null);
+  const [reauditingChapterId, setReauditingChapterId] =
+    useState<DossierChapterId | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
   const cancelAutoRef = useRef(false);
   const pauseAfterCurrentRef = useRef(false);
   const bestPartialMapRef = useRef<Map<string, DossierChapterState>>(new Map());
+  const reauditInFlightRef = useRef<Set<string>>(new Set());
+  const autoReauditAttemptedRef = useRef<Set<string>>(new Set());
   const aiPeriodCacheRef = useRef(aiPeriodCache);
   aiPeriodCacheRef.current = aiPeriodCache;
 
@@ -197,6 +208,8 @@ export default function DetailedDossierModal({
     setAutoRunning(false);
     setPauseRequested(false);
     setActiveGeneratingId(null);
+    setRetryingChapterId(null);
+    setRetryingNoticeVi(null);
     setSharedDossierGenerating(false);
     onDossierGeneratingChange?.(false);
   }, [onDossierGeneratingChange]);
@@ -236,6 +249,8 @@ export default function DetailedDossierModal({
         error?: string;
         meta?: AiExecutionMeta;
         auditFlags?: Kp3AuditFlag[];
+        reauditedForVersion?: string;
+        reauditedAt?: number;
       }> = [];
 
       for (const [k, val] of Object.entries(stored.sections)) {
@@ -259,6 +274,8 @@ export default function DetailedDossierModal({
               text: val.text,
               meta: val.meta,
               auditFlags: val.auditFlags,
+              reauditedForVersion: val.reauditedForVersion,
+              reauditedAt: val.reauditedAt,
             });
           }
         } else if (val.status === 'incomplete' && val.incompleteText?.trim()) {
@@ -277,6 +294,8 @@ export default function DetailedDossierModal({
               error: val.error,
               meta: val.meta,
               auditFlags: val.auditFlags,
+              reauditedForVersion: val.reauditedForVersion,
+              reauditedAt: val.reauditedAt,
             });
           }
         }
@@ -317,7 +336,13 @@ export default function DetailedDossierModal({
               updated[patch.periodKey] = {
                 text: patch.text,
                 meta: patch.meta,
-                ...(patch.auditFlags?.length ? { auditFlags: patch.auditFlags } : {}),
+                ...(Array.isArray(patch.auditFlags) ? { auditFlags: patch.auditFlags } : {}),
+                ...(patch.reauditedForVersion
+                  ? { reauditedForVersion: patch.reauditedForVersion }
+                  : {}),
+                ...(typeof patch.reauditedAt === 'number'
+                  ? { reauditedAt: patch.reauditedAt }
+                  : {}),
               };
               changed = true;
             } else if (
@@ -332,7 +357,13 @@ export default function DetailedDossierModal({
                 interruptedReason: patch.interruptedReason,
                 error: patch.error,
                 meta: patch.meta,
-                ...(patch.auditFlags?.length ? { auditFlags: patch.auditFlags } : {}),
+                ...(Array.isArray(patch.auditFlags) ? { auditFlags: patch.auditFlags } : {}),
+                ...(patch.reauditedForVersion
+                  ? { reauditedForVersion: patch.reauditedForVersion }
+                  : {}),
+                ...(typeof patch.reauditedAt === 'number'
+                  ? { reauditedAt: patch.reauditedAt }
+                  : {}),
               };
               changed = true;
             }
@@ -498,8 +529,14 @@ export default function DetailedDossierModal({
                 [periodKey]: {
                   text: resolvedState.text,
                   meta: resolvedState.meta,
-                  ...(resolvedState.auditFlags?.length
+                  ...(Array.isArray(resolvedState.auditFlags)
                     ? { auditFlags: resolvedState.auditFlags }
+                    : {}),
+                  ...(resolvedState.reauditedForVersion
+                    ? { reauditedForVersion: resolvedState.reauditedForVersion }
+                    : {}),
+                  ...(typeof resolvedState.reauditedAt === 'number'
+                    ? { reauditedAt: resolvedState.reauditedAt }
                     : {}),
                 },
               };
@@ -519,8 +556,14 @@ export default function DetailedDossierModal({
                   errorCategory: resolvedState.errorCategory,
                   minRemainingCooldownSec: resolvedState.minRemainingCooldownSec,
                   meta: resolvedState.meta,
-                  ...(resolvedState.auditFlags?.length
+                  ...(Array.isArray(resolvedState.auditFlags)
                     ? { auditFlags: resolvedState.auditFlags }
+                    : {}),
+                  ...(resolvedState.reauditedForVersion
+                    ? { reauditedForVersion: resolvedState.reauditedForVersion }
+                    : {}),
+                  ...(typeof resolvedState.reauditedAt === 'number'
+                    ? { reauditedAt: resolvedState.reauditedAt }
                     : {}),
                 },
               };
@@ -687,6 +730,52 @@ export default function DetailedDossierModal({
           if (data === '[DONE]') return true;
           try {
             const parsed = JSON.parse(data);
+            if (typeof parsed?.retryingForCitations === 'boolean') {
+              if (parsed.retryingForCitations) {
+                setRetryingChapterId(spec.id);
+                setRetryingNoticeVi(
+                  typeof parsed.message === 'string' && parsed.message
+                    ? parsed.message
+                    : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...',
+                );
+              } else {
+                setRetryingChapterId((curr) => (curr === spec.id ? null : curr));
+                setRetryingNoticeVi(null);
+              }
+              if (typeof parsed?.replaceChapterText !== 'string') {
+                return false;
+              }
+            }
+            if (typeof parsed?.replaceChapterText === 'string') {
+              accumulated = sanitizeAiVietnameseOutput(parsed.replaceChapterText);
+              if (parsed.meta) {
+                receivedMeta = parsed.meta as AiExecutionMeta;
+              }
+              setRetryingChapterId((curr) => (curr === spec.id ? null : curr));
+              setRetryingNoticeVi(null);
+              if (isPeriod && periodKey) {
+                onAiPeriodCacheChange((prev) => ({
+                  ...prev,
+                  [periodKey]: {
+                    text: accumulated,
+                    meta: receivedMeta,
+                  },
+                }));
+              } else {
+                setLocalChapters((prev) => ({
+                  ...prev,
+                  [spec.id]: {
+                    chapterId: spec.id,
+                    sectionCacheKey,
+                    status: 'loading',
+                    text: accumulated,
+                    meta: receivedMeta,
+                    sourceBadge: formatDossierSourceBadge('generated'),
+                  },
+                }));
+              }
+              return false;
+            }
             if (parsed?.meta) {
               receivedMeta = parsed.meta as AiExecutionMeta;
               if (isPeriod && periodKey) {
@@ -837,8 +926,7 @@ export default function DetailedDossierModal({
           accumulated = enforceCanonicalPalaceGroupHeadings(accumulated, chart);
         }
 
-        const persistedAuditFlags =
-          receivedAuditFlags.length > 0 ? receivedAuditFlags : undefined;
+        const persistedAuditFlags = receivedAuditFlags;
 
         if (wasInterrupted || streamError) {
           const failure = classifyDossierFailure({
@@ -880,7 +968,7 @@ export default function DetailedDossierModal({
               errorCategory: failure.errorCategory,
               minRemainingCooldownSec: failure.minRemainingCooldownSec,
               meta: partialMeta,
-              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              auditFlags: persistedAuditFlags,
               sourceBadge: formatDossierSourceBadge('generated'),
               updatedAt: Date.now(),
             },
@@ -908,15 +996,18 @@ export default function DetailedDossierModal({
           );
         }
 
+        const completedAt = Date.now();
         const completedState: DossierChapterState = {
           chapterId: spec.id,
           sectionCacheKey,
           status: 'completed',
           text: accumulated,
           meta: receivedMeta,
-          ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+          auditFlags: persistedAuditFlags,
+          reauditedForVersion: APP_VERSION,
+          reauditedAt: completedAt,
           sourceBadge: formatDossierSourceBadge('generated'),
-          updatedAt: Date.now(),
+          updatedAt: completedAt,
         };
 
         bestPartialMapRef.current.set(sectionCacheKey, completedState);
@@ -926,7 +1017,9 @@ export default function DetailedDossierModal({
             [periodKey]: {
               text: accumulated,
               meta: receivedMeta,
-              ...(persistedAuditFlags ? { auditFlags: persistedAuditFlags } : {}),
+              auditFlags: persistedAuditFlags,
+              reauditedForVersion: APP_VERSION,
+              reauditedAt: completedAt,
             },
           }));
         }
@@ -975,6 +1068,8 @@ export default function DetailedDossierModal({
         );
       } finally {
         setActiveGeneratingId((curr) => (curr === spec.id ? null : curr));
+        setRetryingChapterId((curr) => (curr === spec.id ? null : curr));
+        setRetryingNoticeVi(null);
       }
     },
     [
@@ -984,6 +1079,155 @@ export default function DetailedDossierModal({
       persistSectionToStorage,
     ],
   );
+
+  // Nhóm B (B2/B3/P06/P07): Kiểm chứng lại chương đã lưu đệm (0 token AI)
+  const handleReauditChapter = useCallback(
+    async (
+      spec: DossierChapterSpec,
+      targetState: DossierChapterState,
+      forceManual = false,
+    ) => {
+      if (!isHydrated) return;
+      const targetText =
+        targetState.status === 'completed'
+          ? targetState.text
+          : targetState.status === 'incomplete'
+            ? targetState.incompleteText
+            : undefined;
+      if (!targetText?.trim()) return;
+      if (!forceManual && targetState.reauditedForVersion === APP_VERSION) return;
+
+      const sectionCacheKey = buildDossierChapterCacheKey(chartIdentityKey, spec.id);
+      const inflightKey = `${sectionCacheKey}::${APP_VERSION}`;
+      if (reauditInFlightRef.current.has(inflightKey)) return;
+
+      const isPeriod = isPeriodChapter(spec);
+      const periodCtx = isPeriod
+        ? resolveChapterDeterministicFactSheet(chart, spec).periodContext
+        : null;
+      if (isPeriod && !periodCtx) return;
+
+      const periodKey = isPeriod ? buildPeriodCacheKeyForYear(chart, spec.year) : '';
+      const requestChartKey = chartIdentityKey;
+
+      reauditInFlightRef.current.add(inflightKey);
+      setReauditingChapterId(spec.id);
+
+      try {
+        const res = await fetch('/api/audit-dossier-section', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(
+            isPeriod
+              ? { chart, periodContext: periodCtx, sectionId: spec.id, text: targetText }
+              : { chart, sectionId: spec.sectionId, text: targetText },
+          ),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          auditFlags?: Kp3AuditFlag[];
+          reauditedForVersion?: string;
+          reauditedAt?: number;
+        };
+        if (prevChartKeyRef.current !== requestChartKey) return;
+
+        const nextFlags: Kp3AuditFlag[] = Array.isArray(data.auditFlags)
+          ? data.auditFlags.filter(
+              (f): f is Kp3AuditFlag =>
+                Boolean(f) &&
+                typeof f === 'object' &&
+                typeof f.code === 'string' &&
+                typeof f.messageVi === 'string',
+            )
+          : [];
+        const nextVersion =
+          typeof data.reauditedForVersion === 'string' && data.reauditedForVersion
+            ? data.reauditedForVersion
+            : APP_VERSION;
+        const nextAt =
+          typeof data.reauditedAt === 'number' && Number.isFinite(data.reauditedAt)
+            ? data.reauditedAt
+            : Date.now();
+
+        const updatedState: DossierChapterState = {
+          ...targetState,
+          sectionCacheKey,
+          auditFlags: nextFlags,
+          reauditedForVersion: nextVersion,
+          reauditedAt: nextAt,
+        };
+
+        bestPartialMapRef.current.set(sectionCacheKey, updatedState);
+        setLocalChapters((prev) => ({
+          ...prev,
+          [spec.id]: {
+            ...(prev[spec.id] || updatedState),
+            auditFlags: nextFlags,
+            reauditedForVersion: nextVersion,
+            reauditedAt: nextAt,
+          },
+        }));
+        if (
+          updatedState.status === 'completed' ||
+          (updatedState.status === 'incomplete' && updatedState.incompleteText?.trim())
+        ) {
+          persistSectionToStorage(spec.id, updatedState);
+        }
+        if (isPeriod && periodKey) {
+          onAiPeriodCacheChange((prev) => {
+            const existing = prev[periodKey];
+            if (!existing) return prev;
+            return {
+              ...prev,
+              [periodKey]: {
+                ...existing,
+                auditFlags: nextFlags,
+                reauditedForVersion: nextVersion,
+                reauditedAt: nextAt,
+              },
+            };
+          });
+        }
+      } catch {
+        // Bỏ qua lỗi mạng khi kiểm chứng lại âm thầm
+      } finally {
+        reauditInFlightRef.current.delete(inflightKey);
+        setReauditingChapterId((curr) => (curr === spec.id ? null : curr));
+      }
+    },
+    [chart, chartIdentityKey, isHydrated, onAiPeriodCacheChange, persistSectionToStorage],
+  );
+
+  // Tự động kiểm chứng lại đúng 1 lần theo APP_VERSION cho chương đang mở (nếu đã hoàn tất ở phiên bản cũ)
+  useEffect(() => {
+    if (!open || !isHydrated || autoRunning || activeGeneratingId !== null) return;
+    if (
+      !shouldAutoReauditChapter({
+        status: selectedState.status,
+        text: selectedState.text,
+        reauditedForVersion: selectedState.reauditedForVersion,
+      })
+    ) {
+      return;
+    }
+    const attemptKey = `${selectedState.sectionCacheKey}::${APP_VERSION}`;
+    if (
+      autoReauditAttemptedRef.current.has(attemptKey) ||
+      reauditInFlightRef.current.has(attemptKey)
+    ) {
+      return;
+    }
+    autoReauditAttemptedRef.current.add(attemptKey);
+    void handleReauditChapter(selectedSpec, selectedState, false);
+  }, [
+    open,
+    isHydrated,
+    autoRunning,
+    activeGeneratingId,
+    selectedSpec,
+    selectedState,
+    handleReauditChapter,
+  ]);
 
   // Sinh đơn lẻ 1 chương (ĐC-1: chờ nạp xong IndexedDB trước khi cho phép sinh đè)
   const handleGenerateSingleChapter = async (chapterId: DossierChapterId) => {
@@ -1640,6 +1884,27 @@ export default function DetailedDossierModal({
                       </span>
                     </button>
 
+                    {(selectedState.status === 'completed' && selectedState.text?.trim()) ||
+                    (selectedState.status === 'incomplete' &&
+                      selectedState.incompleteText?.trim()) ? (
+                      <button
+                        type="button"
+                        onClick={() => handleReauditChapter(selectedSpec, selectedState, true)}
+                        disabled={!isHydrated || isAnyBusy || reauditingChapterId !== null}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-sky-500/45 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                        title="Quét lại quy tắc KP-3 & trích dẫn nguồn (0 token AI)"
+                      >
+                        <ShieldCheck
+                          className={`w-3.5 h-3.5 ${reauditingChapterId === selectedSpec.id ? 'animate-pulse' : ''}`}
+                        />
+                        <span>
+                          {reauditingChapterId === selectedSpec.id
+                            ? 'Đang kiểm tra lại...'
+                            : 'Kiểm tra lại'}
+                        </span>
+                      </button>
+                    ) : null}
+
                     {(selectedState.status === 'completed' ||
                       selectedState.status === 'incomplete') && (
                       <button
@@ -1797,62 +2062,86 @@ export default function DetailedDossierModal({
               )}
 
               {selectedState.auditFlags &&
-                selectedState.auditFlags.length > 0 &&
-                selectedState.status !== 'loading' && (
-                  <div className="rounded-xl p-3.5 border border-amber-500/45 bg-amber-950/20 text-xs space-y-2">
-                    <div className="flex items-center justify-between gap-2 font-semibold text-amber-300">
-                      <span className="inline-flex items-center gap-1.5">
-                        <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        <span>
-                          Kiểm Chứng KP-3 ({selectedState.auditFlags.length} cờ đối chiếu · chỉ hiển thị trên màn hình)
-                        </span>
+              selectedState.auditFlags.length > 0 &&
+              selectedState.status !== 'loading' ? (
+                <div className="rounded-xl p-3.5 border border-amber-500/45 bg-amber-950/20 text-xs space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 font-semibold text-amber-300">
+                    <span className="inline-flex items-center gap-1.5">
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>
+                        Kiểm Chứng KP-3 ({selectedState.auditFlags.length} cờ đối chiếu · chỉ hiển thị trên màn hình)
                       </span>
-                    </div>
-                    <ul className="space-y-1.5 text-[11px] leading-relaxed">
-                      {selectedState.auditFlags.map((flag, idx) => (
-                        <li
-                          key={`${flag.code}-${idx}`}
-                          className={`rounded-lg px-2.5 py-1.5 border ${
-                            flag.severity === 'critical'
-                              ? 'border-rose-500/40 bg-rose-950/30 text-rose-100'
-                              : 'border-amber-500/35 bg-amber-950/30 text-amber-100'
-                          }`}
-                        >
-                          <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] mb-0.5">
-                            <span
-                              className={
-                                flag.severity === 'critical'
-                                  ? 'text-rose-300 font-bold'
-                                  : 'text-amber-300 font-bold'
-                              }
-                            >
-                              {flag.severity === 'critical' ? 'NGHIÊM TRỌNG' : 'TRUNG BÌNH'}
-                            </span>
-                            <span>·</span>
-                            <span>{flag.code}</span>
-                            {flag.palaceVi && (
-                              <>
-                                <span>·</span>
-                                <span>Cung {flag.palaceVi}</span>
-                              </>
-                            )}
-                            {flag.ageRange && (
-                              <>
-                                <span>·</span>
-                                <span>Đại Hạn {flag.ageRange}</span>
-                              </>
-                            )}
-                          </div>
-                          <div>{flag.messageVi}</div>
-                        </li>
-                      ))}
-                    </ul>
+                    </span>
+                    {typeof selectedState.reauditedAt === 'number' && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-950/50 text-amber-200">
+                        Kiểm chứng lại ngày {formatReauditTimestampVi(selectedState.reauditedAt)} (v{selectedState.reauditedForVersion || APP_VERSION})
+                      </span>
+                    )}
                   </div>
-                )}
+                  <ul className="space-y-1.5 text-[11px] leading-relaxed">
+                    {selectedState.auditFlags.map((flag, idx) => (
+                      <li
+                        key={`${flag.code}-${idx}`}
+                        className={`rounded-lg px-2.5 py-1.5 border ${
+                          flag.severity === 'critical'
+                            ? 'border-rose-500/40 bg-rose-950/30 text-rose-100'
+                            : 'border-amber-500/35 bg-amber-950/30 text-amber-100'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px] mb-0.5">
+                          <span
+                            className={
+                              flag.severity === 'critical'
+                                ? 'text-rose-300 font-bold'
+                                : 'text-amber-300 font-bold'
+                            }
+                          >
+                            {flag.severity === 'critical' ? 'NGHIÊM TRỌNG' : 'TRUNG BÌNH'}
+                          </span>
+                          <span>·</span>
+                          <span>{flag.code}</span>
+                          {flag.palaceVi && (
+                            <>
+                              <span>·</span>
+                              <span>Cung {flag.palaceVi}</span>
+                            </>
+                          )}
+                          {flag.ageRange && (
+                            <>
+                              <span>·</span>
+                              <span>Đại Hạn {flag.ageRange}</span>
+                            </>
+                          )}
+                        </div>
+                        <div>{flag.messageVi}</div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : selectedState.status !== 'loading' &&
+                typeof selectedState.reauditedAt === 'number' ? (
+                <div className="rounded-xl px-3.5 py-2.5 border border-emerald-500/40 bg-emerald-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-emerald-200">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span>
+                      Đã kiểm chứng lại (v{selectedState.reauditedForVersion || APP_VERSION}): 0 cờ cảnh báo
+                    </span>
+                  </span>
+                  <span className="text-[11px] font-mono text-emerald-300/80">
+                    {formatReauditTimestampVi(selectedState.reauditedAt)} · chỉ hiển thị trên màn hình
+                  </span>
+                </div>
+              ) : null}
 
               {/* Chapter Main Body by State */}
               {selectedState.status === 'loading' && (
                 <div className="space-y-3">
+                  {retryingChapterId === selectedSpec.id && retryingNoticeVi && (
+                    <div className="rounded-xl px-3.5 py-2.5 border border-sky-500/45 bg-sky-950/25 text-xs text-sky-200 flex items-center gap-2">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin shrink-0 text-sky-300" />
+                      <span>{retryingNoticeVi}</span>
+                    </div>
+                  )}
                   {selectedState.text ? (
                     <div className="rounded-xl p-4 sm:p-5 border border-[var(--t-border)] bg-[var(--t-surface)] text-xs sm:text-sm leading-relaxed">
                       <MarkdownContent content={selectedState.text} />

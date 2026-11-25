@@ -18,8 +18,15 @@ import { formToBirthInfo, searchParamsToForm } from '../src/lib/ziwei/share';
 import type { BirthFormState } from '../src/lib/ziwei/types';
 import { shouldRefreshKeyPoolSnapshot } from '../src/lib/key-pool-ui';
 import { PROVINCES } from '../src/lib/ziwei/cities';
-import { KeyPoolManager } from '../server/key-pool/index';
+import { KeyPoolManager, keyPoolManager } from '../server/key-pool/index';
 import { PoolExhaustedError, TpmGuardSkipError } from '../server/key-pool/executor';
+import { loadKnowledgeBase, resetKnowledgeBaseCache } from '../server/knowledge-base/loader';
+import {
+  retrieveKnowledgeForDossierSection,
+  retrieveKnowledgeForPeriod,
+} from '../server/knowledge-base/retriever';
+import { shouldRetryForZeroCitations } from '../server/knowledge-base/verifier';
+import { saveDossierSectionToLibrary, buildPeriodCachePatchesFromLibrary } from '../src/lib/chart-library';
 import {
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
@@ -28,6 +35,7 @@ import {
   registerApiRoutes,
 } from '../server';
 import {
+  APP_VERSION,
   BRANCH_GRID_POS,
   CHAT_COOLDOWN_SECONDS,
   CHAT_LRU_INDEX_KEY,
@@ -65,6 +73,7 @@ import {
   evaluateChatQuotaStatus,
   filterPersistableChatMessages,
   formatDossierSourceBadge,
+  formatReauditTimestampVi,
   getChatCooldownRemainingSec,
   getDossierChapterContentLength,
   getSharedDossierGenerating,
@@ -81,6 +90,7 @@ import {
   sanitizeDossierChapterText,
   saveDossierSectionToCache,
   setSharedDossierGenerating,
+  shouldAutoReauditChapter,
   stripInternalExportMetaLines,
   subscribeSharedDossierGenerating,
   trimChatExcerpt,
@@ -88,6 +98,8 @@ import {
   unlockExtraChatTurns,
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
+
+const EXPECTED_VERSION = '1.5.7';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -1734,6 +1746,356 @@ await runAsyncTest('[BRIEF 1.5.6 · ĐK-NT-6b] Bộ điều phối dừng tức 
   assert.deepEqual(executedAbort, ['chapter_overview']);
   assert.deepEqual(abortSummary.retriedInPass2, []);
   assert.equal(abortSummary.haltedReason, 'aborted');
+});
+
+runTest('[BRIEF 1.5.7 · ĐK-157-P04] shouldRetryForZeroCitations quyết định đúng các điều kiện sinh lại 1 lần', () => {
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: [],
+      allowedEntriesCount: 5,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: [],
+      allowedEntriesCount: 3,
+      chapterMode: 'period',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: ['NH-STAR-001'],
+      allowedEntriesCount: 5,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: [],
+      allowedEntriesCount: 0,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: [],
+      allowedEntriesCount: 5,
+      chapterMode: 'palace_group',
+      wasInterrupted: true,
+      alreadyRetried: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRetryForZeroCitations({
+      validCitationIds: [],
+      allowedEntriesCount: 5,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: true,
+    }),
+    false,
+  );
+  for (const mode of ['overview', 'horizon', 'chat'] as const) {
+    assert.equal(
+      shouldRetryForZeroCitations({
+        validCitationIds: [],
+        allowedEntriesCount: 5,
+        chapterMode: mode,
+        wasInterrupted: false,
+        alreadyRetried: false,
+      }),
+      false,
+    );
+  }
+});
+
+await runAsyncTest('[BRIEF 1.5.7 · ĐK-157-P02/P03] Luồng SSE A2: thắng ở lần 2 (replaceChapterText), hòa 0 thẻ giữ lần 1, và lỗi lần 2 giữ nguyên lần 1', async () => {
+  resetKnowledgeBaseCache();
+  loadKnowledgeBase();
+
+  const chart = buildNguyenVanAn1995Chart();
+  const dossierKb = retrieveKnowledgeForDossierSection(chart, 'palaces_core');
+  assert.ok(dossierKb.entries.length > 0);
+  const sampleDossierEntry = dossierKb.entries[0];
+  const dossierEntityHint =
+    sampleDossierEntry.retrievalKeys.starsVi[0] ||
+    sampleDossierEntry.retrievalKeys.palacesVi[0] ||
+    'Mệnh Cung';
+
+  const ctx2026 = buildYunxianPeriodContext(chart, { mode: 'liunian', year: 2026 })!;
+  const periodKb = retrieveKnowledgeForPeriod(chart, ctx2026);
+  assert.ok(periodKb.entries.length > 0);
+  const samplePeriodEntry = periodKb.entries[0];
+  const periodEntityHint =
+    samplePeriodEntry.retrievalKeys.starsVi[0] ||
+    samplePeriodEntry.retrievalKeys.palacesVi[0] ||
+    ctx2026.activatedPalace.natalPalaceNameVi;
+
+  type StreamArgs = Parameters<typeof keyPoolManager.executeStream>[0];
+  const origExecuteStream = keyPoolManager.executeStream.bind(keyPoolManager);
+  let scenario: 'win_dossier' | 'win_period' | 'tie_zero' | 'retry_error' = 'win_dossier';
+  let callIndex = 0;
+
+  const parseSseEvents = (raw: string) => {
+    const events: Array<Record<string, unknown>> = [];
+    for (const line of raw.split('\n')) {
+      if (!line.startsWith('data: ')) continue;
+      const body = line.slice(6).trim();
+      if (body === '[DONE]') {
+        events.push({ __done: true });
+        continue;
+      }
+      events.push(JSON.parse(body));
+    }
+    return events;
+  };
+
+  (keyPoolManager as unknown as { executeStream: (opts: StreamArgs) => Promise<unknown> }).executeStream = async (
+    opts: StreamArgs,
+  ) => {
+    callIndex += 1;
+    const isPass2 = callIndex === 2;
+    const fakeMeta = {
+      keyId: isPass2 ? 'k2' : 'k1',
+      maskedKey: isPass2 ? 'AIza...2222' : 'AIza...1111',
+      label: isPass2 ? 'Key 2' : 'Key 1',
+      modelUsed: 'gemini-3-flash',
+      usedFallbackModel: false,
+      failoverAttempts: 1,
+      latencyMs: 50,
+      fallbackLegUsed: false,
+    };
+
+    if (scenario === 'retry_error' && isPass2) {
+      throw new Error('RETRY_TRANSIENT_FAIL');
+    }
+
+    opts.onMeta?.(fakeMeta);
+    let text = '### Cung Mệnh\nNội dung lần 1 không có trích dẫn nguồn.';
+    if (scenario === 'win_dossier' && isPass2) {
+      text = `### Cung Mệnh\nLuận giải có ${dossierEntityHint} kèm trích dẫn chuẩn [Nguồn: ${sampleDossierEntry.id}].`;
+    } else if (scenario === 'win_period') {
+      text = isPass2
+        ? `### 1. Chủ Đề Kỳ Hạn\nPhân tích ${periodEntityHint} với mã nguồn hợp lệ [Nguồn: ${samplePeriodEntry.id}].`
+        : '### 1. Chủ Đề Kỳ Hạn\nLưu Niên lần 1 chưa gắn thẻ nguồn.';
+    } else if (scenario === 'tie_zero' && isPass2) {
+      text = '### Cung Mệnh\nLần 2 vẫn không có thẻ nguồn hợp lệ.';
+    }
+    opts.onChunk?.(text);
+    return fakeMeta;
+  };
+
+  const app = express();
+  registerApiRoutes(app);
+  const server = await new Promise<import('node:http').Server>((resolve) => {
+    const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+
+  try {
+    const addr = server.address();
+    if (!addr || typeof addr === 'string') throw new Error('Invalid port');
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    // Nhánh 1a: Dossier palaces_core Pass 2 thắng -> replaceChapterText
+    scenario = 'win_dossier';
+    callIndex = 0;
+    const rWinDossier = await fetch(`${baseUrl}/api/interpret-dossier-section`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, sectionId: 'palaces_core' }),
+    });
+    assert.equal(rWinDossier.status, 200);
+    const evWinDossier = parseSseEvents(await rWinDossier.text());
+    assert.equal(callIndex, 2);
+    assert.ok(evWinDossier.some((e) => e.retryingForCitations === true));
+    const replaceEvDossier = evWinDossier.find((e) => typeof e.replaceChapterText === 'string');
+    assert.ok(replaceEvDossier);
+    assert.ok((replaceEvDossier.replaceChapterText as string).includes(`[Nguồn: ${sampleDossierEntry.id}]`));
+    assert.ok(!(replaceEvDossier.replaceChapterText as string).includes('Tư Liệu Học Thuật Tham Chiếu'));
+    const auditWinDossier = evWinDossier.find((e) => e.citationAudit)?.citationAudit as {
+      validIds: string[];
+      auditFlags: Array<{ code: string }>;
+    };
+    assert.ok(auditWinDossier.validIds.includes(sampleDossierEntry.id));
+    assert.equal(auditWinDossier.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'), false);
+
+    // Nhánh 1b: Period Pass 2 thắng -> replaceChapterText chứa SiHua addendum và KHÔNG chứa tailBlock
+    scenario = 'win_period';
+    callIndex = 0;
+    const rWinPeriod = await fetch(`${baseUrl}/api/interpret-period`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, periodContext: ctx2026 }),
+    });
+    assert.equal(rWinPeriod.status, 200);
+    const rawWinPeriod = await rWinPeriod.text();
+    const evWinPeriod = parseSseEvents(rawWinPeriod);
+    assert.equal(callIndex, 2);
+    const replaceEvPeriod = evWinPeriod.find((e) => typeof e.replaceChapterText === 'string');
+    assert.ok(replaceEvPeriod);
+    assert.ok(
+      (replaceEvPeriod.replaceChapterText as string).includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số'),
+      'P02: replaceChapterText kỳ hạn phải bao gồm SiHua addendum',
+    );
+    assert.ok(
+      !(replaceEvPeriod.replaceChapterText as string).includes('Tư Liệu Học Thuật Tham Chiếu Trong Chương'),
+      'P02: replaceChapterText không được gộp tailBlock',
+    );
+    assert.ok(rawWinPeriod.includes('Tư Liệu Học Thuật Tham Chiếu Trong Chương'));
+
+    // Nhánh 2: Hòa 0 thẻ -> giữ lần 1, không phát replaceChapterText, cờ W5 vẫn còn
+    scenario = 'tie_zero';
+    callIndex = 0;
+    const rTie = await fetch(`${baseUrl}/api/interpret-dossier-section`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, sectionId: 'palaces_core' }),
+    });
+    const evTie = parseSseEvents(await rTie.text());
+    assert.equal(callIndex, 2);
+    assert.ok(!evTie.some((e) => typeof e.replaceChapterText === 'string'));
+    assert.ok(evTie.some((e) => e.retryingForCitations === false));
+    const auditTie = evTie.find((e) => e.citationAudit)?.citationAudit as {
+      auditFlags: Array<{ code: string }>;
+    };
+    assert.ok(auditTie.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'));
+
+    // Nhánh 3: Pass 2 throw lỗi -> giữ nguyên lần 1, stream kết thúc sạch
+    scenario = 'retry_error';
+    callIndex = 0;
+    const rErr = await fetch(`${baseUrl}/api/interpret-dossier-section`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, sectionId: 'palaces_core' }),
+    });
+    const evErr = parseSseEvents(await rErr.text());
+    assert.equal(callIndex, 2);
+    assert.ok(!evErr.some((e) => typeof e.replaceChapterText === 'string'));
+    assert.ok(evErr.some((e) => e.done === true));
+  } finally {
+    (keyPoolManager as unknown as { executeStream: typeof origExecuteStream }).executeStream = origExecuteStream;
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    resetKnowledgeBaseCache();
+  }
+});
+
+runTest('[BRIEF 1.5.7 · ĐK-157-P06/P07] Truyền reauditedForVersion/reauditedAt/auditFlags rỗng & UI kiểm chứng lại', () => {
+  const chart = buildNguyenVanAn1995Chart();
+  const chartKey = buildChartIdentityKey(chart);
+  const spec2026 = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')!;
+  const pKey2026 = buildPeriodCacheKeyForYear(chart, 2026);
+  const sKey2026 = buildDossierChapterCacheKey(chartKey, 'year_2026');
+
+  // 1) resolveDossierChapterFromCaches ưu tiên auditFlags=[] mới từ periodEntry thay cho cờ cũ ở matchingLocal
+  const resolvedCleared = resolveDossierChapterFromCaches(
+    chart,
+    spec2026,
+    {
+      [pKey2026]: {
+        text: '### 1. Chủ Đề Kỳ Hạn\nLưu Niên 2026 đã kiểm chứng lại sạch cờ.',
+        auditFlags: [],
+        reauditedForVersion: APP_VERSION,
+        reauditedAt: 1732530000000,
+      },
+    },
+    {
+      year_2026: {
+        chapterId: 'year_2026',
+        sectionCacheKey: sKey2026,
+        status: 'completed',
+        text: 'Nội dung cũ',
+        auditFlags: [
+          {
+            code: 'ZERO_CITATIONS_IN_CHAPTER',
+            severity: 'medium',
+            messageVi: 'Cờ cũ phải bị xóa',
+          },
+        ],
+      },
+    },
+  );
+  assert.deepEqual(resolvedCleared.auditFlags, []);
+  assert.equal(resolvedCleared.reauditedForVersion, APP_VERSION);
+  assert.equal(resolvedCleared.reauditedAt, 1732530000000);
+
+  // 2) buildPeriodCachePatchesFromLibrary bảo toàn auditFlags=[], reauditedForVersion, reauditedAt
+  saveDossierSectionToLibrary(chart, 'year_2026', {
+    chapterId: 'year_2026',
+    sectionCacheKey: sKey2026,
+    status: 'completed',
+    text: '### 1. Chủ Đề Kỳ Hạn\nNội dung đã kiểm chứng.',
+    auditFlags: [],
+    reauditedForVersion: APP_VERSION,
+    reauditedAt: 1732530000000,
+  });
+  const patches = buildPeriodCachePatchesFromLibrary(chart);
+  assert.ok(patches[pKey2026]);
+  assert.deepEqual(patches[pKey2026].auditFlags, []);
+  assert.equal(patches[pKey2026].reauditedForVersion, APP_VERSION);
+  assert.equal(patches[pKey2026].reauditedAt, 1732530000000);
+
+  // 3) Helper tự động kiểm chứng lại & định dạng ngày
+  assert.equal(
+    shouldAutoReauditChapter({ status: 'completed', text: 'abc', reauditedForVersion: '1.5.4' }),
+    true,
+  );
+  assert.equal(
+    shouldAutoReauditChapter({ status: 'completed', text: 'abc', reauditedForVersion: APP_VERSION }),
+    false,
+  );
+  assert.equal(
+    shouldAutoReauditChapter({ status: 'incomplete', text: 'abc', reauditedForVersion: '1.5.4' }),
+    false,
+  );
+  assert.match(formatReauditTimestampVi(1732530000000), /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
+
+  // 4) Không rò rỉ nhãn kiểm chứng lại ra file xuất & xác nhận UI có nút + nhánh 0 cờ
+  const exportStates = {} as Record<DossierChapterId, DossierChapterState>;
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    exportStates[spec.id] = {
+      chapterId: spec.id,
+      sectionCacheKey: buildDossierChapterCacheKey(chartKey, spec.id),
+      status: 'idle',
+    };
+  }
+  exportStates.year_2026 = resolvedCleared;
+  const exportMd = buildDossierMarkdownExport(chart, exportStates);
+  assert.ok(!exportMd.includes('0 cờ cảnh báo'));
+  assert.ok(!exportMd.includes('Kiểm chứng lại ngày'));
+
+  const modalSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/DetailedDossierModal.tsx'), 'utf8');
+  const panelSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/InsightPanel.tsx'), 'utf8');
+  for (const src of [modalSrc, panelSrc]) {
+    assert.ok(src.includes('Kiểm tra lại'));
+    assert.ok(src.includes('0 cờ cảnh báo'));
+    assert.ok(src.includes('retryingForCitations'));
+    assert.ok(src.includes('replaceChapterText'));
+    assert.ok(src.includes('/api/audit-dossier-section'));
+  }
+});
+
+runTest('[BRIEF 1.5.7 · ĐK-157-P08/C1] Đồng bộ phiên bản 3 chiều VERSION === package.json === APP_VERSION', () => {
+  const versionFile = fs.readFileSync(path.resolve(process.cwd(), 'VERSION'), 'utf8').trim();
+  const pkgJson = JSON.parse(fs.readFileSync(path.resolve(process.cwd(), 'package.json'), 'utf8')) as {
+    version?: string;
+  };
+  assert.equal(versionFile, EXPECTED_VERSION);
+  assert.equal(pkgJson.version, EXPECTED_VERSION);
+  assert.equal(APP_VERSION, EXPECTED_VERSION);
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

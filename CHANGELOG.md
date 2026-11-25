@@ -2,12 +2,28 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.6` *(đồng bộ với `/VERSION`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.5.7` *(đồng bộ với `/VERSION` và `package.json`)*
 - **Cập nhật lần cuối**: `25/11/2026`
-- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`)
+- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.5.7] — 25/11/2026
+
+### Ép Trích Dẫn Học Thuật Chương Sinh Mới, Kiểm Chứng Lại Chương Đã Lưu Đệm & Đồng Bộ Phiên Bản (`BRIEF 1.5.7 v2` — Nhóm A / B / C)
+- **Nhóm A — Ép trích dẫn học thuật trong chương sinh mới (`ĐK-157-P01..P04`)**:
+  - **A1 (`server.ts`, `P01`)**: Siết Quy tắc 5 trong `buildStrictDossierSectionPrompt` và `buildStrictPeriodAiPrompt`: khi `[TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU]` không rỗng, toàn chương BẮT BUỘC có `≥ 1` thẻ `[Nguồn: <ID>]` hợp lệ (ưu tiên mỗi cung có mục khớp), kèm quy tắc chống gắn gượng (chỉ gắn khi điều kiện lá số khớp, không gán `Nữ mệnh` cho Nam hay `Hóa Kỵ xung Mệnh` khi thiếu; nếu 0 mục khớp thì ghi rõ luận thuần túy từ dữ kiện tinh đẩu), giữ mức tăng `systemInstruction` trong trần `<= +200` ký tự mỗi chương.
+  - **A2 (`verifier.ts`, `server.ts`, `DetailedDossierModal.tsx`, `InsightPanel.tsx`, `P02–P04`)**: Bổ sung `shouldRetryForZeroCitations` và cơ chế sinh lại đúng 1 lần phía server cho chương 2–6 (`palace_group` và `period`) khi hoàn tất với 0 thẻ nguồn hợp lệ và `allowedEntries > 0`; phát sự kiện SSE `retryingForCitations` và `replaceChapterText` (đã gồm khối tổng hợp Tứ Hóa kỳ hạn nếu thiếu ở `/api/interpret-period`, không kèm `tailBlock`), chỉ thay thế khi lần 2 đạt `> 0` thẻ nguồn hợp lệ và giữ nguyên bản lần 1 khi hòa/lỗi.
+  - **A3 (`server.ts`)**: Ghi 1 dòng log `console.warn` có cấu trúc khi `scrubInvalidCitationIds.length > 0` (chỉ gồm `sectionId`, `scrubbedInvalidIds`, độ dài thô và số thẻ hợp lệ; không log văn xuôi hay khóa).
+- **Nhóm B — Kiểm chứng lại chương đã lưu đệm (`ĐK-157-P05..P07`)**:
+  - **B1 (`server.ts`, `P05`)**: Sửa lỗi `periodContext.cacheKey` tại đối chiếu kỳ hạn sang helper `resolvePeriodSectionId` (khớp `periodId` và đuôi `__liunian_2026`/`__liunian_2027`); thêm endpoint read-only `POST /api/audit-dossier-section` (0 token AI, `Cache-Control: no-store`) trả `{ auditFlags, validCitationIds, scrubbedInvalidIds, normalizedBareIds, reauditedForVersion, reauditedAt }`.
+  - **B2 & B4 (`dossier-chat-ui.ts`, `chart-library.ts`, `DetailedDossierModal.tsx`, `InsightPanel.tsx`, `P06`)**: Thêm trường `reauditedForVersion` và `reauditedAt` vào `DossierChapterState` và `AiPeriodEntry`, bảo toàn xuyên suốt mọi cầu nối/hydration (kể cả mảng `auditFlags: []`), gắn dấu `APP_VERSION` cho chương sinh mới hoàn tất và tự động kiểm chứng lại đúng 1 lần mỗi phiên bản cho chương/kỳ hạn đang mở có nội dung lưu đệm từ bản cũ.
+  - **B3 (`DetailedDossierModal.tsx`, `InsightPanel.tsx`, `P07`)**: Bổ sung nút `"Kiểm tra lại"` trên cả Hồ Sơ 8 Chương lẫn tab Vận Hạn, hiển thị nhãn ngày kiểm chứng lại `(v${APP_VERSION})` trên khối cờ KP-3 và nhánh xác nhận riêng `"Đã kiểm chứng lại (v${APP_VERSION}): 0 cờ cảnh báo"` (chỉ hiển thị trên màn hình, không xuất ra file).
+- **Nhóm C — Đồng bộ phiên bản & kiểm chứng (`P08`)**:
+  - Tạo `src/lib/app-version.ts` (`APP_VERSION = '1.5.7'`), tái xuất từ `src/lib/dossier-chat-ui.ts`, cập nhật `package.json`, `VERSION`, `CHANGELOG.md` đồng bộ `'1.5.7'` và bổ sung khẳng định đồng bộ 3 chiều trong `verify-dossier-chat-ui.ts`.
 
 ---
 

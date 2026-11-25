@@ -1,6 +1,7 @@
 process.env.ZIWEI_DISABLE_AUTO_LISTEN = '1';
 
 import assert from 'assert';
+import express from 'express';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
@@ -8,6 +9,7 @@ import {
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
   buildStrictPeriodAiPrompt,
+  registerApiRoutes,
 } from '../server.ts';
 import {
   loadKnowledgeBase,
@@ -30,6 +32,7 @@ import {
   verifyPalaceGanZhiMentions,
 } from '../server/knowledge-base/verifier.ts';
 import {
+  APP_VERSION,
   DOSSIER_CHAPTER_SPECS,
   buildChartIdentityKey,
   buildDossierChapterCacheKey,
@@ -157,7 +160,7 @@ function buildTestChart() {
   return generateChart(birth);
 }
 
-function runVerification() {
+async function runVerification() {
   console.log('=== KIỂM THỬ HỒI QUY NỀN TRI THỨC AI (verify:kb — K1/K2/K3) ===');
   const chart = buildTestChart();
 
@@ -1814,9 +1817,135 @@ function runVerification() {
       resetKnowledgeBaseCache();
       console.log('  -> ĐẠT [BRIEF 1.5.6 — Nhóm W + Z3]: W1–W6, Z3 & ca 1.5.4/1.5.5 đạt 100%.');
     }
+
+    // 7. BRIEF 1.5.7 · Nhóm B1: Endpoint POST /api/audit-dossier-section (0 token AI) + sửa bẫy P05
+    {
+      console.log('\n[Test 7] Kiểm thử BRIEF 1.5.7 Nhóm B1 (POST /api/audit-dossier-section + P05)...');
+      resetKnowledgeBaseCache();
+      loadKnowledgeBase();
+
+      const chart1977 = generateChart({
+        name: 'Mẫu 1977',
+        year: 1977,
+        month: 7,
+        day: 26,
+        hour: 5,
+        gender: 'male',
+        longitude: 105.85,
+        city: 'Hà Nội',
+      });
+
+      const app = express();
+      registerApiRoutes(app);
+      const server = await new Promise<import('http').Server>((resolve) => {
+        const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
+      });
+
+      try {
+        const addr = server.address();
+        if (!addr || typeof addr === 'string') throw new Error('Invalid test port');
+        const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+        // 1) Ca 1.5.4 ch.2 có A-04 (Không Kiếp tại Quan Lộc) + 0 trích dẫn
+        const dossier154Path = path.resolve(
+          process.cwd(),
+          'public/assets/aistudio/Ho-So-Tu-Vi-Do-Vu-Toan-8-8-sinh-lai-toan-bo-1.5.4_a40c537a.md',
+        );
+        const dossier154 = fs.readFileSync(dossier154Path, 'utf8');
+        const ch2Text = dossier154
+          .split(/(?=^## Chương \d+ )/m)
+          .find((b) => b.startsWith('## Chương 2 '));
+        assert.ok(ch2Text);
+
+        const rCh2 = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chart: chart1977, sectionId: 'palaces_core', text: ch2Text }),
+        });
+        assert.strictEqual(rCh2.status, 200);
+        assert.strictEqual(rCh2.headers.get('cache-control'), 'no-store');
+        const jCh2 = (await rCh2.json()) as {
+          auditFlags: Array<{ code: string; palaceVi?: string }>;
+          reauditedForVersion: string;
+          reauditedAt: number;
+        };
+        assert.strictEqual(jCh2.reauditedForVersion, APP_VERSION);
+        assert.ok(typeof jCh2.reauditedAt === 'number' && jCh2.reauditedAt > 0);
+        assert.ok(
+          jCh2.auditFlags.some(
+            (f) => f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP' && f.palaceVi === 'Quan Lộc',
+          ),
+        );
+        assert.ok(jCh2.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'));
+
+        // 2) Ca ch.3 có 0 thẻ nguồn -> ZERO_CITATIONS_IN_CHAPTER
+        const rCh3 = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chart: chart1977,
+            sectionId: 'palaces_family',
+            text: '### Cung Phu Thê\nLuận giải thuần túy tinh đẩu không gắn thẻ nguồn.',
+          }),
+        });
+        assert.strictEqual(rCh3.status, 200);
+        const jCh3 = (await rCh3.json()) as { auditFlags: Array<{ code: string }> };
+        assert.ok(jCh3.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'));
+
+        // 3) Ca Lưu Niên 2026 qua periodContext với cacheKey đầy đủ (${chartIdentityKey}__liunian__liunian_2026) — xác nhận sửa P05
+        const ctx2026 = buildYunxianPeriodContext(chart1977, { mode: 'liunian', year: 2026 })!;
+        assert.ok(ctx2026.cacheKey.endsWith('__liunian_2026'));
+        const rPeriodZero = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chart: chart1977,
+            periodContext: ctx2026,
+            text: '### 1. Chủ Đề Kỳ Hạn\nLưu Niên 2026 luận thuần túy không gắn thẻ nguồn.',
+          }),
+        });
+        assert.strictEqual(rPeriodZero.status, 200);
+        const jPeriodZero = (await rPeriodZero.json()) as { auditFlags: Array<{ code: string }> };
+        assert.ok(jPeriodZero.auditFlags.some((f) => f.code === 'ZERO_CITATIONS_IN_CHAPTER'));
+
+        // 4) Input sai -> 400 INVALID_INPUT
+        const rBadSec = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chart: chart1977, sectionId: 'invalid_sec', text: 'abc' }),
+        });
+        assert.strictEqual(rBadSec.status, 400);
+
+        const rEmptyText = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chart: chart1977, sectionId: 'chapter_overview', text: '   ' }),
+        });
+        assert.strictEqual(rEmptyText.status, 400);
+
+        const rTooLong = await fetch(`${baseUrl}/api/audit-dossier-section`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chart: chart1977,
+            sectionId: 'chapter_overview',
+            text: 'x'.repeat(60_001),
+          }),
+        });
+        assert.strictEqual(rTooLong.status, 400);
+      } finally {
+        await new Promise<void>((resolve) => server.close(() => resolve()));
+        resetKnowledgeBaseCache();
+      }
+
+      console.log('  -> ĐẠT [BRIEF 1.5.7 — Nhóm B1]: POST /api/audit-dossier-section & kiểm tra P05 đạt 100%.');
+    }
   }
 
   console.log('\n[PASS] TOÀN BỘ KIỂM THỬ verify:kb ĐẠT 100%!');
 }
 
-runVerification();
+runVerification().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

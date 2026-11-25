@@ -734,16 +734,70 @@ async function runTests() {
       ),
     );
     assert.ok(
-      periodPromptZ4.systemInstruction.length <= 3860,
-      `Z4: systemInstruction vượt trần +35 ký tự (${periodPromptZ4.systemInstruction.length} > 3860)`,
+      periodPromptZ4.systemInstruction.length <= 4017,
+      `Z4+A1: systemInstruction vượt trần (${periodPromptZ4.systemInstruction.length} > 4017)`,
     );
 
     console.log(
-      `  -> Đạt [BRIEF 1.5.6 Nhóm Z]: Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt (${periodPromptZ4.systemInstruction.length}/3860 ký tự).`,
+      `  -> Đạt [BRIEF 1.5.6 Nhóm Z]: Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt (${periodPromptZ4.systemInstruction.length}/4017 ký tự).`,
     );
   }
 
-  console.log('\n=== TẤT CẢ 9 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.6 ĐỀU ĐẠT ===');
+  // 10. BRIEF 1.5.7 · Nhóm A1 (ĐK-157-P01 wording bắt buộc trích dẫn + chống gắn gượng + trần <= +200 ký tự)
+  {
+    console.log('\n[10/10] Kiểm thử BRIEF 1.5.7 Nhóm A1 (Quy tắc trích dẫn + trần systemInstruction <= +200 ký tự)...');
+    const sample1977 = generateChart({
+      name: 'Mẫu 1977',
+      year: 1977,
+      month: 7,
+      day: 26,
+      hour: 5,
+      gender: 'male',
+      longitude: 105.85,
+      city: 'Hà Nội',
+    });
+    const chartSummary1977 = formatChartSummaryVi(sample1977);
+    const ctx2026 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 })!;
+
+    const baseline156SysLen: Record<string, number> = {
+      chapter_overview: 2239,
+      palaces_core: 3124,
+      palaces_family: 3282,
+      palaces_social_health: 3121,
+      horizon_5y: 3244,
+      horizon_10y: 3244,
+      period: 3817,
+    };
+
+    for (const sid of VALID_DOSSIER_SECTION_IDS) {
+      const res = buildStrictDossierSectionPrompt(sample1977, sid);
+      assert.ok(res.systemInstruction.includes('BẮT BUỘC toàn chương ≥ 1 thẻ `[Nguồn: <ID>]` hợp lệ'));
+      assert.ok(res.systemInstruction.includes('Nữ mệnh cho Nam'));
+      assert.ok(res.systemInstruction.includes('Hóa Kỵ xung Mệnh'));
+      assert.ok(res.systemInstruction.includes('luận thuần túy từ dữ kiện tinh đẩu'));
+      const maxAllowed = baseline156SysLen[sid] + 200;
+      assert.ok(
+        res.systemInstruction.length <= maxAllowed,
+        `A1 (${sid}): systemInstruction vượt trần +200 (${res.systemInstruction.length} > ${maxAllowed})`,
+      );
+    }
+
+    const periodRes = buildStrictPeriodAiPrompt(ctx2026, chartSummary1977, sample1977);
+    assert.ok(periodRes.systemInstruction.includes('BẮT BUỘC toàn chương ≥ 1 thẻ `[Nguồn: <ID>]` hợp lệ'));
+    assert.ok(periodRes.systemInstruction.includes('Nữ mệnh cho Nam'));
+    assert.ok(periodRes.systemInstruction.includes('Hóa Kỵ xung Mệnh'));
+    assert.ok(periodRes.systemInstruction.includes('luận thuần túy từ dữ kiện tinh đẩu'));
+    assert.ok(
+      periodRes.systemInstruction.length <= baseline156SysLen.period + 200,
+      `A1 (period): systemInstruction vượt trần +200 (${periodRes.systemInstruction.length} > ${baseline156SysLen.period + 200})`,
+    );
+
+    console.log(
+      `  -> Đạt [BRIEF 1.5.7 Nhóm A1]: Đủ quy tắc & chống gắn gượng, tất cả 7 systemInstruction nằm trong trần +200 (period=${periodRes.systemInstruction.length}/${baseline156SysLen.period + 200}).`,
+    );
+  }
+
+  console.log('\n=== TẤT CẢ 10 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.7 ĐỀU ĐẠT ===');
 }
 
 runTests().catch((err) => {
