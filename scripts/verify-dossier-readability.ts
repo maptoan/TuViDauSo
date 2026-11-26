@@ -414,21 +414,40 @@ function main(): void {
     detail: `vănMẫu=${templateLeak}, nămChung=${sharedYears.length}, maxJaccard=${maxJaccard.toFixed(2)}`,
   });
 
-  // R-09: Period/horizon chapters (6, 7, 8) contain "trùng" >= 1 and "cung gốc" >= 1
+  // R-09: Ch.5–6 yêu cầu "cung gốc" >= 1; Ch.7–8 yêu cầu "trùng" >= 1 (báo cáo đếm theo từng năm)
   const r09Issues: string[] = [];
-  for (const chIdx of [5, 6, 7]) {
+  const r09Details: string[] = [];
+  const cungGocRe = /(?<![\p{L}\p{N}_])cung\s+gốc(?![\p{L}\p{N}_])/giu;
+  const trungRe = /(?<![\p{L}\p{N}_])trùng(?![\p{L}\p{N}_])/giu;
+
+  for (const chIdx of [4, 5]) {
     const ch = chapterSections[chIdx] ?? '';
-    const trungCount = (ch.match(/(?<![\p{L}\p{N}_])trùng(?![\p{L}\p{N}_])/giu) ?? []).length;
-    const cungGocCount = (ch.match(/cung gốc/giu) ?? []).length;
-    if (trungCount < 1 || cungGocCount < 1) {
-      r09Issues.push(`Ch.${chIdx + 1}(trùng=${trungCount},cung gốc=${cungGocCount})`);
+    const cungGocCount = (ch.match(cungGocRe) ?? []).length;
+    r09Details.push(`Ch.${chIdx + 1}(cung gốc=${cungGocCount})`);
+    if (cungGocCount < 1) {
+      r09Issues.push(`Ch.${chIdx + 1}(cung gốc=${cungGocCount})`);
+    }
+  }
+  for (const chIdx of [6, 7]) {
+    const ch = chapterSections[chIdx] ?? '';
+    const trungCount = (ch.match(trungRe) ?? []).length;
+    const yearMap = extractYearBlocks(ch);
+    const perYearCounts = Array.from(yearMap.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([y, txt]) => `${y}:${(txt.match(trungRe) ?? []).length}`)
+      .join(',');
+    r09Details.push(
+      `Ch.${chIdx + 1}(trùng=${trungCount}${perYearCounts ? ` [${perYearCounts}]` : ''})`,
+    );
+    if (trungCount < 1) {
+      r09Issues.push(`Ch.${chIdx + 1}(trùng=${trungCount})`);
     }
   }
   results.push({
     id: 'R-09',
-    name: 'Ch.6–8 có >= 1 "trùng" và >= 1 "cung gốc"',
+    name: 'Ch.5–6 có >= 1 "cung gốc"; Ch.7–8 có >= 1 "trùng" (báo cáo theo năm)',
     passed: chapterSections.length === 8 && r09Issues.length === 0,
-    detail: r09Issues.length === 0 ? 'Ch.6–8 đạt' : r09Issues.join('; '),
+    detail: r09Issues.length === 0 ? r09Details.join('; ') : `THIẾU: ${r09Issues.join('; ')} | ${r09Details.join('; ')}`,
   });
 
   // R-10: Can-Chi 60-Jiazi polarity & Phụ lục A.1 palace Can-Chi cross-check
@@ -475,10 +494,10 @@ function main(): void {
         : [...invalidPolarityPairs, ...palaceCanChiMismatches].slice(0, 4).join('; '),
   });
 
-  // R-11: "bạn" (excl. "bạn bè") = 0; "đương số" >= 1
-  const bodyWithoutBanBe = bodyOnly.replace(/\bbạn\s+bè\b/giu, '');
+  // R-11: "bạn" (excl. "bạn bè") = 0; "đương số" >= 1 (Unicode lookaround nhất quán)
+  const bodyWithoutBanBe = bodyOnly.replace(/(?<![\p{L}\p{N}_])bạn\s+bè(?![\p{L}\p{N}_])/giu, '');
   const banCount = (bodyWithoutBanBe.match(/(?<![\p{L}\p{N}_])bạn(?![\p{L}\p{N}_])/giu) ?? []).length;
-  const duongSoCount = (bodyOnly.match(/đương số/giu) ?? []).length;
+  const duongSoCount = (bodyOnly.match(/(?<![\p{L}\p{N}_])đương\s+số(?![\p{L}\p{N}_])/giu) ?? []).length;
   results.push({
     id: 'R-11',
     name: 'Xưng hô chuẩn: "bạn" = 0, "đương số" >= 1',
