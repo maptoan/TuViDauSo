@@ -217,12 +217,18 @@ export interface CitationViolation {
 }
 
 import type {
+  DeterministicRepairRecord,
   Kp3AuditFlag,
   Kp3AuditFlagCode,
   Kp3AuditFlagSeverity,
 } from '../../src/lib/dossier-chat-ui.ts';
 
-export type { Kp3AuditFlag, Kp3AuditFlagCode, Kp3AuditFlagSeverity };
+export type {
+  DeterministicRepairRecord,
+  Kp3AuditFlag,
+  Kp3AuditFlagCode,
+  Kp3AuditFlagSeverity,
+};
 
 export interface PalaceGanZhiMismatch {
   type: 'PALACE_GANZHI_MISMATCH';

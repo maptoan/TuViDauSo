@@ -25,8 +25,10 @@ import {
 import type {
   CitationAuditResult,
   CitationViolation,
+  DeterministicRepairRecord,
   DistilledKnowledgeEntry,
   Kp3AuditFlag,
+  Kp3AuditFlagCode,
   PalaceGanZhiMismatch,
 } from './types.ts';
 
@@ -1419,3 +1421,637 @@ export function shouldRetryForZeroCitations(params: {
   }
   return params.validCitationIds.length === 0;
 }
+
+export const RETRY_MIN_LENGTH_RATIO = 0.8;
+
+/**
+ * 1.5.9 (A): Quyết định sinh lại khi chương 2–6 hoàn tất (không bị ngắt) nhưng vẫn còn
+ * ít nhất 1 cờ `severity: 'critical'` (cơ chế chung theo severity, không hardcode riêng tên cờ).
+ */
+export function shouldRetryForCriticalFlags(params: {
+  auditFlags: readonly Kp3AuditFlag[];
+  chapterMode: 'overview' | 'palace_group' | 'period' | 'horizon' | 'chat';
+  wasInterrupted: boolean;
+  alreadyRetried: boolean;
+}): boolean {
+  if (params.wasInterrupted || params.alreadyRetried) return false;
+  if (params.chapterMode !== 'palace_group' && params.chapterMode !== 'period') {
+    return false;
+  }
+  return params.auditFlags.some((flag) => flag.severity === 'critical');
+}
+
+export function countAuditWords(text: string): number {
+  const trimmed = (text || '').trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/u).length;
+}
+
+export interface AuditComparisonDecision {
+  winner: 'first' | 'retry';
+  reason:
+    | 'new_critical_flag_code'
+    | 'fewer_critical_flags'
+    | 'more_critical_flags'
+    | 'retry_too_short'
+    | 'more_valid_citations'
+    | 'tied';
+  firstCriticalCount: number;
+  retryCriticalCount: number;
+  firstWordCount: number;
+  retryWordCount: number;
+  newCriticalCodes: Kp3AuditFlagCode[];
+}
+
+/**
+ * 1.5.9 (§3.3): Hàm thuần túy chọn bản tốt hơn giữa lần 1 và lần sinh lại theo thứ tự ưu tiên tuyệt đối:
+ * (0) Cấm sinh thêm mã cờ critical mới chưa có ở lần 1
+ * (1) Giảm số lượng cờ critical
+ * (1b) Nếu số cờ critical hòa và bản retry hụt > 20% số từ (tỷ lệ < RETRY_MIN_LENGTH_RATIO) -> giữ bản 1
+ * (2) Tăng số thẻ [Nguồn: ...] hợp lệ
+ * (3) Hòa toàn bộ -> giữ bản 1
+ */
+export function chooseBetterAudit(
+  firstAudit: Pick<CitationAuditResult, 'auditFlags' | 'validCitationIds'>,
+  retryAudit: Pick<CitationAuditResult, 'auditFlags' | 'validCitationIds'>,
+  firstText?: string,
+  retryText?: string,
+): AuditComparisonDecision {
+  const firstCriticalFlags = firstAudit.auditFlags.filter(
+    (f) => f.severity === 'critical',
+  );
+  const retryCriticalFlags = retryAudit.auditFlags.filter(
+    (f) => f.severity === 'critical',
+  );
+  const firstCriticalCodes = new Set<Kp3AuditFlagCode>(
+    firstCriticalFlags.map((f) => f.code),
+  );
+  const newCriticalCodes = Array.from(
+    new Set<Kp3AuditFlagCode>(
+      retryCriticalFlags
+        .map((f) => f.code)
+        .filter((code) => !firstCriticalCodes.has(code)),
+    ),
+  );
+
+  const firstWordCount = typeof firstText === 'string' ? countAuditWords(firstText) : 0;
+  const retryWordCount = typeof retryText === 'string' ? countAuditWords(retryText) : 0;
+
+  if (newCriticalCodes.length > 0) {
+    return {
+      winner: 'first',
+      reason: 'new_critical_flag_code',
+      firstCriticalCount: firstCriticalFlags.length,
+      retryCriticalCount: retryCriticalFlags.length,
+      firstWordCount,
+      retryWordCount,
+      newCriticalCodes,
+    };
+  }
+
+  if (retryCriticalFlags.length < firstCriticalFlags.length) {
+    return {
+      winner: 'retry',
+      reason: 'fewer_critical_flags',
+      firstCriticalCount: firstCriticalFlags.length,
+      retryCriticalCount: retryCriticalFlags.length,
+      firstWordCount,
+      retryWordCount,
+      newCriticalCodes,
+    };
+  }
+
+  if (retryCriticalFlags.length > firstCriticalFlags.length) {
+    return {
+      winner: 'first',
+      reason: 'more_critical_flags',
+      firstCriticalCount: firstCriticalFlags.length,
+      retryCriticalCount: retryCriticalFlags.length,
+      firstWordCount,
+      retryWordCount,
+      newCriticalCodes,
+    };
+  }
+
+  if (
+    typeof firstText === 'string' &&
+    typeof retryText === 'string' &&
+    firstWordCount > 0 &&
+    retryWordCount < firstWordCount * RETRY_MIN_LENGTH_RATIO
+  ) {
+    return {
+      winner: 'first',
+      reason: 'retry_too_short',
+      firstCriticalCount: firstCriticalFlags.length,
+      retryCriticalCount: retryCriticalFlags.length,
+      firstWordCount,
+      retryWordCount,
+      newCriticalCodes,
+    };
+  }
+
+  if (retryAudit.validCitationIds.length > firstAudit.validCitationIds.length) {
+    return {
+      winner: 'retry',
+      reason: 'more_valid_citations',
+      firstCriticalCount: firstCriticalFlags.length,
+      retryCriticalCount: retryCriticalFlags.length,
+      firstWordCount,
+      retryWordCount,
+      newCriticalCodes,
+    };
+  }
+
+  return {
+    winner: 'first',
+    reason: 'tied',
+    firstCriticalCount: firstCriticalFlags.length,
+    retryCriticalCount: retryCriticalFlags.length,
+    firstWordCount,
+    retryWordCount,
+    newCriticalCodes,
+  };
+}
+
+export interface SanFangStarsSummary {
+  palaceVi: string;
+  ganZhiVi: string;
+  allStarsVi: string[];
+  khongKiepFamilyPresentVi: string[];
+  hasDiaKhong: boolean;
+  hasDiaKiep: boolean;
+  missingPairStarsVi: string[];
+}
+
+const KHONG_KIEP_FAMILY_STARS = ['Địa Không', 'Địa Kiếp', 'Thiên Không'] as const;
+
+/**
+ * 1.5.9 (§3.2): Liệt kê tên sao hiện diện trong 4 chi của cung (bản cung + tam hợp + đối cung)
+ * từ `chart.palaces` qua `translateStarName`, và đối chiếu với cặp Địa Không + Địa Kiếp.
+ */
+export function listSanFangStarsVi(
+  chart: ZiweiChart,
+  palaceVi: string,
+): SanFangStarsSummary | null {
+  if (!chart?.palaces?.length || !palaceVi) return null;
+  const canonicalPalace =
+    NATAL_PALACE_CANONICAL_BY_LOWER.get(palaceVi.trim().toLowerCase()) ?? palaceVi.trim();
+  const targetPalace = chart.palaces.find(
+    (p) => translatePalaceName(p.name) === canonicalPalace,
+  );
+  if (!targetPalace) return null;
+
+  const branches = new Set<number>([
+    targetPalace.branch,
+    (targetPalace.branch + 4) % 12,
+    (targetPalace.branch + 8) % 12,
+    (targetPalace.branch + 6) % 12,
+  ]);
+
+  const allStarsSet = new Set<string>();
+  for (const p of chart.palaces) {
+    if (!branches.has(p.branch)) continue;
+    for (const s of p.stars) {
+      const starVi = translateStarName(s.name);
+      if (starVi) allStarsSet.add(starVi);
+    }
+  }
+
+  const allStarsVi = Array.from(allStarsSet);
+  const hasDiaKhong = allStarsSet.has('Địa Không');
+  const hasDiaKiep = allStarsSet.has('Địa Kiếp');
+  const missingPairStarsVi = (['Địa Không', 'Địa Kiếp'] as const).filter(
+    (star) => !allStarsSet.has(star),
+  );
+  const khongKiepFamilyPresentVi = KHONG_KIEP_FAMILY_STARS.filter((star) =>
+    allStarsSet.has(star),
+  );
+  const stemVi = VI_STEMS[targetPalace.stem] ?? '';
+  const branchVi = VI_BRANCHES[targetPalace.branch] ?? '';
+  const ganZhiVi = stemVi && branchVi ? `${stemVi} ${branchVi}` : '';
+
+  return {
+    palaceVi: canonicalPalace,
+    ganZhiVi,
+    allStarsVi,
+    khongKiepFamilyPresentVi,
+    hasDiaKhong,
+    hasDiaKiep,
+    missingPairStarsVi,
+  };
+}
+
+export interface UnrepairableCriticalCase {
+  palaceVi: string;
+  sentence: string;
+  reason: string;
+}
+
+export interface DeterministicRepairResult {
+  repairedText: string;
+  repairs: DeterministicRepairRecord[];
+  unrepairableCases: UnrepairableCriticalCase[];
+}
+
+interface CriticalFlagHandler {
+  buildRetryInstruction: (
+    flags: readonly Kp3AuditFlag[],
+    chart: ZiweiChart,
+  ) => string;
+  applyDeterministicRepair?: (
+    text: string,
+    flags: readonly Kp3AuditFlag[],
+    chart: ZiweiChart,
+    options?: VerifyCitationAuditOptions & {
+      validCitationIdsSetUpper?: ReadonlySet<string>;
+    },
+  ) => DeterministicRepairResult;
+}
+
+const KHONG_KIEP_PAIR_VERB_RE =
+  /(?<!\p{L})(?:hội\s+hợp|đồng\s+hành|đồng\s+cung|kết\s+hợp|cặp\s+với|hợp\s+với|hội)(?!\p{L})/iu;
+
+const SAFE_KHONG_KIEP_NOUN_RE =
+  /^(?:(?:bộ\s+đôi|cặp\s+đôi|bộ|cặp)\s+)?(?:không(?:\s*[-/–—]\s*|\s+)kiếp(?:\s*\/\s*không)?|kiếp(?:\s*[-/–—]\s*|\s+)không(?:\s*\/\s*kiếp)?)$/iu;
+
+function buildKhongKiepRetryInstructions(
+  flags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+): string {
+  const seenPalaces = new Set<string>();
+  const directives: string[] = [];
+
+  for (const flag of flags) {
+    if (flag.code !== 'ILLEGAL_STAR_PAIR_KHONG_KIEP' || flag.severity !== 'critical') {
+      continue;
+    }
+    const rawPalace = flag.palaceVi?.trim();
+    if (!rawPalace || seenPalaces.has(rawPalace)) continue;
+    seenPalaces.add(rawPalace);
+
+    const sanFang = listSanFangStarsVi(chart, rawPalace);
+    if (!sanFang) {
+      directives.push(
+        `Lần sinh trước gọi 'Không Kiếp' ở cung ${rawPalace} nhưng Bản cung và Tam Phương Tứ Chính không đủ cả Địa Không lẫn Địa Kiếp. Lần này tuyệt đối không gọi 'Không Kiếp' ở cung ${rawPalace}; chỉ gọi đúng tên sao thực sự có mặt trong lá số.`,
+      );
+      continue;
+    }
+
+    const palaceWithGanZhi = sanFang.ganZhiVi
+      ? `${sanFang.palaceVi} (${sanFang.ganZhiVi})`
+      : sanFang.palaceVi;
+    const missingLabel =
+      sanFang.missingPairStarsVi.length > 0
+        ? sanFang.missingPairStarsVi.join(' và ')
+        : 'đủ cặp Địa Không + Địa Kiếp';
+
+    if (sanFang.khongKiepFamilyPresentVi.length > 0) {
+      const presentLabel = sanFang.khongKiepFamilyPresentVi.join(', ');
+      directives.push(
+        `Lần sinh trước gọi 'Không Kiếp' ở cung ${palaceWithGanZhi}, nhưng cung này và Tam Phương Tứ Chính chỉ có ${presentLabel} — không có ${missingLabel}. Lần này tuyệt đối không gọi 'Không Kiếp' ở cung ${sanFang.palaceVi}; chỉ gọi đúng tên sao có mặt: '${presentLabel}'.`,
+      );
+    } else {
+      directives.push(
+        `Lần sinh trước gọi 'Không Kiếp' ở cung ${palaceWithGanZhi}, nhưng cung này và Tam Phương Tứ Chính không có Địa Không và không có Địa Kiếp. Lần này tuyệt đối không gọi 'Không Kiếp' ở cung ${sanFang.palaceVi}.`,
+      );
+    }
+  }
+
+  return directives.join('\n');
+}
+
+function resolveCanonicalHeadingPalaceFromLine(
+  line: string,
+  chart: ZiweiChart,
+): string | null {
+  if (!CANONICAL_PALACE_HEADING_RE.test(line)) return null;
+  const normalizedHeading = enforceCanonicalPalaceGroupHeadings(line, chart);
+  const m = normalizedHeading.match(CANONICAL_PALACE_HEADING_RE);
+  if (!m) return null;
+  const rawPal = m[1].replace(/\s+/g, ' ').trim().toLowerCase();
+  return NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPal) ?? null;
+}
+
+function repairIllegalKhongKiepInText(
+  text: string,
+  flags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+  options?: VerifyCitationAuditOptions & {
+    validCitationIdsSetUpper?: ReadonlySet<string>;
+  },
+): DeterministicRepairResult {
+  const emptyResult: DeterministicRepairResult = {
+    repairedText: text,
+    repairs: [],
+    unrepairableCases: [],
+  };
+  if (!text || !chart?.palaces?.length) return emptyResult;
+
+  const targetPalaces = new Set<string>(
+    flags
+      .filter(
+        (f) =>
+          f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP' &&
+          f.severity === 'critical' &&
+          Boolean(f.palaceVi),
+      )
+      .map((f) => f.palaceVi!.trim()),
+  );
+  if (targetPalaces.size === 0) return emptyResult;
+
+  const sanFangMap = buildKhongKiepSanFangMap(chart);
+  const { roleMap, activatedNatalPalace } = resolvePeriodRoleToNatalMap(
+    chart,
+    options?.periodContext,
+    options?.sectionId,
+  );
+  const validIdsUpper = options?.validCitationIdsSetUpper ?? new Set<string>();
+
+  const repairs: DeterministicRepairRecord[] = [];
+  const unrepairableCases: UnrepairableCriticalCase[] = [];
+
+  const lines = text.normalize('NFC').split('\n');
+  let inMetaBlock = false;
+  let currentHeadingPalace: string | null = null;
+  let lastSectionPalace: string | null = null;
+
+  const updatedLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inMetaBlock) inMetaBlock = false;
+      return line;
+    }
+
+    if (
+      trimmed.startsWith('> 📚') ||
+      trimmed.startsWith('> ⚠️') ||
+      trimmed.startsWith('> 📌')
+    ) {
+      inMetaBlock = true;
+      return line;
+    }
+    if (inMetaBlock) {
+      if (trimmed.startsWith('>')) return line;
+      inMetaBlock = false;
+    }
+    if (isGeneratedMetaOrNoticeBlock(trimmed)) {
+      return line;
+    }
+
+    if (/^#{1,6}\s+/.test(trimmed)) {
+      const headingPalace = resolveCanonicalHeadingPalaceFromLine(trimmed, chart);
+      if (headingPalace) {
+        currentHeadingPalace = headingPalace;
+        lastSectionPalace = headingPalace;
+      } else if (/^#{1,3}\s+/.test(trimmed)) {
+        lastSectionPalace = currentHeadingPalace;
+      }
+      return line;
+    }
+
+    // Bảo toàn khoảng trắng đầu dòng và dấu tách câu trong khi quét từng câu trên dòng
+    const tokens = line.split(/(?<=(?<!\d)[.!?])(\s+)/u);
+    let lineChanged = false;
+
+    for (let i = 0; i < tokens.length; i += 2) {
+      const sentence = tokens[i];
+      if (!sentence || !sentence.trim()) continue;
+
+      const sentenceWithoutTagsSameLen = sentence.replace(
+        CITATION_TAG_M3_REGEX,
+        (match) => ' '.repeat(match.length),
+      );
+      const sentenceWithoutTags = sentence.replace(CITATION_TAG_M3_REGEX, ' ');
+
+      let sentenceHasValidCitation = false;
+      if (validIdsUpper.size > 0) {
+        CITATION_TAG_M3_REGEX.lastIndex = 0;
+        let tm: RegExpExecArray | null;
+        while ((tm = CITATION_TAG_M3_REGEX.exec(sentence)) !== null) {
+          const parsed = parseCitationTagInner(tm[1] ?? '');
+          if (
+            !parsed.isEmptyTag &&
+            parsed.candidates.some(
+              (c) => c.isValidFormat && validIdsUpper.has(c.idUpper),
+            )
+          ) {
+            sentenceHasValidCitation = true;
+            break;
+          }
+        }
+      }
+
+      const mentionedInSentence = resolveSentenceTargetPalace(
+        sentenceWithoutTags,
+        sentenceWithoutTags.length,
+        roleMap,
+      );
+      if (!currentHeadingPalace && mentionedInSentence) {
+        lastSectionPalace = mentionedInSentence;
+      }
+
+      if (KHONG_KIEP_NEGATION_RE.test(sentenceWithoutTags)) {
+        continue;
+      }
+
+      KHONG_KIEP_PAIR_RE.lastIndex = 0;
+      const replacements: Array<{
+        start: number;
+        end: number;
+        replacement: string;
+        palaceVi: string;
+      }> = [];
+
+      let km: RegExpExecArray | null;
+      while ((km = KHONG_KIEP_PAIR_RE.exec(sentenceWithoutTagsSameLen)) !== null) {
+        const kmStart = km.index;
+        const kmEnd = km.index + km[0].length;
+
+        if (
+          sentenceHasValidCitation &&
+          isMatchInsideQuotes(sentenceWithoutTagsSameLen, kmStart, kmEnd)
+        ) {
+          continue;
+        }
+
+        const resolvedPalace =
+          resolveSentenceTargetPalace(
+            sentenceWithoutTagsSameLen,
+            kmStart,
+            roleMap,
+          ) ??
+          currentHeadingPalace ??
+          lastSectionPalace ??
+          activatedNatalPalace;
+
+        if (!resolvedPalace) continue;
+        if (sanFangMap.get(resolvedPalace)) continue;
+        if (!targetPalaces.has(resolvedPalace)) continue;
+
+        if (KHONG_KIEP_PAIR_VERB_RE.test(sentenceWithoutTags)) {
+          unrepairableCases.push({
+            palaceVi: resolvedPalace,
+            sentence: sentence.trim(),
+            reason: 'pair_relationship_verb',
+          });
+          continue;
+        }
+
+        const sanFangSummary = listSanFangStarsVi(chart, resolvedPalace);
+        if (
+          !sanFangSummary ||
+          sanFangSummary.khongKiepFamilyPresentVi.length === 0
+        ) {
+          unrepairableCases.push({
+            palaceVi: resolvedPalace,
+            sentence: sentence.trim(),
+            reason: 'no_replacement_star_present',
+          });
+          continue;
+        }
+
+        // Mở rộng sang trái nếu có "cặp đôi " đứng ngay trước cụm khớp mà KHONG_KIEP_PAIR_RE chưa nuốt
+        let spanStart = kmStart;
+        const prefixSlice = sentenceWithoutTagsSameLen.slice(0, kmStart);
+        const capDoiMatch = prefixSlice.match(/(?<!\p{L})cặp\s+đôi\s+$/iu);
+        if (capDoiMatch && typeof capDoiMatch.index === 'number') {
+          spanStart = capDoiMatch.index;
+        }
+        const candidatePhrase = sentenceWithoutTagsSameLen
+          .slice(spanStart, kmEnd)
+          .trim();
+
+        if (!SAFE_KHONG_KIEP_NOUN_RE.test(candidatePhrase)) {
+          unrepairableCases.push({
+            palaceVi: resolvedPalace,
+            sentence: sentence.trim(),
+            reason: 'unsafe_phrase_form',
+          });
+          continue;
+        }
+
+        replacements.push({
+          start: spanStart,
+          end: kmEnd,
+          replacement: sanFangSummary.khongKiepFamilyPresentVi.join(', '),
+          palaceVi: resolvedPalace,
+        });
+      }
+
+      if (replacements.length > 0) {
+        replacements.sort((a, b) => a.start - b.start);
+        let repairedSentence = '';
+        let cursor = 0;
+        let lastPalace = replacements[0].palaceVi;
+        for (const rep of replacements) {
+          if (rep.start < cursor) continue;
+          repairedSentence += sentence.slice(cursor, rep.start) + rep.replacement;
+          cursor = rep.end;
+          lastPalace = rep.palaceVi;
+        }
+        repairedSentence += sentence.slice(cursor);
+
+        if (repairedSentence !== sentence) {
+          repairs.push({
+            code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+            palaceVi: lastPalace,
+            beforeSentence: sentence.trim(),
+            afterSentence: repairedSentence.trim(),
+          });
+          tokens[i] = repairedSentence;
+          lineChanged = true;
+        }
+      }
+    }
+
+    return lineChanged ? tokens.join('') : line;
+  });
+
+  return {
+    repairedText: updatedLines.join('\n'),
+    repairs,
+    unrepairableCases,
+  };
+}
+
+/**
+ * 1.5.9 (§3.6): Registry mở rộng theo mã cờ critical.
+ * Bản 1.5.9 chỉ cài handler cho ILLEGAL_STAR_PAIR_KHONG_KIEP; các mã khác giữ mở cho các bản sau.
+ */
+const CRITICAL_FLAG_HANDLERS: Partial<
+  Record<Kp3AuditFlagCode, CriticalFlagHandler>
+> = {
+  ILLEGAL_STAR_PAIR_KHONG_KIEP: {
+    buildRetryInstruction: buildKhongKiepRetryInstructions,
+    applyDeterministicRepair: repairIllegalKhongKiepInText,
+  },
+};
+
+/**
+ * 1.5.9 (§3.2): Tạo chỉ thị sinh lại riêng theo các cờ critical thực sự phát sinh từ verifier & lá số.
+ */
+export function buildCriticalFlagRetryAddendum(
+  auditFlags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+): string {
+  const criticalByCode = new Map<Kp3AuditFlagCode, Kp3AuditFlag[]>();
+  for (const flag of auditFlags) {
+    if (flag.severity !== 'critical') continue;
+    const list = criticalByCode.get(flag.code) ?? [];
+    list.push(flag);
+    criticalByCode.set(flag.code, list);
+  }
+
+  const sections: string[] = [];
+  for (const [code, flags] of criticalByCode.entries()) {
+    const handler = CRITICAL_FLAG_HANDLERS[code];
+    if (!handler) continue;
+    const instruction = handler.buildRetryInstruction(flags, chart).trim();
+    if (instruction) {
+      sections.push(instruction);
+    }
+  }
+
+  if (sections.length === 0) return '';
+  return `\n\n[CHỈ THỊ SỬA LỖI NGHIÊM TRỌNG BẮT BUỘC — LẦN SINH LẠI]:\n${sections.join('\n')}`;
+}
+
+/**
+ * 1.5.9 (§3.4): Sửa xác định sau vòng sinh lại cho các cờ critical có handler sửa xác định.
+ */
+export function applyDeterministicCriticalFlagRepairs(
+  text: string,
+  auditFlags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+  options?: VerifyCitationAuditOptions & {
+    validCitationIdsSetUpper?: ReadonlySet<string>;
+  },
+): DeterministicRepairResult {
+  const criticalByCode = new Map<Kp3AuditFlagCode, Kp3AuditFlag[]>();
+  for (const flag of auditFlags) {
+    if (flag.severity !== 'critical') continue;
+    const list = criticalByCode.get(flag.code) ?? [];
+    list.push(flag);
+    criticalByCode.set(flag.code, list);
+  }
+
+  let workingText = text;
+  const allRepairs: DeterministicRepairRecord[] = [];
+  const allUnrepairable: UnrepairableCriticalCase[] = [];
+
+  for (const [code, flags] of criticalByCode.entries()) {
+    const handler = CRITICAL_FLAG_HANDLERS[code];
+    if (!handler?.applyDeterministicRepair) continue;
+    const res = handler.applyDeterministicRepair(workingText, flags, chart, options);
+    workingText = res.repairedText;
+    allRepairs.push(...res.repairs);
+    allUnrepairable.push(...res.unrepairableCases);
+  }
+
+  return {
+    repairedText: workingText,
+    repairs: allRepairs,
+    unrepairableCases: allUnrepairable,
+  };
+}
+

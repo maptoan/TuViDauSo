@@ -2680,6 +2680,9 @@ export function buildPeriodCachePatchesFromLibrary(
         text: sec.text,
         meta: sec.meta,
         ...(Array.isArray(sec.auditFlags) ? { auditFlags: sec.auditFlags } : {}),
+        ...(Array.isArray(sec.deterministicRepairs) && sec.deterministicRepairs.length > 0
+          ? { deterministicRepairs: sec.deterministicRepairs }
+          : {}),
         ...(sec.reauditedForVersion
           ? { reauditedForVersion: sec.reauditedForVersion }
           : {}),
@@ -2695,6 +2698,9 @@ export function buildPeriodCachePatchesFromLibrary(
         meta: sec.meta,
         error: sec.error,
         ...(Array.isArray(sec.auditFlags) ? { auditFlags: sec.auditFlags } : {}),
+        ...(Array.isArray(sec.deterministicRepairs) && sec.deterministicRepairs.length > 0
+          ? { deterministicRepairs: sec.deterministicRepairs }
+          : {}),
         ...(sec.reauditedForVersion
           ? { reauditedForVersion: sec.reauditedForVersion }
           : {}),

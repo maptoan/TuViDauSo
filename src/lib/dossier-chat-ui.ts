@@ -80,6 +80,13 @@ export interface Kp3AuditFlag {
   messageVi: string;
 }
 
+export interface DeterministicRepairRecord {
+  code: Kp3AuditFlagCode;
+  palaceVi: string;
+  beforeSentence: string;
+  afterSentence: string;
+}
+
 export interface AiPeriodEntry {
   text?: string;
   incompleteText?: string;
@@ -87,6 +94,7 @@ export interface AiPeriodEntry {
   interruptedReason?: string;
   meta?: AiExecutionMeta;
   auditFlags?: Kp3AuditFlag[];
+  deterministicRepairs?: DeterministicRepairRecord[];
   reauditedForVersion?: string;
   reauditedAt?: number;
   error?: string;
@@ -1135,6 +1143,7 @@ export interface DossierChapterState {
   restoredNoticeVi?: string;
   meta?: AiExecutionMeta;
   auditFlags?: Kp3AuditFlag[];
+  deterministicRepairs?: DeterministicRepairRecord[];
   reauditedForVersion?: string;
   reauditedAt?: number;
   sourceBadge?: DossierSourceBadge;
@@ -1664,6 +1673,8 @@ export function resolveDossierChapterFromCaches(
           periodEntry.auditFlags !== undefined
             ? periodEntry.auditFlags
             : matchingLocal?.auditFlags,
+        deterministicRepairs:
+          periodEntry.deterministicRepairs ?? matchingLocal?.deterministicRepairs,
         reauditedForVersion:
           periodEntry.reauditedForVersion ?? matchingLocal?.reauditedForVersion,
         reauditedAt: periodEntry.reauditedAt ?? matchingLocal?.reauditedAt,
@@ -3229,6 +3240,61 @@ export const DOSSIER_EDITORIAL_PRINT_CSS = `
   }
 `;
 
+export interface CriticalExportChapterInfo {
+  chapterId: DossierChapterId;
+  order: number;
+  shortLabelVi: string;
+  titleVi: string;
+  criticalFlags: Kp3AuditFlag[];
+}
+
+export interface DossierExportOptions {
+  includeManualFlagWarningsForChapters?:
+    | ReadonlySet<DossierChapterId>
+    | readonly DossierChapterId[];
+}
+
+export function collectCriticalChaptersForExport(
+  states: Record<DossierChapterId, DossierChapterState>,
+): CriticalExportChapterInfo[] {
+  const result: CriticalExportChapterInfo[] = [];
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    const st = states[spec.id];
+    const criticalFlags = (st?.auditFlags ?? []).filter(
+      (flag) => flag.severity === 'critical',
+    );
+    if (criticalFlags.length > 0) {
+      result.push({
+        chapterId: spec.id,
+        order: spec.order,
+        shortLabelVi: spec.shortLabelVi,
+        titleVi: spec.titleVi,
+        criticalFlags,
+      });
+    }
+  }
+  return result;
+}
+
+export function formatChapterCriticalFlagsWarningMarkdown(
+  criticalFlags: readonly Kp3AuditFlag[],
+): string {
+  if (!criticalFlags || criticalFlags.length === 0) return '';
+  const lines = [
+    '> ⚠️ **[Cảnh Báo Xuất Thủ Công — Chương Còn Cờ Lỗi Nghiêm Trọng Chưa Xử Lý]**',
+    '> Người dùng đã xác nhận xuất thủ công chương này dù vẫn còn các cờ đối chiếu mức nghiêm trọng:',
+  ];
+  for (const flag of criticalFlags) {
+    const locParts = [
+      flag.code,
+      flag.palaceVi ? `Cung ${flag.palaceVi}` : '',
+      flag.ageRange ? `Đại Hạn ${flag.ageRange}` : '',
+    ].filter(Boolean);
+    lines.push(`> - \`[${locParts.join(' · ')}]\` ${flag.messageVi}`);
+  }
+  return lines.join('\n');
+}
+
 interface PreparedChapterExportItem {
   spec: DossierChapterSpec;
   isDone: boolean;
@@ -3240,9 +3306,13 @@ interface PreparedChapterExportItem {
 function prepareAllChaptersForExport(
   chart: ZiweiChart,
   states: Record<DossierChapterId, DossierChapterState>,
+  options?: DossierExportOptions,
 ): { items: PreparedChapterExportItem[]; allRefs: ExtractedReferenceItem[] } {
   const items: PreparedChapterExportItem[] = [];
   const allRefs: ExtractedReferenceItem[] = [];
+  const manualWarningSet = options?.includeManualFlagWarningsForChapters
+    ? new Set<DossierChapterId>(options.includeManualFlagWarningsForChapters)
+    : null;
 
   for (const spec of DOSSIER_CHAPTER_SPECS) {
     const st = states[spec.id];
@@ -3279,6 +3349,20 @@ function prepareAllChaptersForExport(
       ].join('\n');
     }
 
+    if (manualWarningSet?.has(spec.id)) {
+      const criticalFlags = (st?.auditFlags ?? []).filter(
+        (flag) => flag.severity === 'critical',
+      );
+      if (criticalFlags.length > 0) {
+        const warningBlock = formatChapterCriticalFlagsWarningMarkdown(criticalFlags);
+        if (warningBlock) {
+          bodyMarkdown = bodyMarkdown
+            ? `${bodyMarkdown.trimEnd()}\n\n${warningBlock}`
+            : warningBlock;
+        }
+      }
+    }
+
     // X5 (ĐK-158-P10): Đếm trên toàn bộ span chương (tính cả tiêu đề & `---` cuối span, trừ dòng `Đọc trong N phút`)
     const spanForCount = `## ${spec.titleVi}\n\n${bodyMarkdown}\n\n---`;
     const readingMinutes = computeReadingMinutes(countWordsUtf8(spanForCount));
@@ -3303,11 +3387,12 @@ export function buildDossierMarkdownExport(
   chart: ZiweiChart,
   states: Record<DossierChapterId, DossierChapterState>,
   exportedAt = new Date(),
+  options?: DossierExportOptions,
 ): string {
   const info = buildDossierHeaderMetadata(chart);
   const quickHeader = buildDossierQuickHeaderLines(chart);
   const summaryLines = buildDeterministicExecutiveSummaryVi(chart);
-  const { items, allRefs } = prepareAllChaptersForExport(chart, states);
+  const { items, allRefs } = prepareAllChaptersForExport(chart, states, options);
   const completedCount = items.filter((item) => item.isDone).length;
   const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
   const nextYear = focusYear + 1;
@@ -3381,9 +3466,10 @@ export function buildDossierStandaloneHtmlExport(
   chart: ZiweiChart,
   states: Record<DossierChapterId, DossierChapterState>,
   exportedAt = new Date(),
+  options?: DossierExportOptions,
 ): string {
   const info = buildDossierHeaderMetadata(chart);
-  const { items, allRefs } = prepareAllChaptersForExport(chart, states);
+  const { items, allRefs } = prepareAllChaptersForExport(chart, states, options);
   const completedCount = items.filter((item) => item.isDone).length;
   const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
   const nextYear = focusYear + 1;

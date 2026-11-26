@@ -45,9 +45,11 @@ import {
   retrieveKnowledgeForPeriod,
 } from './server/knowledge-base/retriever.ts';
 import {
-  shouldRetryForZeroCitations,
   verifyAcademicCitationsAndClaims,
 } from './server/knowledge-base/verifier.ts';
+import {
+  generateWithRetry,
+} from './server/chapter-retry.ts';
 import type {
   CitationAuditResult,
   KnowledgeRetrievalResult,
@@ -1003,109 +1005,133 @@ export function registerApiRoutes(app: express.Express) {
         const palaceGanZhiMap = buildPalaceGanZhiMap(chart);
         const periodSectionId = resolvePeriodSectionId(periodContext);
         const sectionLogLabel = periodSectionId ?? periodContext.periodId ?? 'period';
-        const { addendumText: pass1Addendum, textWithSiHua: pass1TextWithSiHua } =
-          computePeriodSiHuaAddendum(accumulatedText, periodContext);
 
-        const firstAudit = verifyAcademicCitationsAndClaims(
-          pass1TextWithSiHua,
-          knowledgeResult.entries,
-          {
+        const retryResult = await generateWithRetry({
+          basePrompt: prompt,
+          citationRetryAddendum: CITATION_RETRY_PROMPT_ADDENDUM,
+          allowedEntries: knowledgeResult.entries,
+          verifyOptions: {
             chart,
             sectionId: periodSectionId,
             chapterMode: 'period',
             periodContext,
             palaceGanZhiMap,
           },
-        );
-
-        let chosenAudit = firstAudit;
-        let chosenBodyForSep = pass1TextWithSiHua;
-        let pendingAddendumToStream = pass1Addendum;
-
-        if (
-          shouldRetryForZeroCitations({
-            validCitationIds: firstAudit.validCitationIds,
-            allowedEntriesCount: knowledgeResult.entries.length,
-            chapterMode: 'period',
+          chapterMode: 'period',
+          maxRetries: 2,
+          initialAttempt: {
+            rawText: accumulatedText,
+            meta: finalMeta,
             wasInterrupted,
-            alreadyRetried: false,
-          }) &&
-          !abortController.signal.aborted &&
-          !res.writableEnded
-        ) {
-          sendSseJson(res, {
-            retryingForCitations: true,
-            message: 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật hợp lệ...',
-          });
-
-          let retryAccumulated = '';
-          let retryInterrupted = false;
-          let retryMeta = finalMeta;
-
-          try {
-            retryMeta = await keyPoolManager.executeStream({
-              prompt: `${prompt}${CITATION_RETRY_PROMPT_ADDENDUM}`,
-              systemInstruction,
-              signal: abortController.signal,
-              onMeta: (m) => {
-                retryMeta = m;
-              },
-              onChunk: (text) => {
-                const safeChunk = sanitizeLayer3AOnly(text);
-                if (safeChunk) {
-                  retryAccumulated += safeChunk;
-                }
-              },
-              onInterrupted: () => {
-                retryInterrupted = true;
-              },
-            });
-          } catch (retryErr) {
-            retryInterrupted = true;
-            console.warn(
-              `[interpret-period] Citation retry failed (${sectionLogLabel}):`,
-              keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
-            );
-          }
-
-          let replacedWithRetry = false;
-          if (!retryInterrupted && retryAccumulated.trim() && !res.writableEnded) {
-            const { textWithSiHua: retryTextWithSiHua } = computePeriodSiHuaAddendum(
-              retryAccumulated,
+          },
+          isAborted: () => abortController.signal.aborted || res.writableEnded,
+          transformTextBeforeAudit: (rawText) => {
+            const { addendumText, textWithSiHua } = computePeriodSiHuaAddendum(
+              rawText,
               periodContext,
             );
-            const retryAudit = verifyAcademicCitationsAndClaims(
-              retryTextWithSiHua,
-              knowledgeResult.entries,
-              {
-                chart,
-                sectionId: periodSectionId,
-                chapterMode: 'period',
-                periodContext,
-                palaceGanZhiMap,
-              },
-            );
-            if (retryAudit.validCitationIds.length > firstAudit.validCitationIds.length) {
-              replacedWithRetry = true;
-              chosenAudit = retryAudit;
-              chosenMeta = retryMeta ?? finalMeta;
-              chosenBodyForSep = retryTextWithSiHua;
-              pendingAddendumToStream = '';
+            return {
+              bodyText: textWithSiHua,
+              pendingAddendumToStream: addendumText,
+            };
+          },
+          onRetrying: ({ retryingForCitations, retryingForFlags, message }) => {
+            if (!res.writableEnded) {
               sendSseJson(res, {
-                replaceChapterText: retryTextWithSiHua,
-                meta: chosenMeta,
-                retryingForCitations: false,
+                retryingForCitations,
+                retryingForFlags,
+                message,
               });
             }
+          },
+          executeAttempt: async ({ prompt: attemptPrompt, attemptIndex }) => {
+            let attemptText = '';
+            let attemptInterrupted = false;
+            let attemptMeta = finalMeta;
+            try {
+              attemptMeta = await keyPoolManager.executeStream({
+                prompt: attemptPrompt,
+                systemInstruction,
+                signal: abortController.signal,
+                onMeta: (m) => {
+                  attemptMeta = m;
+                },
+                onChunk: (text) => {
+                  const safeChunk = sanitizeLayer3AOnly(text);
+                  if (safeChunk) {
+                    attemptText += safeChunk;
+                  }
+                },
+                onInterrupted: () => {
+                  attemptInterrupted = true;
+                },
+              });
+              return {
+                rawText: attemptText,
+                meta: attemptMeta ?? finalMeta,
+                wasInterrupted: attemptInterrupted,
+              };
+            } catch (retryErr) {
+              console.warn(
+                `[interpret-period] Retry #${attemptIndex} failed (${sectionLogLabel}):`,
+                keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
+              );
+              return {
+                rawText: '',
+                meta: attemptMeta,
+                wasInterrupted: true,
+                error: retryErr,
+              };
+            }
+          },
+        });
+
+        const chosenAudit = retryResult.chosenAudit!;
+        const chosenBodyForSep = retryResult.chosenBodyText;
+        chosenMeta = retryResult.chosenMeta ?? finalMeta;
+
+        if (!res.writableEnded) {
+          if (retryResult.replacedFromInitial) {
+            sendSseJson(res, {
+              replaceChapterText: chosenBodyForSep,
+              meta: chosenMeta,
+              retryingForCitations: false,
+              retryingForFlags: false,
+              ...(retryResult.deterministicRepairs.length > 0
+                ? {
+                    repaired: true,
+                    deterministicRepairs: retryResult.deterministicRepairs,
+                  }
+                : {}),
+            });
+          } else if (retryResult.retryCount > 0) {
+            sendSseJson(res, {
+              retryingForCitations: false,
+              retryingForFlags: false,
+            });
           }
 
-          if (!replacedWithRetry && !res.writableEnded) {
-            sendSseJson(res, { retryingForCitations: false });
+          if (retryResult.pendingAddendumToStream) {
+            sendSseText(res, retryResult.pendingAddendumToStream);
           }
         }
 
-        if (pendingAddendumToStream && !res.writableEnded) {
-          sendSseText(res, pendingAddendumToStream);
+        if (retryResult.retryCount > 0 || retryResult.deterministicRepairs.length > 0) {
+          console.log(
+            `[interpret-period] Retry summary (${sectionLogLabel}):`,
+            JSON.stringify({
+              retryCount: retryResult.retryCount,
+              retryReasons: retryResult.retryReasons,
+              wordCounts: retryResult.wordCounts,
+              deterministicRepairsCount: retryResult.deterministicRepairs.length,
+            }),
+          );
+        }
+        if (retryResult.unrepairableCases.length > 0) {
+          console.warn(
+            `[interpret-period] Unrepairable Không Kiếp cases (${sectionLogLabel}):`,
+            JSON.stringify(retryResult.unrepairableCases),
+          );
         }
 
         logScrubbedCitationWarn(
@@ -1132,6 +1158,9 @@ export function registerApiRoutes(app: express.Express) {
             hasUncitedClaims: chosenAudit.hasUncitedClaims,
             palaceGanZhiMismatches: chosenAudit.palaceGanZhiMismatches,
             auditFlags: chosenAudit.auditFlags,
+            retryCount: retryResult.retryCount,
+            retryReasons: retryResult.retryReasons,
+            deterministicRepairs: retryResult.deterministicRepairs,
           },
         });
         const tailBlock = [
@@ -1266,94 +1295,118 @@ export function registerApiRoutes(app: express.Express) {
               ? 'horizon'
               : 'overview';
         const palaceGanZhiMap = buildPalaceGanZhiMap(validated.chart);
-        const firstAudit = verifyAcademicCitationsAndClaims(
-          accumulatedText,
-          knowledgeResult.entries,
-          {
+
+        const retryResult = await generateWithRetry({
+          basePrompt: prompt,
+          citationRetryAddendum: CITATION_RETRY_PROMPT_ADDENDUM,
+          allowedEntries: knowledgeResult.entries,
+          verifyOptions: {
             chart: validated.chart,
             sectionId: validated.sectionId,
             chapterMode,
             palaceGanZhiMap,
           },
-        );
-
-        let chosenAudit = firstAudit;
-        let chosenBodyForSep = accumulatedText;
-
-        if (
-          shouldRetryForZeroCitations({
-            validCitationIds: firstAudit.validCitationIds,
-            allowedEntriesCount: knowledgeResult.entries.length,
-            chapterMode,
+          chapterMode,
+          maxRetries: 2,
+          initialAttempt: {
+            rawText: accumulatedText,
+            meta: finalMeta,
             wasInterrupted,
-            alreadyRetried: false,
-          }) &&
-          !abortController.signal.aborted &&
-          !res.writableEnded
-        ) {
-          sendSseJson(res, {
-            retryingForCitations: true,
-            message: 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật hợp lệ...',
-          });
-
-          let retryAccumulated = '';
-          let retryInterrupted = false;
-          let retryMeta = finalMeta;
-
-          try {
-            retryMeta = await keyPoolManager.executeStream({
-              prompt: `${prompt}${CITATION_RETRY_PROMPT_ADDENDUM}`,
-              systemInstruction,
-              signal: abortController.signal,
-              onMeta: (m) => {
-                retryMeta = m;
-              },
-              onChunk: (text) => {
-                const safeChunk = sanitizeLayer3AOnly(text);
-                if (safeChunk) {
-                  retryAccumulated += safeChunk;
-                }
-              },
-              onInterrupted: () => {
-                retryInterrupted = true;
-              },
-            });
-          } catch (retryErr) {
-            retryInterrupted = true;
-            console.warn(
-              `[interpret-dossier-section] Citation retry failed (${validated.sectionId}):`,
-              keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
-            );
-          }
-
-          let replacedWithRetry = false;
-          if (!retryInterrupted && retryAccumulated.trim() && !res.writableEnded) {
-            const retryAudit = verifyAcademicCitationsAndClaims(
-              retryAccumulated,
-              knowledgeResult.entries,
-              {
-                chart: validated.chart,
-                sectionId: validated.sectionId,
-                chapterMode,
-                palaceGanZhiMap,
-              },
-            );
-            if (retryAudit.validCitationIds.length > firstAudit.validCitationIds.length) {
-              replacedWithRetry = true;
-              chosenAudit = retryAudit;
-              chosenMeta = retryMeta ?? finalMeta;
-              chosenBodyForSep = retryAccumulated;
+          },
+          isAborted: () => abortController.signal.aborted || res.writableEnded,
+          onRetrying: ({ retryingForCitations, retryingForFlags, message }) => {
+            if (!res.writableEnded) {
               sendSseJson(res, {
-                replaceChapterText: retryAccumulated,
-                meta: chosenMeta,
-                retryingForCitations: false,
+                retryingForCitations,
+                retryingForFlags,
+                message,
               });
             }
-          }
+          },
+          executeAttempt: async ({ prompt: attemptPrompt, attemptIndex }) => {
+            let attemptText = '';
+            let attemptInterrupted = false;
+            let attemptMeta = finalMeta;
+            try {
+              attemptMeta = await keyPoolManager.executeStream({
+                prompt: attemptPrompt,
+                systemInstruction,
+                signal: abortController.signal,
+                onMeta: (m) => {
+                  attemptMeta = m;
+                },
+                onChunk: (text) => {
+                  const safeChunk = sanitizeLayer3AOnly(text);
+                  if (safeChunk) {
+                    attemptText += safeChunk;
+                  }
+                },
+                onInterrupted: () => {
+                  attemptInterrupted = true;
+                },
+              });
+              return {
+                rawText: attemptText,
+                meta: attemptMeta ?? finalMeta,
+                wasInterrupted: attemptInterrupted,
+              };
+            } catch (retryErr) {
+              console.warn(
+                `[interpret-dossier-section] Retry #${attemptIndex} failed (${validated.sectionId}):`,
+                keyPoolManager.sanitize(retryErr instanceof Error ? retryErr.message : String(retryErr)).split(/\r?\n/)[0],
+              );
+              return {
+                rawText: '',
+                meta: attemptMeta,
+                wasInterrupted: true,
+                error: retryErr,
+              };
+            }
+          },
+        });
 
-          if (!replacedWithRetry && !res.writableEnded) {
-            sendSseJson(res, { retryingForCitations: false });
+        const chosenAudit = retryResult.chosenAudit!;
+        const chosenBodyForSep = retryResult.chosenBodyText;
+        chosenMeta = retryResult.chosenMeta ?? finalMeta;
+
+        if (!res.writableEnded) {
+          if (retryResult.replacedFromInitial) {
+            sendSseJson(res, {
+              replaceChapterText: chosenBodyForSep,
+              meta: chosenMeta,
+              retryingForCitations: false,
+              retryingForFlags: false,
+              ...(retryResult.deterministicRepairs.length > 0
+                ? {
+                    repaired: true,
+                    deterministicRepairs: retryResult.deterministicRepairs,
+                  }
+                : {}),
+            });
+          } else if (retryResult.retryCount > 0) {
+            sendSseJson(res, {
+              retryingForCitations: false,
+              retryingForFlags: false,
+            });
           }
+        }
+
+        if (retryResult.retryCount > 0 || retryResult.deterministicRepairs.length > 0) {
+          console.log(
+            `[interpret-dossier-section] Retry summary (${validated.sectionId}):`,
+            JSON.stringify({
+              retryCount: retryResult.retryCount,
+              retryReasons: retryResult.retryReasons,
+              wordCounts: retryResult.wordCounts,
+              deterministicRepairsCount: retryResult.deterministicRepairs.length,
+            }),
+          );
+        }
+        if (retryResult.unrepairableCases.length > 0) {
+          console.warn(
+            `[interpret-dossier-section] Unrepairable Không Kiếp cases (${validated.sectionId}):`,
+            JSON.stringify(retryResult.unrepairableCases),
+          );
         }
 
         logScrubbedCitationWarn(
@@ -1380,6 +1433,9 @@ export function registerApiRoutes(app: express.Express) {
             hasUncitedClaims: chosenAudit.hasUncitedClaims,
             palaceGanZhiMismatches: chosenAudit.palaceGanZhiMismatches,
             auditFlags: chosenAudit.auditFlags,
+            retryCount: retryResult.retryCount,
+            retryReasons: retryResult.retryReasons,
+            deterministicRepairs: retryResult.deterministicRepairs,
           },
         });
         const tailBlock = [

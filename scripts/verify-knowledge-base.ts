@@ -26,6 +26,10 @@ import {
 import type { DistilledKnowledgeEntry } from '../server/knowledge-base/types.ts';
 import type { DossierSectionId } from '../src/lib/ziwei/dossier-context.ts';
 import {
+  applyDeterministicCriticalFlagRepairs,
+  buildCriticalFlagRetryAddendum,
+  chooseBetterAudit,
+  listSanFangStarsVi,
   verifyAcademicCitationsAndClaims,
   verifyDaXianStemsInText,
   verifyIllegalKhongKiepMentions,
@@ -1939,6 +1943,130 @@ async function runVerification() {
       }
 
       console.log('  -> ĐẠT [BRIEF 1.5.7 — Nhóm B1]: POST /api/audit-dossier-section & kiểm tra P05 đạt 100%.');
+    }
+
+    // 8. BRIEF 1.5.9 · L1 Không Kiếp: Addendum B + chooseBetterAudit (§3.3) + sửa xác định C (§3.4)
+    {
+      console.log('\n[Test 8] Kiểm thử BRIEF 1.5.9 Nhóm B + §3.3 + Nhóm C (Không Kiếp tận gốc)...');
+      resetKnowledgeBaseCache();
+      loadKnowledgeBase();
+
+      const chart1977 = generateChart({
+        name: 'Mẫu 1977',
+        year: 1977,
+        month: 7,
+        day: 26,
+        hour: 5,
+        gender: 'male',
+        longitude: 105.85,
+        city: 'Hà Nội',
+      });
+
+      // 8.1: listSanFangStarsVi + buildCriticalFlagRetryAddendum trên Quan Lộc (Bính Ngọ) mẫu 1977
+      const summary = listSanFangStarsVi(chart1977, 'Quan Lộc');
+      assert.ok(summary);
+      assert.strictEqual(summary.palaceVi, 'Quan Lộc');
+      assert.deepStrictEqual(summary.khongKiepFamilyPresentVi, ['Địa Không', 'Thiên Không']);
+      assert.deepStrictEqual(summary.missingPairStarsVi, ['Địa Kiếp']);
+
+      const addendum = buildCriticalFlagRetryAddendum(
+        [
+          {
+            code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+            severity: 'critical',
+            palaceVi: 'Quan Lộc',
+            messageVi: 'Cung Quan Lộc chỉ có Địa Không, Thiên Không.',
+          },
+        ],
+        chart1977,
+      );
+      assert.ok(addendum.includes('Quan Lộc'));
+      assert.ok(addendum.includes('Địa Không, Thiên Không'));
+      assert.ok(addendum.includes('Địa Kiếp'));
+
+      // Không có cờ critical -> trả chuỗi rỗng
+      assert.strictEqual(
+        buildCriticalFlagRetryAddendum(
+          [{ code: 'ZERO_CITATIONS_IN_CHAPTER', severity: 'medium', messageVi: 'medium' }],
+          chart1977,
+        ),
+        '',
+      );
+
+      // 8.2: Sửa xác định C (Nhóm C) trên đủ các biến thể cụm danh từ/giới từ & miễn trừ an toàn
+      const kbEntries = retrieveKnowledgeForDossierSection(chart1977, 'palaces_core').entries;
+      const validEntry = kbEntries[0];
+      assert.ok(validEntry);
+      const validSet = new Set([validEntry.id.toUpperCase()]);
+
+      const dirtyText = [
+        '### Cung Quan Lộc (Bính Ngọ)',
+        'Tại đây có Bộ Không Kiếp chi phối đường công danh [Nguồn: ' + validEntry.id + '].',
+        'Ảnh hưởng từ cặp đôi Không Kiếp khiến sự nghiệp lắm thăng trầm.',
+        'Trong câu trích cổ thư "Không Kiếp lâm mệnh đa biến động" [Nguồn: ' + validEntry.id + '] cần đọc theo đúng ngữ cảnh.',
+        'Khẳng định rõ cung này chỉ có Địa Không và Thiên Không, không phải Không Kiếp thực thụ.',
+      ].join('\n');
+
+      const firstAudit = verifyAcademicCitationsAndClaims(dirtyText, kbEntries, {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      });
+      assert.ok(firstAudit.auditFlags.some((f) => f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+
+      const repairOutcome = applyDeterministicCriticalFlagRepairs(
+        dirtyText,
+        firstAudit.auditFlags,
+        chart1977,
+        {
+          sectionId: 'palaces_core',
+          chapterMode: 'palace_group',
+          validCitationIdsSetUpper: validSet,
+        },
+      );
+      assert.strictEqual(repairOutcome.repairs.length, 2);
+      assert.strictEqual(repairOutcome.unrepairableCases.length, 0);
+      assert.ok(repairOutcome.repairedText.includes('Địa Không, Thiên Không'));
+      assert.ok(repairOutcome.repairedText.includes('[Nguồn: ' + validEntry.id + ']'));
+      assert.ok(repairOutcome.repairedText.includes('"Không Kiếp lâm mệnh đa biến động"'));
+      assert.ok(repairOutcome.repairedText.includes('không phải Không Kiếp thực thụ'));
+
+      // Chạy lại verifier lần duy nhất -> 0 cờ critical!
+      const afterAudit = verifyAcademicCitationsAndClaims(repairOutcome.repairedText, kbEntries, {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      });
+      assert.strictEqual(
+        afterAudit.auditFlags.some((f) => f.severity === 'critical'),
+        false,
+        'Sau sửa xác định C phải sạch 100% cờ critical ILLEGAL_STAR_PAIR_KHONG_KIEP',
+      );
+
+      // 8.3: Động từ ghép cặp (hội / đồng cung / kết hợp) không sửa liều -> đưa vào unrepairableCases
+      const pairVerbText = '### Cung Quan Lộc (Bính Ngọ)\nChính tinh tại cung này hội Không Kiếp gây biến động.';
+      const pairAudit = verifyAcademicCitationsAndClaims(pairVerbText, kbEntries, {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      });
+      const pairRepair = applyDeterministicCriticalFlagRepairs(
+        pairVerbText,
+        pairAudit.auditFlags,
+        chart1977,
+        { sectionId: 'palaces_core', chapterMode: 'palace_group' },
+      );
+      assert.strictEqual(pairRepair.repairs.length, 0);
+      assert.strictEqual(pairRepair.repairedText, pairVerbText);
+      assert.ok(pairRepair.unrepairableCases.length > 0);
+
+      // 8.4: Sanity chooseBetterAudit trực tiếp
+      const cmp = chooseBetterAudit(firstAudit, afterAudit, dirtyText, repairOutcome.repairedText);
+      assert.strictEqual(cmp.winner, 'retry');
+      assert.strictEqual(cmp.reason, 'fewer_critical_flags');
+
+      resetKnowledgeBaseCache();
+      console.log('  -> ĐẠT [BRIEF 1.5.9 — Nhóm B + §3.3 + Nhóm C]: Addendum, Chọn bản & Sửa xác định Không Kiếp đạt 100%.');
     }
   }
 

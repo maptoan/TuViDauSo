@@ -31,6 +31,7 @@ import {
   type AiExecutionMeta,
   type AiPeriodEntry,
   type ContextualChatContextPayload,
+  type DeterministicRepairRecord,
   type Kp3AuditFlag,
 } from '../lib/dossier-chat-ui';
 import type { ActiveSihua } from './TimeNav';
@@ -243,6 +244,19 @@ export default function InsightPanel({
         let scrubbedInvalidIds: string[] = [];
         let normalizedBareIds: string[] = [];
         let receivedAuditFlags: Kp3AuditFlag[] = [];
+        let receivedDeterministicRepairs: DeterministicRepairRecord[] = [];
+
+        const parseRepairRecords = (raw: unknown): DeterministicRepairRecord[] =>
+          Array.isArray(raw)
+            ? raw.filter(
+                (r): r is DeterministicRepairRecord =>
+                  Boolean(r) &&
+                  typeof r === 'object' &&
+                  typeof (r as DeterministicRepairRecord).code === 'string' &&
+                  typeof (r as DeterministicRepairRecord).beforeSentence === 'string' &&
+                  typeof (r as DeterministicRepairRecord).afterSentence === 'string',
+              )
+            : [];
 
         const processLine = (line: string) => {
           if (!line.startsWith('data: ')) return false;
@@ -250,12 +264,20 @@ export default function InsightPanel({
           if (data === '[DONE]') return true;
           try {
             const parsed = JSON.parse(data);
-            if (typeof parsed?.retryingForCitations === 'boolean') {
+            if (
+              typeof parsed?.retryingForCitations === 'boolean' ||
+              typeof parsed?.retryingForFlags === 'boolean'
+            ) {
+              const isRetrying = Boolean(
+                parsed?.retryingForCitations || parsed?.retryingForFlags,
+              );
               setAiRetryingNoticeVi(
-                parsed.retryingForCitations
+                isRetrying
                   ? typeof parsed.message === 'string' && parsed.message
                     ? parsed.message
-                    : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...'
+                    : parsed?.retryingForFlags
+                      ? 'Đang sinh lại để sửa lỗi nghiêm trọng theo dữ kiện lá số...'
+                      : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...'
                   : null,
               );
               if (typeof parsed?.replaceChapterText !== 'string') {
@@ -267,12 +289,20 @@ export default function InsightPanel({
               if (parsed.meta) {
                 receivedMeta = parsed.meta as AiExecutionMeta;
               }
+              if (Array.isArray(parsed.deterministicRepairs)) {
+                receivedDeterministicRepairs = parseRepairRecords(
+                  parsed.deterministicRepairs,
+                );
+              }
               setAiRetryingNoticeVi(null);
               setAiPeriodCache((prev) => ({
                 ...prev,
                 [pKey]: {
                   text: accumulated,
                   meta: receivedMeta,
+                  ...(receivedDeterministicRepairs.length > 0
+                    ? { deterministicRepairs: receivedDeterministicRepairs }
+                    : {}),
                 },
               }));
               return false;
@@ -306,6 +336,14 @@ export default function InsightPanel({
                     typeof f === 'object' &&
                     typeof (f as Kp3AuditFlag).code === 'string' &&
                     typeof (f as Kp3AuditFlag).messageVi === 'string',
+                );
+              }
+              if (
+                Array.isArray(parsed.citationAudit.deterministicRepairs) &&
+                parsed.citationAudit.deterministicRepairs.length > 0
+              ) {
+                receivedDeterministicRepairs = parseRepairRecords(
+                  parsed.citationAudit.deterministicRepairs,
                 );
               }
               return false;
@@ -410,6 +448,9 @@ export default function InsightPanel({
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
               error: failure.userMessageVi,
               auditFlags: persistedAuditFlags,
+              ...(receivedDeterministicRepairs.length > 0
+                ? { deterministicRepairs: receivedDeterministicRepairs }
+                : {}),
             },
           }));
         } else if (streamError) {
@@ -431,6 +472,9 @@ export default function InsightPanel({
               meta: receivedMeta ? { ...receivedMeta, interrupted: true } : undefined,
               error: failure.userMessageVi,
               auditFlags: persistedAuditFlags,
+              ...(receivedDeterministicRepairs.length > 0
+                ? { deterministicRepairs: receivedDeterministicRepairs }
+                : {}),
             },
           }));
         } else if (!accumulated.trim()) {
@@ -451,6 +495,9 @@ export default function InsightPanel({
               text: accumulated,
               meta: receivedMeta,
               auditFlags: persistedAuditFlags,
+              ...(receivedDeterministicRepairs.length > 0
+                ? { deterministicRepairs: receivedDeterministicRepairs }
+                : {}),
               reauditedForVersion: APP_VERSION,
               reauditedAt: Date.now(),
             },
@@ -1180,6 +1227,22 @@ export default function InsightPanel({
                 </span>
               </div>
             ) : null}
+
+            {!aiPeriodLoading &&
+              currentAiEntry?.deterministicRepairs &&
+              currentAiEntry.deterministicRepairs.length > 0 && (
+                <div className="rounded-lg px-3 py-2 border border-sky-500/40 bg-sky-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-sky-200">
+                  <span className="inline-flex items-center gap-1.5 font-medium">
+                    <ShieldCheck className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                    <span>
+                      Đã sửa tự động {currentAiEntry.deterministicRepairs.length} câu gọi nhầm &quot;Không Kiếp&quot; theo đúng Tam Phương Tứ Chính trước khi lưu.
+                    </span>
+                  </span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-sky-400/40 bg-sky-950/50 text-sky-200">
+                    đã sửa tự động
+                  </span>
+                </div>
+              )}
 
             {currentAiEntry?.text ? (
               <div className="rounded-lg p-3.5 bg-[var(--t-surface)] border border-[var(--t-border)] text-xs sm:text-sm leading-relaxed">

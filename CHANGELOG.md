@@ -2,12 +2,31 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.8` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.5.9` *(đồng bộ với `/VERSION` và `package.json`)*
 - **Cập nhật lần cuối**: `26/11/2026`
-- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`)
+- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/chapter-retry.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.5.9] — 26/11/2026
+
+### Xử Lý Tận Gốc Lỗi L1 "Không Kiếp" (`ILLEGAL_STAR_PAIR_KHONG_KIEP` — `A + B + C + E`, `§3.1–§3.6`)
+- **Nhóm A — Vòng lặp sinh lại thống nhất (`§3.1`, `server/chapter-retry.ts`, `server/knowledge-base/verifier.ts`, `server.ts`)**:
+  - Tách điều phối sinh lại dùng chung `generateWithRetry` (`maxRetries = 2` gộp cho cả A2 thiếu trích dẫn và cờ `severity: 'critical'`) thay cho hai khối `if` rời rạc tại `/api/interpret-period` và `/api/interpret-dossier-section`.
+  - Bổ sung `shouldRetryForCriticalFlags` kích hoạt chung theo `severity === 'critical'` cho chương `palace_group`/`period`; gộp chỉ thị khi đồng thời thiếu trích dẫn lẫn cờ critical; phát SSE `retryingForFlags`, `retryCount`, `retryReasons`, `deterministicRepairs` trong `citationAudit`, log đối chiếu số từ & dừng ngay khi bị ngắt.
+- **Nhóm B — Chỉ thị sửa cờ đặc hiệu & registry mở rộng (`§3.2`, `§3.6`, `verifier.ts`)**:
+  - Bổ sung `listSanFangStarsVi` và `buildCriticalFlagRetryAddendum` qua registry `CRITICAL_FLAG_HANDLERS` (bản 1.5.9 triển khai `ILLEGAL_STAR_PAIR_KHONG_KIEP`, liệt kê đúng sao Không/Kiếp hiện diện trong Bản cung ∪ Tam Phương Tứ Chính và sao còn thiếu).
+- **Quy tắc chọn bản `chooseBetterAudit` (`§3.3`, `verifier.ts`)**:
+  - So sánh theo thứ tự: `(0)` không sinh mã `critical` mới → `(1)` ít cờ `critical` hơn → `(1b)` chống cắt cụt đoạn (`RETRY_MIN_LENGTH_RATIO = 0.8`) → `(2)` nhiều thẻ `[Nguồn: ...]` hợp lệ hơn → `(3)` hòa giữ nguyên bản đầu.
+- **Nhóm C — Sửa xác định hậu-retry (`§3.4`, `verifier.ts`, `chapter-retry.ts`, `DetailedDossierModal.tsx`, `InsightPanel.tsx`)**:
+  - Sau vòng retry, nếu vẫn còn `ILLEGAL_STAR_PAIR_KHONG_KIEP`, chạy `applyDeterministicCriticalFlagRepairs`: chỉ thay cụm danh từ/giới từ an toàn sang tên sao thực có trong Tam Phương Tứ Chính, bảo toàn thẻ `[Nguồn: ...]`, miễn trừ câu phủ định/trích dẫn ngoặc kép hợp lệ và loại trừ động từ ghép cặp (`hội`, `đồng cung`, `kết hợp`, ...) vào `unrepairableCases`; chạy lại verifier đúng 1 lần, phát `replaceChapterText` + `deterministicRepairs` và hiển thị nhãn `"đã sửa tự động"` trên màn hình (không xuất ra file).
+- **Nhóm E — Chặn xuất mức chương & xác nhận tay (`§3.5`, `dossier-chat-ui.ts`, `DetailedDossierModal.tsx`)**:
+  - Chặn tải `.MD`/`.HTML` khi còn chương mang cờ `severity === 'critical'`; hiển thị hộp thoại xác nhận tay từng chương kèm ghi nhận `console.log` và chỉ chèn khối cảnh báo cuối chương trong file xuất khi người dùng xác nhận (`includeManualFlagWarningsForChapters`). Giữ nguyên mặc định sạch `W6` và giữ `Sao chép` / `In trực tiếp` không chặn trong bản 1.5.9.
+- **Kiểm định & Đồng bộ phiên bản (`TEST-18..TEST-20`, `verify-knowledge-base.ts`, `verify-dossier-context.ts`)**:
+  - Bổ sung `TEST-18`, `TEST-19`, `TEST-20`, ca Nhóm E trong `verify-dossier-chat-ui.ts`; ca Nhóm B + `§3.3` + Nhóm C trong `verify-knowledge-base.ts`; siết khẳng định Z4 `'chỉ cặp Địa Không + Địa Kiếp'` trong `verify-dossier-context.ts`; đồng bộ 3 chiều `1.5.9` (`VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md`).
 
 ---
 

@@ -618,13 +618,13 @@ async function runTests() {
     // Z1 + P4: prompt nhóm cung chỉ phân tích Đại Hạn hiện tại và kế tiếp + Không Kiếp
     const groupPrompt = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
     assert.ok(groupPrompt.systemInstruction.includes('Chỉ phân tích Đại Hạn hiện tại và kế tiếp'));
-    assert.ok(groupPrompt.systemInstruction.includes('Không Kiếp'));
+    assert.ok(groupPrompt.systemInstruction.includes('chỉ cặp Địa Không + Địa Kiếp'));
 
     // Z2 & Z4: prompt kỳ hạn chứa sàn 900–1.300 từ, tên sao+độ sáng, Không Kiếp, và KHÔNG hardcode 1977
     const periodPrompt = buildStrictPeriodAiPrompt(ctx2026, formatChartSummaryVi(sample1977), sample1977);
     assert.ok(periodPrompt.systemInstruction.includes('900–1.300 từ'));
     assert.ok(periodPrompt.systemInstruction.includes('tên Hóa + tên sao + độ sáng'));
-    assert.ok(periodPrompt.systemInstruction.includes('Không Kiếp'));
+    assert.ok(periodPrompt.systemInstruction.includes('chỉ cặp Địa Không + Địa Kiếp'));
     assert.ok(
       !periodPrompt.systemInstruction.includes('44–53 tuổi tại Tài Bạch · Can Canh'),
       'Z2/P10: không được hardcode dữ kiện lá số 1977 vào systemInstruction',

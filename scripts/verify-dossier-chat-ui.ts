@@ -25,7 +25,13 @@ import {
   retrieveKnowledgeForDossierSection,
   retrieveKnowledgeForPeriod,
 } from '../server/knowledge-base/retriever';
-import { shouldRetryForZeroCitations } from '../server/knowledge-base/verifier';
+import {
+  RETRY_MIN_LENGTH_RATIO,
+  chooseBetterAudit,
+  shouldRetryForCriticalFlags,
+  shouldRetryForZeroCitations,
+} from '../server/knowledge-base/verifier';
+import { generateWithRetry } from '../server/chapter-retry';
 import { saveDossierSectionToLibrary, buildPeriodCachePatchesFromLibrary } from '../src/lib/chart-library';
 import {
   buildStrictDossierSectionPrompt,
@@ -70,6 +76,7 @@ import {
   buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
   classifyDossierFailure,
+  collectCriticalChaptersForExport,
   computeReadingMinutes,
   countWordsUtf8,
   createBestPartialSnapshot,
@@ -77,6 +84,7 @@ import {
   evaluateChatQuotaStatus,
   extractReferenceBlocksFromChapter,
   filterPersistableChatMessages,
+  formatChapterCriticalFlagsWarningMarkdown,
   formatDossierSourceBadge,
   formatReauditTimestampVi,
   getChatCooldownRemainingSec,
@@ -108,7 +116,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.5.8';
+const EXPECTED_VERSION = '1.5.9';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -2342,6 +2350,427 @@ runTest('[BRIEF 1.5.8 · T2-2] X5 phút đọc + X6 Bảng Thuật Ngữ 11 mụ
   const sihuaCheck = verifyAndEnsureCompletePeriodSiHua(cleanSection1, ctx2026);
   assert.equal(sihuaCheck.isComplete, true);
   assert.equal(sihuaCheck.patchedText.includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn'), false);
+});
+
+runTest('[BRIEF 1.5.9 · TEST-18] shouldRetryForCriticalFlags chỉ kích hoạt với cờ severity=critical ở palace_group/period', () => {
+  const criticalFlags = [
+    {
+      code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP' as const,
+      severity: 'critical' as const,
+      palaceVi: 'Quan Lộc',
+      messageVi: 'Cờ critical test',
+    },
+  ];
+  const mediumOnlyFlags = [
+    {
+      code: 'ZERO_CITATIONS_IN_CHAPTER' as const,
+      severity: 'medium' as const,
+      messageVi: 'Cờ medium test',
+    },
+  ];
+
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: criticalFlags,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: criticalFlags,
+      chapterMode: 'period',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    true,
+  );
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: mediumOnlyFlags,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: criticalFlags,
+      chapterMode: 'palace_group',
+      wasInterrupted: true,
+      alreadyRetried: false,
+    }),
+    false,
+  );
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: criticalFlags,
+      chapterMode: 'palace_group',
+      wasInterrupted: false,
+      alreadyRetried: true,
+    }),
+    false,
+  );
+  for (const mode of ['overview', 'horizon', 'chat'] as const) {
+    assert.equal(
+      shouldRetryForCriticalFlags({
+        auditFlags: criticalFlags,
+        chapterMode: mode,
+        wasInterrupted: false,
+        alreadyRetried: false,
+      }),
+      false,
+    );
+  }
+});
+
+runTest('[BRIEF 1.5.9 · TEST-19] chooseBetterAudit: ưu tiên 0 mã critical mới -> ít cờ critical -> anti-deletion >= 80% từ -> nhiều trích dẫn -> hòa giữ gốc', () => {
+  const makeAudit = (
+    validIds: string[],
+    criticalCodes: Array<'ILLEGAL_STAR_PAIR_KHONG_KIEP' | 'PALACE_GANZHI_MISMATCH' | 'DAXIAN_STEM_MISMATCH'>,
+  ) => ({
+    validCitationIds: validIds,
+    scrubbedInvalidIds: [],
+    normalizedBareIds: [],
+    hasUncitedClaims: false,
+    palaceGanZhiMismatches: [],
+    auditFlags: criticalCodes.map((code) => ({
+      code,
+      severity: 'critical' as const,
+      messageVi: `Cờ ${code}`,
+    })),
+    referenceBlockMarkdown: '',
+    warningBlockMarkdown: '',
+  });
+
+  const makeWords = (n: number) => Array.from({ length: n }, (_, i) => `chữ${i}`).join(' ');
+  assert.equal(RETRY_MIN_LENGTH_RATIO, 0.8);
+
+  // (0) Sinh ra mã critical mới (dù tăng trích dẫn) -> từ chối, giữ gốc
+  const dNewCode = chooseBetterAudit(
+    makeAudit([], []),
+    makeAudit(['NH-1', 'NH-2'], ['ILLEGAL_STAR_PAIR_KHONG_KIEP']),
+    makeWords(200),
+    makeWords(200),
+  );
+  assert.equal(dNewCode.winner, 'first');
+  assert.equal(dNewCode.reason, 'new_critical_flag_code');
+
+  // (1) Ít cờ critical hơn -> thắng dù số trích dẫn không tăng
+  const dFewerCritical = chooseBetterAudit(
+    makeAudit(['NH-1'], ['ILLEGAL_STAR_PAIR_KHONG_KIEP']),
+    makeAudit([], []),
+    makeWords(200),
+    makeWords(200),
+  );
+  assert.equal(dFewerCritical.winner, 'retry');
+  assert.equal(dFewerCritical.reason, 'fewer_critical_flags');
+
+  // (1b) Hòa cờ critical nhưng bản retry bị teo < 80% từ (cắt bỏ đoạn) -> từ chối
+  const dTooShort = chooseBetterAudit(
+    makeAudit([], ['ILLEGAL_STAR_PAIR_KHONG_KIEP']),
+    makeAudit(['NH-1', 'NH-2'], ['ILLEGAL_STAR_PAIR_KHONG_KIEP']),
+    makeWords(200),
+    makeWords(120),
+  );
+  assert.equal(dTooShort.winner, 'first');
+  assert.equal(dTooShort.reason, 'retry_too_short');
+
+  // (2) Bằng cờ critical & >= 80% số từ, nhiều trích dẫn hơn -> thắng
+  const dMoreCit = chooseBetterAudit(
+    makeAudit([], []),
+    makeAudit(['NH-1'], []),
+    makeWords(200),
+    makeWords(170),
+  );
+  assert.equal(dMoreCit.winner, 'retry');
+  assert.equal(dMoreCit.reason, 'more_valid_citations');
+
+  // (3) Hòa tất cả -> giữ bản đầu
+  const dTie = chooseBetterAudit(
+    makeAudit(['NH-1'], []),
+    makeAudit(['NH-2'], []),
+    makeWords(200),
+    makeWords(200),
+  );
+  assert.equal(dTie.winner, 'first');
+  assert.equal(dTie.reason, 'tied');
+});
+
+await runAsyncTest('[BRIEF 1.5.9 · TEST-20] generateWithRetry (mock 0 token AI): vòng lặp tối đa 2 lượt, gộp lý do, sửa xác định C & dừng khi ngắt', async () => {
+  resetKnowledgeBaseCache();
+  loadKnowledgeBase();
+
+  const chart1977 = generateChart({
+    name: 'Mẫu 1977',
+    year: 1977,
+    month: 7,
+    day: 26,
+    hour: 5,
+    gender: 'male',
+    longitude: 105.85,
+    city: 'Hà Nội',
+  });
+  const kb = retrieveKnowledgeForDossierSection(chart1977, 'palaces_core');
+  assert.ok(kb.entries.length > 0);
+  const sampleEntry = kb.entries[0];
+  const entityHint =
+    sampleEntry.retrievalKeys.starsVi[0] ||
+    sampleEntry.retrievalKeys.palacesVi[0] ||
+    'Mệnh Cung';
+
+  // (a) 1 lần retry sửa hết Không Kiếp
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async ({ attemptIndex }) => ({
+        rawText:
+          attemptIndex === 0
+            ? `### Cung Quan Lộc (Bính Ngọ)\nTại đây có Bộ Không Kiếp tác động với ${entityHint} [Nguồn: ${sampleEntry.id}].`
+            : `### Cung Quan Lộc (Bính Ngọ)\nTại đây có Địa Không và Thiên Không đồng cung với ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+        wasInterrupted: false,
+      }),
+    });
+    assert.equal(res.retryCount, 1);
+    assert.deepEqual(res.retryReasons, ['critical_flags']);
+    assert.equal(res.replacedFromInitial, true);
+    assert.equal(res.deterministicRepairs.length, 0);
+    assert.equal(
+      res.chosenAudit?.auditFlags.some((f) => f.severity === 'critical'),
+      false,
+    );
+  }
+
+  // (b) Chương mang CẢ HAI lỗi (0 trích dẫn + cờ critical) -> chỉ retry 1 lần với cả 2 chỉ thị gộp
+  {
+    let seenPrompt = '';
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async ({ attemptIndex, prompt }) => {
+        if (attemptIndex === 1) seenPrompt = prompt;
+        return {
+          rawText:
+            attemptIndex === 0
+              ? '### Cung Quan Lộc (Bính Ngọ)\nTại đây có Bộ Không Kiếp nhưng chưa gắn trích dẫn nguồn.'
+              : `### Cung Quan Lộc (Bính Ngọ)\nTại đây có Địa Không và Thiên Không cùng ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+          wasInterrupted: false,
+        };
+      },
+    });
+    assert.equal(res.retryCount, 1);
+    assert.deepEqual(res.retryReasons, ['citations+critical_flags']);
+    assert.ok(seenPrompt.includes('[RETRY_CIT]'));
+    assert.ok(seenPrompt.includes('CHỈ THỊ SỬA LỖI NGHIÊM TRỌNG'));
+    assert.equal(res.chosenAudit?.auditFlags.length, 0);
+  }
+
+  // (c) Kịch bản 2 lượt tuần tự: lượt 0 sai cờ critical (có trích dẫn) -> lượt 1 hết critical nhưng 0 trích dẫn -> lượt 2 đủ trích dẫn, chạm trần maxRetries=2
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async ({ attemptIndex }) => {
+        if (attemptIndex === 0) {
+          return {
+            rawText: `### Cung Quan Lộc (Bính Ngọ)\nTại đây có Bộ Không Kiếp gây biến động cùng ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+            wasInterrupted: false,
+          };
+        }
+        if (attemptIndex === 1) {
+          return {
+            rawText:
+              '### Cung Quan Lộc (Bính Ngọ)\nTại đây có Địa Không và Thiên Không đồng cung nhưng quên thẻ nguồn.',
+            wasInterrupted: false,
+          };
+        }
+        return {
+          rawText: `### Cung Quan Lộc (Bính Ngọ)\nTại đây có Địa Không và Thiên Không đồng cung cùng ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+          wasInterrupted: false,
+        };
+      },
+    });
+    assert.equal(res.retryCount, 2);
+    assert.deepEqual(res.retryReasons, ['critical_flags', 'citations']);
+    assert.equal(res.chosenAudit?.auditFlags.length, 0);
+  }
+
+  // (d) Trường hợp xấu nhất: mọi lượt vẫn dính ILLEGAL_STAR_PAIR_KHONG_KIEP -> dừng ở maxRetries=2 và chạy sửa xác định C hết cờ critical
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async () => ({
+        rawText: `### Cung Quan Lộc (Bính Ngọ)\nCung này mang Bộ Không Kiếp chi phối công danh cùng ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+        wasInterrupted: false,
+      }),
+    });
+    assert.equal(res.retryCount, 1); // Chỉ retry critical 1 lần rồi dừng vì citations đã > 0
+    assert.ok(res.deterministicRepairs.length > 0);
+    assert.equal(res.replacedFromInitial, true);
+    assert.ok(!res.chosenBodyText.includes('Bộ Không Kiếp'));
+    assert.ok(res.chosenBodyText.includes('Địa Không, Thiên Không'));
+    assert.equal(
+      res.chosenAudit?.auditFlags.some((f) => f.severity === 'critical'),
+      false,
+    );
+  }
+
+  // (d2) Trường hợp động từ ghép cặp (không sửa xác định để tránh câu vô nghĩa) -> bảo toàn cờ critical và ghi nhận unrepairableCases
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async () => ({
+        rawText: `### Cung Quan Lộc (Bính Ngọ)\nChính tinh tại đây hội Không Kiếp đồng cung cùng ${entityHint} [Nguồn: ${sampleEntry.id}].`,
+        wasInterrupted: false,
+      }),
+    });
+    assert.equal(res.deterministicRepairs.length, 0);
+    assert.ok(res.unrepairableCases.length > 0);
+    assert.ok(
+      res.chosenAudit?.auditFlags.some((f) => f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'),
+    );
+  }
+
+  // (e) Lượt sinh lại bị ngắt -> dừng ngay, bảo toàn bản tốt nhất đã có
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt gốc',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart: chart1977,
+        sectionId: 'palaces_core',
+        chapterMode: 'palace_group',
+      },
+      chapterMode: 'palace_group',
+      maxRetries: 2,
+      executeAttempt: async ({ attemptIndex }) => {
+        if (attemptIndex === 0) {
+          return {
+            rawText:
+              '### Cung Quan Lộc (Bính Ngọ)\nTại đây có Địa Không và Thiên Không đồng cung nhưng chưa có trích dẫn.',
+            wasInterrupted: false,
+          };
+        }
+        return {
+          rawText: 'Phần dở dang bị ngắt',
+          wasInterrupted: true,
+        };
+      },
+    });
+    assert.equal(res.retryCount, 1);
+    assert.equal(res.replacedFromInitial, false);
+    assert.ok(res.chosenBodyText.includes('Địa Không và Thiên Không đồng cung'));
+  }
+
+  resetKnowledgeBaseCache();
+});
+
+runTest('[BRIEF 1.5.9 · Nhóm E] Thu thập chương mang cờ critical, giữ mặc định W6 sạch và chỉ chèn cảnh báo file khi xác nhận tay', () => {
+  const chart = buildNguyenVanAn1995Chart();
+  const chartKey = buildChartIdentityKey(chart);
+  const states = {} as Record<DossierChapterId, DossierChapterState>;
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    states[spec.id] = {
+      chapterId: spec.id,
+      sectionCacheKey: buildDossierChapterCacheKey(chartKey, spec.id),
+      status: 'completed',
+      text: `### 1. Tổng Quan\nNội dung chuẩn cho ${spec.shortLabelVi}.`,
+    };
+  }
+  states.palaces_core.auditFlags = [
+    {
+      code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+      severity: 'critical',
+      palaceVi: 'Quan Lộc',
+      messageVi: 'Cung Quan Lộc chỉ có Địa Không, Thiên Không; thiếu Địa Kiếp.',
+    },
+  ];
+  states.palaces_family.auditFlags = [
+    {
+      code: 'ZERO_CITATIONS_IN_CHAPTER',
+      severity: 'medium',
+      messageVi: 'Cờ medium không chặn xuất.',
+    },
+  ];
+
+  const criticalList = collectCriticalChaptersForExport(states);
+  assert.equal(criticalList.length, 1);
+  assert.equal(criticalList[0].chapterId, 'palaces_core');
+
+  // Mặc định không truyền opt-in vẫn tuân thủ W6 (không rò cờ ra file)
+  const mdDefault = buildDossierMarkdownExport(chart, states);
+  assert.equal(mdDefault.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'), false);
+
+  // Khi người dùng xác nhận tay từng chương -> file .MD & .HTML đều kèm khối cảnh báo ở cuối chương đó
+  const mdConfirmed = buildDossierMarkdownExport(chart, states, new Date('2026-11-26T10:00:00Z'), {
+    includeManualFlagWarningsForChapters: ['palaces_core'],
+  });
+  const htmlConfirmed = buildDossierStandaloneHtmlExport(chart, states, new Date('2026-11-26T10:00:00Z'), {
+    includeManualFlagWarningsForChapters: ['palaces_core'],
+  });
+  assert.ok(mdConfirmed.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+  assert.ok(mdConfirmed.includes('Cung Quan Lộc'));
+  assert.ok(mdConfirmed.includes('Cảnh Báo Xuất Thủ Công'));
+  assert.ok(htmlConfirmed.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+  assert.ok(htmlConfirmed.includes('Cảnh Báo Xuất Thủ Công'));
+
+  const warningMd = formatChapterCriticalFlagsWarningMarkdown(states.palaces_core.auditFlags!);
+  assert.ok(warningMd.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+
+  const modalSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/DetailedDossierModal.tsx'), 'utf8');
+  const panelSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/InsightPanel.tsx'), 'utf8');
+  assert.ok(modalSrc.includes('collectCriticalChaptersForExport'));
+  assert.ok(modalSrc.includes('retryingForFlags'));
+  assert.ok(modalSrc.includes('đã sửa tự động'));
+  assert.ok(panelSrc.includes('retryingForFlags'));
+  assert.ok(panelSrc.includes('đã sửa tự động'));
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

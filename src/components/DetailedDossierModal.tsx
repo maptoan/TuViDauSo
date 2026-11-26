@@ -12,9 +12,11 @@ import {
   AiExecutionMeta,
   AiPeriodEntry,
   ContextualChatContextPayload,
+  CriticalExportChapterInfo,
   DOSSIER_CHAPTER_SPECS,
   DOSSIER_EDITORIAL_PRINT_CSS,
   DOSSIER_INTER_CHAPTER_PACING_MS,
+  DeterministicRepairRecord,
   DossierChapterId,
   DossierChapterSpec,
   DossierChapterState,
@@ -33,6 +35,7 @@ import {
   buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
   classifyDossierFailure,
+  collectCriticalChaptersForExport,
   createBestPartialSnapshot,
   formatDossierSourceBadge,
   formatReauditTimestampVi,
@@ -176,6 +179,13 @@ export default function DetailedDossierModal({
   const [retryingNoticeVi, setRetryingNoticeVi] = useState<string | null>(null);
   const [reauditingChapterId, setReauditingChapterId] =
     useState<DossierChapterId | null>(null);
+  const [exportBlockPrompt, setExportBlockPrompt] = useState<{
+    format: 'md' | 'html';
+    blockedChapters: CriticalExportChapterInfo[];
+  } | null>(null);
+  const [confirmedCriticalExportIds, setConfirmedCriticalExportIds] = useState<
+    Partial<Record<DossierChapterId, boolean>>
+  >({});
 
   const abortRef = useRef<AbortController | null>(null);
   const cancelAutoRef = useRef(false);
@@ -226,6 +236,8 @@ export default function DetailedDossierModal({
       setConfirmDeleteChapterId(null);
       setDeletedChapterUndo(null);
       setAutoRunSummary(null);
+      setExportBlockPrompt(null);
+      setConfirmedCriticalExportIds({});
       if (isGeneratingRef.current) {
         stopAllGeneration();
       }
@@ -249,6 +261,7 @@ export default function DetailedDossierModal({
         error?: string;
         meta?: AiExecutionMeta;
         auditFlags?: Kp3AuditFlag[];
+        deterministicRepairs?: DeterministicRepairRecord[];
         reauditedForVersion?: string;
         reauditedAt?: number;
       }> = [];
@@ -274,6 +287,7 @@ export default function DetailedDossierModal({
               text: val.text,
               meta: val.meta,
               auditFlags: val.auditFlags,
+              deterministicRepairs: val.deterministicRepairs,
               reauditedForVersion: val.reauditedForVersion,
               reauditedAt: val.reauditedAt,
             });
@@ -294,6 +308,7 @@ export default function DetailedDossierModal({
               error: val.error,
               meta: val.meta,
               auditFlags: val.auditFlags,
+              deterministicRepairs: val.deterministicRepairs,
               reauditedForVersion: val.reauditedForVersion,
               reauditedAt: val.reauditedAt,
             });
@@ -337,6 +352,10 @@ export default function DetailedDossierModal({
                 text: patch.text,
                 meta: patch.meta,
                 ...(Array.isArray(patch.auditFlags) ? { auditFlags: patch.auditFlags } : {}),
+                ...(Array.isArray(patch.deterministicRepairs) &&
+                patch.deterministicRepairs.length > 0
+                  ? { deterministicRepairs: patch.deterministicRepairs }
+                  : {}),
                 ...(patch.reauditedForVersion
                   ? { reauditedForVersion: patch.reauditedForVersion }
                   : {}),
@@ -358,6 +377,10 @@ export default function DetailedDossierModal({
                 error: patch.error,
                 meta: patch.meta,
                 ...(Array.isArray(patch.auditFlags) ? { auditFlags: patch.auditFlags } : {}),
+                ...(Array.isArray(patch.deterministicRepairs) &&
+                patch.deterministicRepairs.length > 0
+                  ? { deterministicRepairs: patch.deterministicRepairs }
+                  : {}),
                 ...(patch.reauditedForVersion
                   ? { reauditedForVersion: patch.reauditedForVersion }
                   : {}),
@@ -618,6 +641,12 @@ export default function DetailedDossierModal({
       abortRef.current = controller;
 
       setActiveGeneratingId(spec.id);
+      setConfirmedCriticalExportIds((prev) => {
+        if (!prev[spec.id]) return prev;
+        const next = { ...prev };
+        delete next[spec.id];
+        return next;
+      });
       setLocalChapters((prev) => ({
         ...prev,
         [spec.id]: {
@@ -723,6 +752,19 @@ export default function DetailedDossierModal({
         let scrubbedInvalidCitationIds: string[] = [];
         let normalizedBareCitationIds: string[] = [];
         let receivedAuditFlags: Kp3AuditFlag[] = [];
+        let receivedDeterministicRepairs: DeterministicRepairRecord[] = [];
+
+        const parseRepairRecords = (raw: unknown): DeterministicRepairRecord[] =>
+          Array.isArray(raw)
+            ? raw.filter(
+                (r): r is DeterministicRepairRecord =>
+                  Boolean(r) &&
+                  typeof r === 'object' &&
+                  typeof (r as DeterministicRepairRecord).code === 'string' &&
+                  typeof (r as DeterministicRepairRecord).beforeSentence === 'string' &&
+                  typeof (r as DeterministicRepairRecord).afterSentence === 'string',
+              )
+            : [];
 
         const processLine = (line: string): boolean => {
           if (!line.startsWith('data: ')) return false;
@@ -730,13 +772,21 @@ export default function DetailedDossierModal({
           if (data === '[DONE]') return true;
           try {
             const parsed = JSON.parse(data);
-            if (typeof parsed?.retryingForCitations === 'boolean') {
-              if (parsed.retryingForCitations) {
+            if (
+              typeof parsed?.retryingForCitations === 'boolean' ||
+              typeof parsed?.retryingForFlags === 'boolean'
+            ) {
+              const isRetrying = Boolean(
+                parsed?.retryingForCitations || parsed?.retryingForFlags,
+              );
+              if (isRetrying) {
                 setRetryingChapterId(spec.id);
                 setRetryingNoticeVi(
                   typeof parsed.message === 'string' && parsed.message
                     ? parsed.message
-                    : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...',
+                    : parsed?.retryingForFlags
+                      ? 'Đang sinh lại để sửa lỗi nghiêm trọng theo dữ kiện lá số...'
+                      : 'Đang sinh lại 1 lần để bổ sung trích dẫn học thuật...',
                 );
               } else {
                 setRetryingChapterId((curr) => (curr === spec.id ? null : curr));
@@ -751,6 +801,11 @@ export default function DetailedDossierModal({
               if (parsed.meta) {
                 receivedMeta = parsed.meta as AiExecutionMeta;
               }
+              if (Array.isArray(parsed.deterministicRepairs)) {
+                receivedDeterministicRepairs = parseRepairRecords(
+                  parsed.deterministicRepairs,
+                );
+              }
               setRetryingChapterId((curr) => (curr === spec.id ? null : curr));
               setRetryingNoticeVi(null);
               if (isPeriod && periodKey) {
@@ -759,6 +814,9 @@ export default function DetailedDossierModal({
                   [periodKey]: {
                     text: accumulated,
                     meta: receivedMeta,
+                    ...(receivedDeterministicRepairs.length > 0
+                      ? { deterministicRepairs: receivedDeterministicRepairs }
+                      : {}),
                   },
                 }));
               } else {
@@ -770,6 +828,9 @@ export default function DetailedDossierModal({
                     status: 'loading',
                     text: accumulated,
                     meta: receivedMeta,
+                    ...(receivedDeterministicRepairs.length > 0
+                      ? { deterministicRepairs: receivedDeterministicRepairs }
+                      : {}),
                     sourceBadge: formatDossierSourceBadge('generated'),
                   },
                 }));
@@ -820,6 +881,14 @@ export default function DetailedDossierModal({
                     typeof f === 'object' &&
                     typeof (f as Kp3AuditFlag).code === 'string' &&
                     typeof (f as Kp3AuditFlag).messageVi === 'string',
+                );
+              }
+              if (
+                Array.isArray(parsed.citationAudit.deterministicRepairs) &&
+                parsed.citationAudit.deterministicRepairs.length > 0
+              ) {
+                receivedDeterministicRepairs = parseRepairRecords(
+                  parsed.citationAudit.deterministicRepairs,
                 );
               }
               return false;
@@ -1004,6 +1073,9 @@ export default function DetailedDossierModal({
           text: accumulated,
           meta: receivedMeta,
           auditFlags: persistedAuditFlags,
+          ...(receivedDeterministicRepairs.length > 0
+            ? { deterministicRepairs: receivedDeterministicRepairs }
+            : {}),
           reauditedForVersion: APP_VERSION,
           reauditedAt: completedAt,
           sourceBadge: formatDossierSourceBadge('generated'),
@@ -1018,6 +1090,9 @@ export default function DetailedDossierModal({
               text: accumulated,
               meta: receivedMeta,
               auditFlags: persistedAuditFlags,
+              ...(receivedDeterministicRepairs.length > 0
+                ? { deterministicRepairs: receivedDeterministicRepairs }
+                : {}),
               reauditedForVersion: APP_VERSION,
               reauditedAt: completedAt,
             },
@@ -1156,6 +1231,13 @@ export default function DetailedDossierModal({
           reauditedForVersion: nextVersion,
           reauditedAt: nextAt,
         };
+
+        setConfirmedCriticalExportIds((prev) => {
+          if (!prev[spec.id]) return prev;
+          const next = { ...prev };
+          delete next[spec.id];
+          return next;
+        });
 
         bestPartialMapRef.current.set(sectionCacheKey, updatedState);
         setLocalChapters((prev) => ({
@@ -1324,22 +1406,96 @@ export default function DetailedDossierModal({
 
   const fileSlug = slugifyName(chart.birthInfo.name || 'duong-so');
 
-  const handleDownloadHtml = () => {
-    const html = buildDossierStandaloneHtmlExport(chart, resolvedStatesMap);
-    triggerFileDownload(
-      `ho-so-tu-vi-${fileSlug}.html`,
-      html,
-      'text/html;charset=utf-8',
+  const executeDossierFileExport = (
+    format: 'md' | 'html',
+    confirmedChapterIds: DossierChapterId[],
+  ) => {
+    const options =
+      confirmedChapterIds.length > 0
+        ? { includeManualFlagWarningsForChapters: confirmedChapterIds }
+        : undefined;
+    if (format === 'html') {
+      const html = buildDossierStandaloneHtmlExport(
+        chart,
+        resolvedStatesMap,
+        new Date(),
+        options,
+      );
+      triggerFileDownload(
+        `ho-so-tu-vi-${fileSlug}.html`,
+        html,
+        'text/html;charset=utf-8',
+      );
+      return;
+    }
+    const md = buildDossierMarkdownExport(
+      chart,
+      resolvedStatesMap,
+      new Date(),
+      options,
     );
-  };
-
-  const handleDownloadMd = () => {
-    const md = buildDossierMarkdownExport(chart, resolvedStatesMap);
     triggerFileDownload(
       `ho-so-tu-vi-${fileSlug}.md`,
       md,
       'text/markdown;charset=utf-8',
     );
+  };
+
+  const requestGuardedFileExport = (format: 'md' | 'html') => {
+    const criticalChapters = collectCriticalChaptersForExport(resolvedStatesMap);
+    const unconfirmed = criticalChapters.filter(
+      (c) => !confirmedCriticalExportIds[c.chapterId],
+    );
+    if (unconfirmed.length > 0) {
+      setExportBlockPrompt({
+        format,
+        blockedChapters: criticalChapters,
+      });
+      return;
+    }
+    executeDossierFileExport(
+      format,
+      criticalChapters.map((c) => c.chapterId),
+    );
+  };
+
+  const handleDownloadHtml = () => {
+    requestGuardedFileExport('html');
+  };
+
+  const handleDownloadMd = () => {
+    requestGuardedFileExport('md');
+  };
+
+  const handleToggleConfirmCriticalExport = (
+    chapterId: DossierChapterId,
+    checked: boolean,
+    flags: Kp3AuditFlag[],
+  ) => {
+    setConfirmedCriticalExportIds((prev) => ({
+      ...prev,
+      [chapterId]: checked,
+    }));
+    if (checked) {
+      console.log(
+        `[DetailedDossierModal] User manually confirmed exporting chapter with critical flags (${chapterId}):`,
+        JSON.stringify(
+          flags.map((f) => ({ code: f.code, palaceVi: f.palaceVi ?? null })),
+        ),
+      );
+    }
+  };
+
+  const handleProceedConfirmedExport = () => {
+    if (!exportBlockPrompt) return;
+    const allConfirmed = exportBlockPrompt.blockedChapters.every(
+      (c) => confirmedCriticalExportIds[c.chapterId],
+    );
+    if (!allConfirmed) return;
+    const fmt = exportBlockPrompt.format;
+    const ids = exportBlockPrompt.blockedChapters.map((c) => c.chapterId);
+    setExportBlockPrompt(null);
+    executeDossierFileExport(fmt, ids);
   };
 
   const handleCopyAll = async () => {
@@ -1410,6 +1566,12 @@ export default function DetailedDossierModal({
     }
 
     setConfirmDeleteChapterId(null);
+    setConfirmedCriticalExportIds((prev) => {
+      if (!prev[selectedSpec.id]) return prev;
+      const next = { ...prev };
+      delete next[selectedSpec.id];
+      return next;
+    });
     setDeletedChapterUndo({
       chartIdentityKey,
       chapterId: selectedSpec.id,
@@ -2133,6 +2295,22 @@ export default function DetailedDossierModal({
                 </div>
               ) : null}
 
+              {selectedState.status !== 'loading' &&
+                selectedState.deterministicRepairs &&
+                selectedState.deterministicRepairs.length > 0 && (
+                  <div className="rounded-xl px-3.5 py-2.5 border border-sky-500/40 bg-sky-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-sky-200">
+                    <span className="inline-flex items-center gap-1.5 font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                      <span>
+                        Đã sửa tự động {selectedState.deterministicRepairs.length} câu gọi nhầm &quot;Không Kiếp&quot; theo đúng Tam Phương Tứ Chính trước khi lưu.
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-sky-400/40 bg-sky-950/50 text-sky-200">
+                      đã sửa tự động · chỉ hiển thị trên màn hình
+                    </span>
+                  </div>
+                )}
+
               {/* Chapter Main Body by State */}
               {selectedState.status === 'loading' && (
                 <div className="space-y-3">
@@ -2267,6 +2445,125 @@ export default function DetailedDossierModal({
           </div>
         </div>
       </div>
+
+      {exportBlockPrompt && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Xác nhận xuất hồ sơ có cảnh báo nghiêm trọng"
+        >
+          <div className="w-full max-w-xl rounded-2xl border border-rose-500/50 bg-[var(--t-card)] text-[var(--t-text)] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div className="px-4 py-3.5 border-b border-rose-500/35 bg-rose-950/40 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-rose-200 font-bold text-sm">
+                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>
+                  Chặn xuất .{exportBlockPrompt.format.toUpperCase()} — Còn {exportBlockPrompt.blockedChapters.length} chương mang cờ nghiêm trọng
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setExportBlockPrompt(null)}
+                className="p-1 rounded-lg text-rose-200/80 hover:text-white cursor-pointer"
+                title="Đóng"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 text-xs">
+              <p className="text-[var(--t-text2)] leading-relaxed">
+                Các chương dưới đây vẫn còn cờ sai lệch dữ kiện lá số mức <strong className="text-rose-300">NGHIÊM TRỌNG</strong> sau khi tự sinh lại/sửa tự động. Khuyến nghị bấm &quot;Xem chương&quot; để sinh lại; nếu vẫn muốn xuất file, bạn cần xác nhận tay từng chương (file xuất sẽ tự chèn khối cảnh báo ở cuối chương tương ứng).
+              </p>
+
+              <div className="space-y-2.5">
+                {exportBlockPrompt.blockedChapters.map((item) => {
+                  const checked = Boolean(confirmedCriticalExportIds[item.chapterId]);
+                  return (
+                    <div
+                      key={item.chapterId}
+                      className="rounded-xl p-3 border border-rose-500/40 bg-rose-950/20 space-y-2"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-bold text-rose-200">
+                          {item.shortLabelVi}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedChapterId(item.chapterId);
+                            setExportBlockPrompt(null);
+                          }}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-gold)] hover:border-[var(--t-gold)] cursor-pointer"
+                        >
+                          Xem chương
+                        </button>
+                      </div>
+
+                      <ul className="space-y-1 text-[11px] text-rose-100/90">
+                        {item.criticalFlags.map((flag, idx) => (
+                          <li key={`${flag.code}-${idx}`}>
+                            <span className="font-mono font-bold text-rose-300 mr-1">
+                              [{flag.code}]
+                            </span>
+                            {flag.palaceVi && (
+                              <span className="font-semibold mr-1">
+                                (Cung {flag.palaceVi})
+                              </span>
+                            )}
+                            {flag.messageVi}
+                          </li>
+                        ))}
+                      </ul>
+
+                      <label className="flex items-start gap-2 pt-1 text-[11px] text-[var(--t-text)] cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) =>
+                            handleToggleConfirmCriticalExport(
+                              item.chapterId,
+                              e.target.checked,
+                              item.criticalFlags,
+                            )
+                          }
+                          className="mt-0.5 accent-rose-500 cursor-pointer"
+                        />
+                        <span>
+                          Tôi đã đọc cảnh báo và xác nhận vẫn xuất{' '}
+                          <strong>{item.shortLabelVi}</strong> kèm khối cảnh báo trong file.
+                        </span>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="px-4 py-3 border-t border-[var(--t-border)] bg-[var(--t-surface)] flex flex-wrap items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setExportBlockPrompt(null)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-[var(--t-text)] cursor-pointer"
+              >
+                Đóng để sửa chương
+              </button>
+              <button
+                type="button"
+                disabled={
+                  !exportBlockPrompt.blockedChapters.every((c) =>
+                    Boolean(confirmedCriticalExportIds[c.chapterId]),
+                  )
+                }
+                onClick={handleProceedConfirmedExport}
+                className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                Xuất .{exportBlockPrompt.format.toUpperCase()} kèm cảnh báo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {printSheetPortal}
     </>
