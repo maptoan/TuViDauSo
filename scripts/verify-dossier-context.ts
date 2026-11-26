@@ -185,13 +185,13 @@ async function runTests() {
     }
 
     const corePrompt = buildStrictDossierSectionPrompt(adultChart, 'palaces_core');
-    assert.ok(corePrompt.systemInstruction.includes('250–350 từ MỖI cung'));
-    assert.ok(corePrompt.systemInstruction.includes('1,000–1,400 từ'));
+    assert.ok(corePrompt.systemInstruction.includes('150–250 từ MỖI cung'));
+    assert.ok(corePrompt.systemInstruction.includes('800–1.100 từ'));
     assert.ok(corePrompt.systemInstruction.includes('Mệnh Cung'));
     assert.ok(corePrompt.systemInstruction.includes('Giao Hữu') === false);
 
     const horizonPrompt = buildStrictDossierSectionPrompt(adultChart, 'horizon_10y');
-    assert.ok(horizonPrompt.systemInstruction.includes('750–1,100 từ'));
+    assert.ok(horizonPrompt.systemInstruction.includes('1.500–1.700 từ'));
     assert.ok(horizonPrompt.systemInstruction.includes('TUYỆT ĐỐI CẤM tự tính nhẩm'));
 
     const overLongExcerpt = 'A'.repeat(7_500);
@@ -615,9 +615,9 @@ async function runTests() {
       'Y6d/P7: không chèn Can Chi vào dynamicStarsSummaryVi',
     );
 
-    // Z1: prompt nhóm cung bắt buộc dòng [Tứ Hóa Đại Hạn Kỳ X–Y]
+    // Z1 + P4: prompt nhóm cung chỉ phân tích Đại Hạn hiện tại và kế tiếp + Không Kiếp
     const groupPrompt = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
-    assert.ok(groupPrompt.systemInstruction.includes('[Tứ Hóa Đại Hạn Kỳ X–Y]'));
+    assert.ok(groupPrompt.systemInstruction.includes('Chỉ phân tích Đại Hạn hiện tại và kế tiếp'));
     assert.ok(groupPrompt.systemInstruction.includes('Không Kiếp'));
 
     // Z2 & Z4: prompt kỳ hạn chứa sàn 900–1.300 từ, tên sao+độ sáng, Không Kiếp, và KHÔNG hardcode 1977
@@ -681,8 +681,8 @@ async function runTests() {
     const z1OutWithBlank = enforceCanonicalPalaceGroupHeadings(z1SameWithBlank, sample1977);
     assert.strictEqual(
       z1OutWithBlank,
-      '### Cung Mệnh (Nhâm Dần) [AN MỆNH] [Đại hạn 4–13 tuổi]\nNội dung bản cung Mệnh.',
-      'Z1: 2 tiêu đề trùng có dòng trống ở giữa phải gộp thành 1 và bỏ dòng trống kẹp giữa',
+      '### Cung Mệnh (Nhâm Dần) [AN MỆNH]\nNội dung bản cung Mệnh.',
+      'Z1: 2 tiêu đề trùng có dòng trống ở giữa phải gộp thành 1 và bỏ dòng trống kẹp giữa (E-02 #1: Mệnh không còn [Đại hạn])',
     );
 
     const z1DistinctConsecutive = [
@@ -734,18 +734,18 @@ async function runTests() {
       ),
     );
     assert.ok(
-      periodPromptZ4.systemInstruction.length <= 4017,
-      `Z4+A1: systemInstruction vượt trần (${periodPromptZ4.systemInstruction.length} > 4017)`,
+      periodPromptZ4.systemInstruction.length <= 5476,
+      `Z4+A1+1.5.8: systemInstruction vượt trần (${periodPromptZ4.systemInstruction.length} > 5476)`,
     );
 
     console.log(
-      `  -> Đạt [BRIEF 1.5.6 Nhóm Z]: Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt (${periodPromptZ4.systemInstruction.length}/4017 ký tự).`,
+      `  -> Đạt [BRIEF 1.5.6 Nhóm Z]: Z1 gộp tiêu đề, Z2 chính tả + Đóng tại, Z4 prompt (${periodPromptZ4.systemInstruction.length}/5476 ký tự).`,
     );
   }
 
-  // 10. BRIEF 1.5.7 · Nhóm A1 (ĐK-157-P01 wording bắt buộc trích dẫn + chống gắn gượng + trần <= +200 ký tự)
+  // 10. BRIEF 1.5.7 · Nhóm A1 (ĐK-157-P01 wording bắt buộc trích dẫn + chống gắn gượng + trần ĐK-158-05)
   {
-    console.log('\n[10/10] Kiểm thử BRIEF 1.5.7 Nhóm A1 (Quy tắc trích dẫn + trần systemInstruction <= +200 ký tự)...');
+    console.log('\n[10/11] Kiểm thử BRIEF 1.5.7 Nhóm A1 (Quy tắc trích dẫn + trần ĐK-158-05)...');
     const sample1977 = generateChart({
       name: 'Mẫu 1977',
       year: 1977,
@@ -759,14 +759,14 @@ async function runTests() {
     const chartSummary1977 = formatChartSummaryVi(sample1977);
     const ctx2026 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 })!;
 
-    const baseline156SysLen: Record<string, number> = {
-      chapter_overview: 2239,
-      palaces_core: 3124,
-      palaces_family: 3282,
-      palaces_social_health: 3121,
-      horizon_5y: 3244,
-      horizon_10y: 3244,
-      period: 3817,
+    const maxAllowed158: Record<string, number> = {
+      chapter_overview: 3915,
+      palaces_core: 4800,
+      palaces_family: 4958,
+      palaces_social_health: 4797,
+      horizon_5y: 4920,
+      horizon_10y: 4920,
+      period: 5476,
     };
 
     for (const sid of VALID_DOSSIER_SECTION_IDS) {
@@ -775,10 +775,10 @@ async function runTests() {
       assert.ok(res.systemInstruction.includes('Nữ mệnh cho Nam'));
       assert.ok(res.systemInstruction.includes('Hóa Kỵ xung Mệnh'));
       assert.ok(res.systemInstruction.includes('luận thuần túy từ dữ kiện tinh đẩu'));
-      const maxAllowed = baseline156SysLen[sid] + 200;
+      const maxAllowed = maxAllowed158[sid];
       assert.ok(
         res.systemInstruction.length <= maxAllowed,
-        `A1 (${sid}): systemInstruction vượt trần +200 (${res.systemInstruction.length} > ${maxAllowed})`,
+        `A1 (${sid}): systemInstruction vượt trần ĐK-158-05 (${res.systemInstruction.length} > ${maxAllowed})`,
       );
     }
 
@@ -788,16 +788,125 @@ async function runTests() {
     assert.ok(periodRes.systemInstruction.includes('Hóa Kỵ xung Mệnh'));
     assert.ok(periodRes.systemInstruction.includes('luận thuần túy từ dữ kiện tinh đẩu'));
     assert.ok(
-      periodRes.systemInstruction.length <= baseline156SysLen.period + 200,
-      `A1 (period): systemInstruction vượt trần +200 (${periodRes.systemInstruction.length} > ${baseline156SysLen.period + 200})`,
+      periodRes.systemInstruction.length <= maxAllowed158.period,
+      `A1 (period): systemInstruction vượt trần ĐK-158-05 (${periodRes.systemInstruction.length} > ${maxAllowed158.period})`,
     );
 
     console.log(
-      `  -> Đạt [BRIEF 1.5.7 Nhóm A1]: Đủ quy tắc & chống gắn gượng, tất cả 7 systemInstruction nằm trong trần +200 (period=${periodRes.systemInstruction.length}/${baseline156SysLen.period + 200}).`,
+      `  -> Đạt [BRIEF 1.5.7 Nhóm A1]: Đủ quy tắc & chống gắn gượng, tất cả 7 systemInstruction nằm trong trần ĐK-158-05 (period=${periodRes.systemInstruction.length}/${maxAllowed158.period}).`,
     );
   }
 
-  console.log('\n=== TẤT CẢ 10 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.7 ĐỀU ĐẠT ===');
+  // 11. BRIEF 1.5.8 · Nhóm T1 (P1–P9 prompt cải tiến + sàn độ dài P9 + trần ĐK-158-05 + chat giữ nguyên)
+  {
+    console.log('\n[11/11] [BRIEF 1.5.8 · T1] Kiểm thử chỉ thị P1–P9, sàn P9, trần systemInstruction ĐK-158-05 & chat giữ nguyên...');
+    const sample1977 = generateChart({
+      name: '',
+      year: 1977,
+      month: 7,
+      day: 26,
+      hour: 5,
+      gender: 'male',
+      city: 'Hà Nội',
+      longitude: 105.85,
+    });
+    const chartSummary1977 = formatChartSummaryVi(sample1977);
+    const ctx2026 = buildYunxianPeriodContext(sample1977, { mode: 'liunian', year: 2026 })!;
+
+    const sys158Ceilings: Record<string, number> = {
+      chapter_overview: 3915,
+      palaces_core: 4800,
+      palaces_family: 4958,
+      palaces_social_health: 4797,
+      horizon_5y: 4920,
+      horizon_10y: 4920,
+      period: 5476,
+    };
+
+    const ovBuilt = buildStrictDossierSectionPrompt(sample1977, 'chapter_overview');
+    const coreBuilt = buildStrictDossierSectionPrompt(sample1977, 'palaces_core');
+    const famBuilt = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
+    const socBuilt = buildStrictDossierSectionPrompt(sample1977, 'palaces_social_health');
+    const h5Built = buildStrictDossierSectionPrompt(sample1977, 'horizon_5y');
+    const h10Built = buildStrictDossierSectionPrompt(sample1977, 'horizon_10y');
+    const periodBuilt = buildStrictPeriodAiPrompt(ctx2026, chartSummary1977, sample1977);
+
+    // Kiểm tra P1–P3, P5, P7–P8 chung trên tất cả 7 prompt sinh chương
+    for (const [label, sys] of [
+      ['chapter_overview', ovBuilt.systemInstruction],
+      ['palaces_core', coreBuilt.systemInstruction],
+      ['palaces_family', famBuilt.systemInstruction],
+      ['palaces_social_health', socBuilt.systemInstruction],
+      ['horizon_5y', h5Built.systemInstruction],
+      ['horizon_10y', h10Built.systemInstruction],
+      ['period', periodBuilt.systemInstruction],
+    ] as const) {
+      assert.ok(sys.includes('≤ 30 từ'), `${label}: thiếu chỉ thị P1 ≤ 30 từ`);
+      assert.ok(sys.includes('≤ 60 từ'), `${label}: thiếu chỉ thị P1 ≤ 60 từ`);
+      assert.ok(sys.includes('≤ 120 từ'), `${label}: thiếu chỉ thị P1 ≤ 120 từ`);
+      assert.ok(sys.includes('vì sao'), `${label}: thiếu chỉ thị P2 vì sao`);
+      assert.ok(sys.includes('đương số'), `${label}: thiếu chỉ thị P7 đương số`);
+      assert.ok(sys.includes('CẤM dùng "bạn"'), `${label}: thiếu chỉ thị P7 cấm "bạn"`);
+      assert.ok(sys.includes('1 tên duy nhất'), `${label}: thiếu chỉ thị D2 cách cục 1 tên duy nhất`);
+      assert.ok(sys.includes('giải thích 1 lần ở ch.1 §1'), `${label}: thiếu chỉ thị D4 Âm/Dương`);
+      assert.ok(sys.length <= sys158Ceilings[label], `${label}: vượt trần ĐK-158-05 (${sys.length} > ${sys158Ceilings[label]})`);
+    }
+
+    // Kiểm tra P8 "không thêm thông tin ngoài gốc" trên 6 prompt dossier
+    for (const built of [ovBuilt, coreBuilt, famBuilt, socBuilt, h5Built, h10Built]) {
+      assert.ok(built.systemInstruction.includes('không thêm thông tin ngoài gốc'));
+    }
+
+    // Kiểm tra riêng P2/P4/P9 nhóm cung
+    for (const groupBuilt of [coreBuilt, famBuilt, socBuilt]) {
+      assert.ok(groupBuilt.systemInstruction.includes('kết luận in đậm'));
+      assert.ok(groupBuilt.systemInstruction.includes('chỉ giữ nhãn [Đại hạn'));
+      assert.ok(groupBuilt.systemInstruction.includes('mọi đoạn phi tinh còn lại BỎ'));
+      assert.ok(groupBuilt.systemInstruction.includes('150–250 từ MỖI cung'));
+      assert.ok(groupBuilt.systemInstruction.includes('800–1.100 từ'));
+    }
+
+    // Kiểm tra P6 & P9 ch.1, ch.7, ch.8, kỳ hạn
+    assert.ok(ovBuilt.systemInstruction.includes('900–1.100 từ'));
+    assert.ok(h5Built.systemInstruction.includes('1.600–1.900 từ'));
+    assert.ok(h10Built.systemInstruction.includes('1.500–1.700 từ'));
+    assert.ok(h10Built.systemInstruction.includes('chỉ viết 5 khối năm sau ch.7'));
+    assert.ok(periodBuilt.systemInstruction.includes('900–1.300 từ'));
+
+    // Kiểm tra chat prompt giữ nguyên không chứa chỉ thị mới 1.5.8
+    const chatBuilt = buildStrictExplanationChatPrompt({
+      chart: sample1977,
+      contextMode: 'natal',
+      sectionTitle: 'Test Chat',
+      excerpt: 'Cung Mệnh.',
+      history: [],
+      question: 'Hỏi test?',
+    });
+    assert.equal(chatBuilt.systemInstruction.includes('CẤM dùng "bạn"'), false);
+    assert.equal(chatBuilt.systemInstruction.includes('chỉ viết 5 khối năm sau ch.7'), false);
+    assert.equal(chatBuilt.systemInstruction.includes('mọi đoạn phi tinh còn lại BỎ'), false);
+
+    // Đo 7 bề mặt Fact Sheet giữ nguyên trần 1.5.7
+    const fsOv = buildNatalOverviewFactSheetVi(sample1977).factSheetMarkdown.length;
+    const fsCore = buildPalaceGroupFactSheetVi(sample1977, 'core').factSheetMarkdown.length;
+    const fsFam = buildPalaceGroupFactSheetVi(sample1977, 'family').factSheetMarkdown.length;
+    const fsSoc = buildPalaceGroupFactSheetVi(sample1977, 'social_health').factSheetMarkdown.length;
+    const fsH5 = buildDossierSectionFactSheetVi(sample1977, 'horizon_5y').factSheetMarkdown.length;
+    const fsH10 = buildDossierSectionFactSheetVi(sample1977, 'horizon_10y').factSheetMarkdown.length;
+    const fsChat = buildChatFactTableForContextVi(sample1977, {
+      contextMode: 'natal',
+      includeHorizonStart: 2026,
+      includeHorizonEnd: 2035,
+    }).length;
+    assert.ok(fsOv <= 3650 && fsCore <= 5100 && fsFam <= 4550 && fsSoc <= 4580);
+    assert.ok(fsH5 <= 14200 && fsH10 <= 37800 && fsChat <= 13100);
+
+    console.log(
+      `  -> Đạt [BRIEF 1.5.8 T1]: sysLen=(ov=${ovBuilt.systemInstruction.length}, core=${coreBuilt.systemInstruction.length}, fam=${famBuilt.systemInstruction.length}, soc=${socBuilt.systemInstruction.length}, h5=${h5Built.systemInstruction.length}, h10=${h10Built.systemInstruction.length}, period=${periodBuilt.systemInstruction.length}); fs=(${fsOv}/${fsCore}/${fsFam}/${fsSoc}/${fsH5}/${fsH10}/${fsChat}).`,
+    );
+  }
+
+  console.log('\n=== TẤT CẢ 11 BÀI KIỂM THỬ DOSSIER CONTEXT, HORIZON & BRIEF 1.5.8 ĐỀU ĐẠT ===');
 }
 
 runTests().catch((err) => {

@@ -586,12 +586,33 @@ export function buildPalaceGroupFactSheetVi(
   };
 }
 
-export function formatCanonicalPalaceHeading(p: Palace): string {
+export function formatCanonicalPalaceHeading(
+  p: Palace,
+  options?: { chart?: ZiweiChart; onlyCurrentAndNextDaXian?: boolean },
+): string {
   const natalPalaceNameVi = translatePalaceName(p.name);
   const headingPalaceLabel =
     natalPalaceNameVi === 'Mệnh Cung' ? 'Cung Mệnh' : `Cung ${natalPalaceNameVi}`;
   const ganZhiVi = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
-  const daXianAgeRangeVi = p.daXianAge ? `${p.daXianAge[0]}–${p.daXianAge[1]} tuổi` : null;
+  let includeDaXianBadge = true;
+  if (options?.onlyCurrentAndNextDaXian && options.chart) {
+    const curIdx =
+      typeof options.chart.currentDaXianIndex === 'number'
+        ? options.chart.currentDaXianIndex
+        : -1;
+    const allowedBranches = new Set<number>();
+    if (curIdx >= 0 && curIdx < options.chart.daXians.length) {
+      allowedBranches.add(options.chart.daXians[curIdx].palaceBranch);
+      if (curIdx + 1 < options.chart.daXians.length) {
+        allowedBranches.add(options.chart.daXians[curIdx + 1].palaceBranch);
+      }
+    } else if (options.chart.daXians.length > 0) {
+      allowedBranches.add(options.chart.daXians[0].palaceBranch);
+    }
+    includeDaXianBadge = allowedBranches.has(p.branch);
+  }
+  const daXianAgeRangeVi =
+    includeDaXianBadge && p.daXianAge ? `${p.daXianAge[0]}–${p.daXianAge[1]} tuổi` : null;
   const badges = [
     p.isMingGong ? '[AN MỆNH]' : '',
     p.isShenGong ? '[AN THÂN]' : '',

@@ -1,0 +1,138 @@
+
+=== PHẦN 3/3 (CUỐI) — BRIEF 1.5.8 v2 (X4–X9 + nhóm T + ĐK-158-01..07 + KHỐI CHUẨN + Phụ lục A/B/C) ===
+
+### X4 — Disclaimer: chỉ giữ 1 câu cuối hồ sơ
+- Trong cùng đường xuất: gỡ dòng "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*" ở cuối mỗi chương (do quy tắc 7 prompt bắt model ghi); giữ đúng 1 câu disclaimer duy nhất ở cuối file (dòng hiện hành của `buildDossierMarkdownExport`).
+- Lưu ý: dòng này cũng là dòng kết bắt buộc trong prompt (quy tắc 7) — KHÔNG bỏ quy tắc 7 khỏi prompt (dòng kết vẫn cần để model biết điểm dừng); chỉ gỡ khi xuất.
+
+### X5 — "Đọc trong X phút" mỗi chương + mục lục (R-12)
+- Trong `buildDossierMarkdownExport` (và bản HTML tương ứng): sau khi làm sạch văn bản chương (X1–X4), đếm số từ thật của chương (Python `split()`/JS tương đương, UTF-8 — CẤM dùng `wc -w` locale C), tính phút = làm tròn (số từ / 220), chèn đúng 1 dòng `Đọc trong N phút` ngay sau tiêu đề `## Chương …` và hậu tố `· Đọc trong khoảng N phút` vào dòng mục lục tương ứng. 8/8 chương đều phải có dòng này; số phút phải khớp số từ thật sau khi làm sạch. Đếm trên toàn bộ span chương (từ `## Chương …` đến `##` tiếp theo), TÍNH CẢ tiêu đề, TRỪ dòng 'Đọc trong N phút' (định nghĩa đã kiểm chứng khớp 8/8 nhãn thật trên file mẫu nhánh A — ĐK-158-P10; trừ tiêu đề sẽ sai ở ch.4, ch.6, ch.7, ch.8). Công thức làm tròn (số từ / 220) GIỮ NGUYÊN — bác công thức ceil(số từ/200) của vòng 1 (đo thật trên file mẫu: khớp 0/8).
+- Không nhờ model tự ghi dòng này (model không đếm được từ).
+
+### X6 — Bảng Thuật Ngữ sau Kết Luận Nhanh (R-05)
+- Thêm mục "Bảng Thuật Ngữ" ngay sau Kết Luận Nhanh trong cả 2 đường xuất (.md và .html), nội dung là 11 mục cố định sau (lấy nguyên văn từ file mẫu đối chiếu, đã đổi đại từ sang "đương số"): Mệnh/Thân · Đại Hạn · Lưu Niên · Tứ Hóa · Tam Phương Tứ Chính · Tam Hợp · Độ sáng sao (Miếu mạnh nhất, Vượng mạnh, Đắc khá, Lợi tốt, Bình trung bình, Hãm yếu) · Vô chính diệu · xung chiếu · mượn sao · cách cục. Mỗi mục 1 dòng, kèm 1 ví dụ lấy từ lá số đang xuất (slot xác định: tên cung/sao của lá số đó — không hardcode ví dụ của Đỗ Vũ Toàn; ví dụ nào không có dữ kiện tương ứng trong lá số thì bỏ ví dụ, chỉ giữ định nghĩa).
+- Đặt hằng số/template bảng này ở `src/lib/dossier-chat-ui.ts` (cạnh `buildDeterministicExecutiveSummaryVi`), có test riêng.
+- Lưu ý (ĐK-158-P08): danh sách 11 mục trên là danh sách đã chốt theo số đo thật trên file mẫu nhánh A; danh sách 11 mục của vòng 1 (có Ngũ hành Cục, Tiểu hạn, Tuần/Triệt, Tuổi mụ; thiếu Tam Hợp, xung chiếu, mượn sao, cách cục) lấy từ bản nháp khác nên BÁC. Phương án §2.1 ghi '12 mục giữ 10' đã lỗi thời (file thật có 11 mục: 10 + Tam Hợp thêm ở M-FIX-20).
+
+### X7 — Phụ lục A/B/C dựng xác định từ dữ kiện lá số
+- Thêm 3 phụ lục vào cuối cả 2 đường xuất (sau chương 8, trước câu disclaimer cuối):
+  - **Phụ lục A — Bảng tra cứu theo cung:** A.1 bảng Đại hạn 12 cung (đủ 12 cung, kể cả 10 nhãn đã bỏ khỏi tiêu đề); A.2 bảng mượn sao (mọi cung Vô chính diệu của lá số đó + cung cho mượn; ví dụ lá số mẫu: 2 cung); A.3 bảng Tam Phương Tứ Chính từng cung; A.4 giờ Mặt Trời thật + Kim Tứ Cục/Mệnh Chủ/Thân Chủ. Nguồn dữ kiện: đối tượng `chart` (`chart.palaces`, `chart.daXians`) — KHÔNG lấy từ văn bản model.
+  - **Phụ lục B — Bảng tra cứu theo năm:** B.1 bảng năm → can (năm hiện tại…năm sau + 10 năm tới, theo đúng 2 chương Lưu Niên + 2 chương horizon của hồ sơ); B.2/B.3 bảng Lưu Tứ Hóa theo năm (trích xác định từ `buildYunxianPeriodContext` cho từng năm — giữ nguyên nhãn + cung xung + ghi chú, không viết lại); B.4 vị trí sao lưu; B.5 danh sách 4 Hóa Đại Hạn hiện tại/kế tiếp; B.6 bảng Kỳ `[Tứ Hóa Đại Hạn Kỳ …]` — mọi dòng Kỳ TRỪ dòng Kỳ kế tiếp (dòng kế tiếp giữ trong thân bài theo P4): trên lá số mẫu 1977 là 11 dòng ở B.6 + 1 dòng ở thân bài (= 12 Kỳ); số dòng B.6 suy ra từ `chart.daXians`, KHÔNG hardcode 12 (sửa lỗi brief v1: T2 ghi 'đủ 12 dòng Kỳ ở B.6' là sai đối chiếu file mẫu); B.7 bảng Tự Hóa (mọi dòng Tự Hóa của lá số đó, nguyên văn mệnh đề; ví dụ lá số mẫu: 3 dòng). Lưu ý đã biết từ nhánh A: phụ lục B dài (~2.700 từ) là chấp nhận được — trích nguyên văn, không nén gọn làm mất chữ gốc.
+  - **Phụ lục C — Nguồn tham khảo:** C.1 bảng tham chiếu duy nhất (gộp từ X3, khử trùng); C.2 bảng thuật ngữ đầy đủ (15 mục — 11 mục thân bài X6 theo đúng thứ tự thân bài, + "Phi Tinh", "Tự Hóa", "cung phụ trợ", "cát tinh / sát tinh" — sửa lỗi brief v1: mục thêm thứ 4 là "cát tinh / sát tinh", không phải "An Mệnh/An Thân"; dòng giới thiệu C.2 phải mô tả đúng thứ tự thật).
+- Quy tắc trích xuất xác định (ĐK-158-P09): cung Vô chính diệu nhận diện bằng `isEmpty`/`borrowedFromName`/`borrowedStars` (kiểu `Palace` KHÔNG có trường `majorStars` — chính tinh lấy bằng `p.stars.filter(s => s.type === 'major')`); Kỳ đối chiếu `SI_HUA_TABLE` qua `getSiHuaByStem(stemIndex)`; bảng Lưu Tứ Hóa theo năm lấy từ `buildMultiYearHorizonContext`/`buildYunxianPeriodContext`; khối tham chiếu nhận diện bằng marker `> 📚 **[Tư Liệu Học Thuật Tham Chiếu Trong Chương]**` (chuỗi `### Tham Chiếu Học Thuật` không tồn tại trong code — chỉ xuất hiện trong test dưới dạng assert-KHÔNG-chứa); phân biệt marker `> 📌` của khối bổ sung Tứ Hóa, không strip mù theo `>`; lá số 0 cung Vô chính diệu / 0 cung Tự Hóa cho ra bảng rỗng, không crash.
+- Ràng buộc: mọi bảng phụ lục đều dựng từ dữ kiện xác định (chart / period context / khối tham chiếu đã tách), KHÔNG dùng văn bản do model sinh làm nguồn. Nếu một bảng không đủ dữ kiện xác định thì bỏ bảng đó và ghi rõ trong báo cáo (không tự lấp).
+
+### X8 — Đầu hồ sơ + mục lục + hướng dẫn đọc
+- Trang đầu: giữ nguyên các dòng metadata hiện hành của `buildDossierHeaderMetadata`; thêm 3 dòng tóm tắt (Mệnh · Thân cư · Đại hạn hiện tại) nếu chưa có.
+- Mục lục: giữ danh sách 8 chương + trạng thái; thêm hậu tố phút đọc (X5) và 3 dòng hướng dẫn đọc (đọc Kết Luận Nhanh trước; chương nào đọc khi nào; phụ lục dùng để tra cứu) — văn bản cố định như file mẫu đối chiếu.
+
+### X9 — HTML xuất (.html Giấy Cổ) phải khớp đúng nội dung bản .md
+- `buildDossierStandaloneHtmlExport` áp dụng đủ X1–X8 (gỡ thẻ, gỡ khối cảnh báo, tách khối tham chiếu → phụ lục C, gỡ disclaimer lẻ, phút đọc, bảng thuật ngữ, phụ lục A/B/C). Không để .html và .md lệch nhau về nội dung. CSS Giấy Cổ + `@media print` giữ nguyên.
+- Giữ nguyên `buildDossierPageOneHtml` (trang 1: header + tóm tắt 5 câu + lưới 12 cung) và điểm chèn `<table class="matrix-table">` trong `buildDossierStandaloneHtmlExport` (ma trận KHÔNG nằm trong Page One mà chèn riêng trước chương horizon). Test hiện hành khóa chặt: HTML phải chứa ma trận (verify-dossier-chat-ui.ts:843), .md/PlainText KHÔNG chứa (851/854) — các test này KHÔNG thuộc danh sách trắng, phải giữ đạt. (ĐK-158-P06)
+
+## 4. Nhóm T — Test bắt buộc
+
+- **T1 — `scripts/verify-dossier-context.ts` (mở rộng Bài 11 mới):** assert prompt dossier + prompt period chứa đủ chỉ thị P1–P9 (kiểm theo chuỗi khóa: "≤ 30 từ", "≤ 60 từ", "≤ 120 từ", "kết luận in đậm", "vì sao", "đương số", "CẤM dùng \"bạn\"", "chỉ giữ nhãn [Đại hạn" / 2 cung, "mọi đoạn phi tinh còn lại BỎ" (không assert "BỎ 9" — số đoạn thay đổi theo lá số), "chỉ viết 5 khối năm sau ch.7" (không assert năm tuyệt đối 2031–2035 — chỉ đúng khi năm hiện tại là 2026), "không thêm thông tin ngoài gốc", "1 tên duy nhất" (cách cục, D2), "giải thích 1 lần ở ch.1 §1" (Âm/Dương, D4)); assert sàn độ dài mới P9 (150–250/cung; 800–1.100/chương nhóm cung; 1.600–1.900 horizon_5y; 1.500–1.700 horizon_10y; 900–1.100 overview; 900–1.300 period giữ nguyên); assert `buildStrictExplanationChatPrompt` KHÔNG chứa chỉ thị mới (ngoài phạm vi); assert trần systemInstruction mới (xem ĐK-158-05).
+- **T2 — `scripts/verify-dossier-chat-ui.ts` (test mới cho nhóm X):** test hàm thuần trên văn bản tổng hợp: X1 gỡ đủ thẻ (cuối câu, thẻ kép cùng câu, thẻ trong backtick, ca "Chiếu theo [Nguồn: …],") và không để lại khoảng trắng đôi/câu cụt; X1 KHÔNG được gọi trong đường hiển thị (assert `sanitizeDossierChapterText` vẫn giữ thẻ); X1b gỡ đúng khối bổ sung Tứ Hóa + nhãn [Tứ Hóa…]/[Tự Hóa…]/[Phi Tinh…] còn sót; X2 gỡ đúng khối cảnh báo, giữ khối tham chiếu; X3 tách đúng khối tham chiếu TRƯỚC khi strip thẻ, gộp + khử trùng (1 mã 1 lần) + nhãn (Chương N); X4 gỡ disclaimer lẻ, giữ 1 câu cuối file; X5 phút đọc khớp số từ thật (220 từ/phút, làm tròn, đếm cả span chương gồm tiêu đề) trên chương tổng hợp; X6 bảng thuật ngữ đủ 11 mục; X7 phụ lục dựng từ chart tổng hợp (đủ 12 cung ở A.1; B.6 có đúng (tổng số Kỳ − 1) dòng — suy ra từ chart, không hardcode 12); P10: `buildDeterministicExecutiveSummaryVi` trả đúng 5 câu, 0 lần "bạn", chứa "đương số", tiêu đề "Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu)" + các nhánh (Vô chính diệu, chưa vào Đại Hạn, khuyết giờ sinh không bịa giờ, năm tương đối); T2 assert mẫu §1 đủ 4 gạch (mỗi gạch có tên sao) KHÔNG bị `verifyAndEnsureCompletePeriodSiHua` nối khối bổ sung.
+- **T3 — Script đo cổng đọc mới `scripts/verify-dossier-readability.ts`:** đo R-01..R-12 bằng script trên một file hồ sơ .md (đầu vào là file xuất từ nghiệm thu live ĐK-158-06) — kế thừa logic `verify_gates.py` của nhánh A: tách câu/đoạn theo định nghĩa đã chốt ở BIEN-TAP-KIEM-CHUNG.md (đoạn = khối văn xuôi, gạch đo riêng ≤ 100 từ; đếm Python `split()` UTF-8, cấm `wc -w` locale C); in bảng từng cổng ĐẠT/KHÔNG ĐẠT + số đo; thoát khác 0 nếu bất kỳ cổng nào rớt. Định nghĩa đo (ĐK-158-P10): đếm từ cho X5 trên toàn bộ span chương (tính cả tiêu đề, trừ dòng 'Đọc trong'); cổng R-01/R-02 chỉ đo văn xuôi thân bài — tách câu theo dấu kết câu (. ! ? …), KHÔNG tách tại '1.' hay tiêu đề/bảng; gạch đầu dòng đo riêng (≤ 100 từ); đoạn = khối văn xuôi giữa 2 dòng trống, không kể tiêu đề; phụ lục không thuộc cổng R-01/R-02. Thang đo là R-01..R-12 của brief này (bác thang R-01..R-08 của vòng 1). Script này KHÔNG chạy trong `verify:all` (cần file hồ sơ sinh live làm đầu vào) mà chạy ở bước nghiệm thu live.
+- **T4 — Cập nhật số đếm:** tổng số bài/test trong các script đổi theo số test mới thêm (ghi rõ trong báo cáo); mọi test cũ không thuộc danh sách trắng ĐK-158-02 phải giữ nguyên nội dung kỳ vọng.
+
+## 5. Điều kiện nghiệm thu ĐK-158-01..07
+
+- **ĐK-158-01 — Diff trong phạm vi:** đúng các file/hàm ở Phụ lục B; không file nào ngoài phạm vi đổi (kiểm bằng `diff -rq` + `git diff --stat` so với 1.5.7); không đụng các khóa cứng mục 1.2 của brief này (engine, SI_HUA_TABLE, retriever, allocator, KB JSON, key-pool, verifier trừ phần P4/X3 đã nêu, prompt chat).
+- **ĐK-158-02 — 0 assertion cũ bị sửa nội dung.** Danh sách trắng (CHỈ những mục này được phép sửa nội dung kỳ vọng, mọi assertion khác giữ nguyên từng chữ):
+  1. `verify-dossier-context.ts`: chuỗi sàn độ dài — '250–350 từ MỖI cung' → '150–250 từ MỖI cung'; '1,000–1,400 từ' → '800–1.100 từ'; '750–1,100 từ' (horizon) → '1.600–1.900 từ' (ch.7) và '1.500–1.700 từ' (ch.8); trần systemInstruction Bài 7/8/10 → trần mới ĐK-158-05; số thứ tự/tổng số bài (10→11) do thêm Bài 11; cập nhật các assert từ khóa neo theo ĐK-158-P03 — vị trí assert thật trên src-v26: :141–145 (allFour '[Tứ Hóa Lưu Niên ${row.year} - Can'), :221–222 (sàn độ dài; lưu ý :223 chỉ là console.log, không phải assert), :464 ('[Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại'), :575 ('(xung Cung Lưu {C} [trùng {D}])'), :620–621 ('[Tứ Hóa Đại Hạn Kỳ X–Y]', 'Không Kiếp').
+  2. `verify-dossier-chat-ui.ts`: kỳ vọng nội dung 5 dòng Kết Luận Nhanh cũ ("Căn cơ Bản Mệnh & Cục…", "Trục Mệnh – Thân…", "Tứ Hóa Bản Mệnh (Can…", 2 dòng Lưu Niên cũ) → 5 câu mới P10; chuỗi "(5 Dòng Xác Định)" → "(5 Câu)" (giữ nguyên "Kết Luận Nhanh — Cốt Tủy Lá Số"); kỳ vọng khối tham chiếu/khối cảnh báo/disclaimer CÓ trong file xuất (nếu test cũ assert có) → assert KHÔNG có trong file xuất nhưng CÓ trong văn bản lưu đệm; số thứ tự/tổng số test do thêm test nhóm X. Vị trí assert thật trên src-v26: :794–809 (tiêu đề cung + 5 dòng tóm tắt + BRANCH_GRID_POS), :820–822 (pageOneHtml), :843 (HTML GIỮ ma trận — KHÔNG được sửa thành bỏ), :851/:854 (.md/PlainText KHÔNG chứa ma trận — giữ nguyên), :975–978 (prompt kỳ hạn chứa [Tứ Hóa Bản Mệnh]/[Tứ Hóa Đại Hạn]/[Tứ Hóa Lưu Niên]/[Tự Hóa Can Cung). Lưu ý: trích dẫn 'dòng 828' của vòng 1 là sai; khẳng định về `execLines[1] 'Cung Mệnh:'` ở :1996 là sai (dòng 1996 là tiêu đề test ĐK-157-P06/P07; grep `execLines` = 0 trong toàn file) — kiểm tra phần thân test sau :1996 khi thi công, nếu test đó assert nội dung 5 dòng cũ thì bổ sung vào danh sách trắng.
+  3. `verify-knowledge-base.ts`, `verify-key-pool.ts`, `verify-yunxian.ts`, `verify-library.ts` (nếu có): KHÔNG được sửa nội dung assertion nào.
+- **ĐK-158-03 — verify:all thoát 0 + verify:engine:** `bun run verify:all` exit 0 (key-pool, dossier-context, dossier-ui, yunxian, library, kb — đủ bộ như 1.5.7) và `bun run verify:engine` (nếu có script riêng) exit 0; script T3 chạy đạt trên hồ sơ live (xem ĐK-158-06).
+- **ĐK-158-04 — Lint/build đạt:** `bun run lint` exit 0; `bun run build` đạt.
+- **ĐK-158-05 — Đo kích thước (cùng script/phương pháp Bài 7/8 verify-dossier-context, lá số mẫu 26/07/1977, giờ Tỵ (chỉ số giờ 5) Nam Hà Nội):**
+  - 7 bề mặt fact sheet KHÔNG ĐỔI so với 1.5.7 (trần giữ nguyên): overview ≤ 3.650; core ≤ 5.100; family ≤ 4.550; social ≤ 4.580; horizon_5y ≤ 14.200; horizon_10y ≤ 37.800; chat ≤ 13.100 (giá trị 1.5.7: 3.624 / 4.959 / 4.430 / 4.449 / 13.625 / 36.723 / 12.832).
+  - systemInstruction (trần mới — delta ≤ +1.500 so với 1.5.7, do 12 quy tắc + cấu trúc mới): overview ≤ 3.915 (1.5.7: 2.415); core ≤ 4.800 (3.300); family ≤ 4.958 (3.458); social ≤ 4.797 (3.297); horizon_5y ≤ 4.920 (3.420); horizon_10y ≤ 4.920 (3.420); period ≤ 5.476 (3.976). Ước tính lại vòng 2: chỉ thị viết CÔ ĐỌNG (không dán nguyên văn brief — tổng chữ P1–P12 trong brief là 11.163 ký tự kể cả giải thích/ví dụ, chỉ lấy phần chỉ thị); ước tính tăng thêm mỗi hàm: nhóm cung ~1.440 (sát trần nhất), tổng quan ~980, horizon ~1.280, kỳ hạn ~1.210; P10 (1.638 ký tự) là chuỗi template trong dossier-chat-ui.ts, KHÔNG tính vào systemInstruction. Trần +1.500 GIỮ NGUYÊN; vượt trần thì dừng, báo panel vòng 2 quyết (không tự nới trần).
+- **ĐK-158-06 — Nghiệm thu live (bắt buộc, trên Preview 1.5.8):** sinh mới toàn bộ 8 chương cho lá số test cố định **Nguyễn Văn An (16/08/1995, 10:30, Hà Nội)** — kiểm chứng quy tắc trên hồ sơ KHÁC trước khi coi là chung. Xuất .md + .html, chạy script T3 trên file xuất; các cổng phải ĐẠT: R-01 (8/8 câu mở ≤ 30 từ), R-02 (0 câu > 60 từ, 0 đoạn > 120 từ), R-03 (12/12 dòng kết luận in đậm ≤ 40 từ), R-06 (nhãn `[...]` thân bài ≤ 120; 0 nhãn `[Tứ Hóa`/`[Phi Tinh`/`[Tự Hóa`; 0 nhãn `[Đại hạn` ngoài 2 cung), R-07 (câu lặp 0; Jaccard ch.7↔ch.8 từng năm ≤ 0,30), R-11 (0 lần "bạn" làm đại từ trong thân bài; "đương số" là ngôi xưng duy nhất — ngoại trừ "bạn bè"), R-12 (8/8 dòng phút đọc khớp số từ thật); file xuất: 0 thẻ `[Nguồn:]` trong thân bài, 0 khối cảnh báo, 0 khối tham chiếu trong thân bài, 0 khối bổ sung Tứ Hóa (X1b), phụ lục C đủ bảng nguồn, thân bài ~10.000–12.000 từ (số dòng Kỳ ở B.6 suy ra từ chart lá số Nguyễn Văn An, không assert cứng 12); đồng thời kiểm chứng tầng nội bộ vẫn đủ thẻ (mở chương trong app: mỗi chương ≥ 1 thẻ hợp lệ ở tầng hiển thị/lưu đệm; cờ kiểm chứng vẫn hoạt động); kiểm tra trong app (nếu có chương mang cờ): chương đó vẫn hiển thị tên cờ + 1 câu giải thích bằng tiếng thường (A8; nếu giao diện chỉ hiện tên cờ trần thì bổ sung câu giải thích ở tầng giao diện, không đưa vào file xuất). Lưu ý biên độ: trên hồ sơ mẫu nhánh A, dòng kết luận Phu Thê đúng 40/40 từ (R-03) và câu mở ch.6 đúng 30/30 từ (R-01) — vẫn ĐẠT nhưng không còn biên độ; cổng đo trên hồ sơ Nguyễn Văn An áp đúng trần, không nới.
+- **ĐK-158-07 — Phiên bản + tài liệu:** VERSION = 1.5.8 (1 dòng); `package.json` = 1.5.8; `APP_VERSION` = '1.5.8' (`src/lib/app-version.ts`); ba chiều bằng nhau; CHANGELOG có mục [1.5.8] ghi đủ nhóm P/X/T; `server.ts` import `APP_VERSION` từ module trung tính (giữ nguyên như 1.5.7, không hardcode '1.5.8' lẻ).
+
+## 6. KHỐI CHUẨN (gắn nguyên khối vào brief thi công)
+
+### A. Vai trò và phạm vi
+1. Brief này đã qua panel phản biện 2 vòng và được chủ dự án phê duyệt. Thi công **đúng phạm vi đã duyệt**, không tự mở rộng, không đổi kiến trúc, không thêm tính năng ngoài brief.
+2. Nếu phát hiện brief có điểm mâu thuẫn, thiếu căn cứ hoặc không khả thi: **dừng ở điểm đó, báo cáo rõ vấn đề**, không tự chế phương án thay thế.
+3. Model cho lượt này: **Gemini Hydrogen** (thi công theo kế hoạch đã duyệt). (Muse kiểm tra và chọn đúng model trong AI Studio trước khi chạy.)
+
+### B. Ngôn ngữ và tài liệu
+4. Mọi tài liệu hướng dẫn (file `.md`) viết bằng **tiếng Việt**. Nội dung giao diện người dùng theo ngôn ngữ của dự án. Code, tên biến, comment trong code: tiếng Anh.
+
+### C. Kỷ luật thi công
+5. **Read → Understand → Apply**: đọc kỹ các file liên quan trước khi sửa; hiểu lý do của quy tắc áp dụng rồi mới áp dụng.
+6. **Ý thức phụ thuộc file**: trước khi sửa một file, xác định các file phụ thuộc/liên quan và cập nhật đồng bộ trong cùng lượt — không để trạng thái lệch giữa các file.
+7. Việc nhiều file hoặc thay đổi cấu trúc: lập/tuân theo file kế hoạch của đợt trước khi viết code; việc đơn giản một file làm trực tiếp.
+8. Không ghi khoá API/bí mật vào code. Khoá chỉ đi qua Secrets của AI Studio hoặc biến môi trường; phía client không giữ khoá bí mật.
+
+### D. Chất lượng code
+9. Clean Code: gọn, trực tiếp, tự giải thích; không over-engineering; không hardcode giá trị cấu hình (đi qua config/env).
+10. **Testing bắt buộc** cho logic mới hoặc thay đổi: bổ sung/cập nhật test tương ứng (ưu tiên Unit > Integration > E2E, mẫu Arrange–Act–Assert).
+11. Trước khi báo hoàn thành: tự chạy toàn bộ cổng kiểm tra của dự án (`bun run lint`, `bun run build`, `bun run verify:all`, `bun run verify:engine` nếu có) và báo cáo **kết quả thật** — lỗi ở đâu nêu ở đó, không che giấu test hỏng, không bỏ qua cổng kiểm tra.
+
+### E. Báo cáo cuối đợt (để Muse kiểm chứng độc lập)
+12. Cuối đợt, xuất báo cáo gồm: (a) danh sách file đã tạo/sửa kèm tóm tắt thay đổi từng file; (b) kết quả từng cổng kiểm tra ở mục 11 (số test đạt/tổng, lỗi nếu có); (c) các điểm đã dừng theo mục 2 hoặc giả định đã buộc phải chọn, nếu có; (d) việc còn tồn đọng.
+13. Cập nhật tài liệu dự án bị ảnh hưởng bởi thay đổi (README/docs/CHANGELOG nếu dự án có quy ước đó) trong cùng đợt.
+14. Sau đợt này, Muse sẽ đồng bộ source về workspace riêng và kiểm chứng độc lập (chạy lại lint/test/build, soi diff). Mọi sai lệch giữa báo cáo và source thật sẽ phải sửa ở đợt kế tiếp — vì vậy báo cáo phải khớp source tuyệt đối.
+
+## Phụ lục A — Đối chiếu quyết Q1–Q8 (bản cuối) → nhóm thay đổi trong brief
+
+| Quyết (bản cuối) | Nội dung chốt | Đưa vào brief |
+|---|---|---|
+| Q1 (c) Cả hai | Biên tập file đã xuất + đổi prompt app | Brief này là nửa (c) còn lại; nhánh A đã xong, file đã biên tập là mẫu đối chiếu |
+| Q2 (a) "đương số" (đổi 18:03 26/11) | Ngôi xưng "đương số" (ban đầu chốt (b) "bạn", Saint đổi vì hợp bối cảnh hơn) | P7; P10; mọi mẫu trong brief dùng "đương số" |
+| Q3 (b) Bỏ thẻ ở bản xuất (đổi 18:07 26/11) | Neo `[Nguồn:]` chỉ để chống bịa dữ liệu; gỡ khi kết xuất (ban đầu chốt (a) giữ thẻ, Saint đổi vì neo không mang giá trị cho người đọc) | X1; X7 (phụ lục C giữ bảng nguồn); tầng sinh giữ thẻ (A1 không đổi) |
+| Q4 (a) Bỏ khối cảnh báo | Bỏ hẳn khỏi bản người dùng, giữ ở bản nội bộ | X2; X4 (1 disclaimer cuối file) |
+| Q5 (a) Giữ 8 chương | ch.8 chỉ viết 5 khối năm sau ch.7 + dẫn chiếu 2026–2030 sang ch.7 | P6 |
+| Q6 (a) Mức A | Thân bài ~10.000–12.000 từ | P9 |
+| Q7 (a) Giữ thứ tự | Giữ nguyên thứ tự chương | P6 (giữ nguyên — không đổi gì thêm) |
+| Q8 (a) Chỉ giữ 2 nhãn Đại hạn | Tài Bạch 44–53, Tật Ách 54–63; 10 nhãn còn lại xuống phụ lục A | P4 (prompt + `formatCanonicalPalaceHeading`); X7 (phụ lục A.1) |
+
+Tham chiếu: phương án §3 (các quyết cần chốt) và §5 (quyết đã chốt, gồm 2 lần đổi ý Q2/Q3).
+
+## Phụ lục B — Danh sách file/hàm dự kiến đụng tới (tên hàm, không số dòng)
+
+| File | Hàm/vị trí | Nhóm |
+|---|---|---|
+| `server.ts` | `buildStrictDossierSectionPrompt` (systemInstruction + `sectionRules` nhóm cung/horizon/tổng quan) | P1–P9 |
+| `server.ts` | `buildStrictPeriodAiPrompt` (systemInstruction quy tắc 4–6 + `sectionRules` kỳ hạn) | P1, P3–P5, P7–P9 |
+| `src/lib/dossier-chat-ui.ts` | `buildDeterministicExecutiveSummaryVi` (viết lại 5 chuỗi mẫu + đổi tiêu đề "(5 Câu)") | P10 |
+| `src/lib/dossier-chat-ui.ts` | `buildDossierMarkdownExport` (X1–X8: strip, tách khối, phút đọc, bảng thuật ngữ, phụ lục) | X1–X8 |
+| `src/lib/dossier-chat-ui.ts` | `buildDossierStandaloneHtmlExport` (áp đủ X1–X8 như bản .md) | X9 |
+| `src/lib/dossier-chat-ui.ts` | `stripCitationTagsForExport` (MỚI, cạnh `stripInternalExportMetaLines`) | X1 |
+| `src/lib/dossier-chat-ui.ts` | Các hàm dựng phụ lục/bảng thuật ngữ (MỚI, cạnh `buildDeterministicExecutiveSummaryVi`) | X6–X7 |
+| `src/lib/ziwei/dossier-context.ts` | `formatCanonicalPalaceHeading` (chỉ phần nhãn `[Đại hạn]` — chỉ gắn cho 2 cung) | P4 |
+| `scripts/verify-dossier-context.ts` | Bài 11 (MỚI) + cập nhật trần/sàn theo danh sách trắng ĐK-158-02 | T1 |
+| `scripts/verify-dossier-chat-ui.ts` | Test mới nhóm X + P10; cập nhật kỳ vọng theo danh sách trắng ĐK-158-02 | T2 |
+| `scripts/verify-dossier-readability.ts` | Script đo R-01..R-12 trên file hồ sơ (MỚI, kế thừa `verify_gates.py` nhánh A) | T3 |
+| `VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md` | Đồng bộ 1.5.8 (3 chiều + changelog) | ĐK-158-07 |
+| KHÔNG đụng | `src/lib/ziwei/algorithm.ts`, `src/lib/ziwei/constants.ts` (SI_HUA_TABLE), `server/knowledge-base/retriever.ts`, `server/key-pool/allocator.ts`, `server/knowledge-base/data/*`, `server/key-pool/*`, `src/lib/key-pool-ui.ts`, `src/components/KeyPoolModal.tsx`, `buildStrictExplanationChatPrompt`, `server/knowledge-base/verifier.ts` (trừ khi P4/X3 yêu cầu — hiện không yêu cầu đổi verifier) | Khóa cứng mục 1.2 của brief này |
+
+## Phụ lục C — Điểm trong phương án chưa chuyển được thành chỉ thị prompt + đề xuất xử lý
+
+| # | Điểm | Vì sao chưa chuyển được | Đề xuất xử lý trong 1.5.8 |
+|---|---|---|
+| C-1 | R-10 "không thêm thông tin ngoài gốc" (lỗi chặn) | Prompt chỉ dặn được; model vẫn có thể thêm. Không có hàm kiểm nào chứng minh được "mọi câu đều truy vết về dữ kiện" một cách tự động. | P8 (chỉ thị + cấm cụ thể) + giữ nguyên các quy tắc rào chống bịa 1–3 + kiểm thủ công ở nghiệm thu live ĐK-158-06 (lỗi R-10 = lỗi chặn, sinh lại chương đó). Không viết hàm kiểm tự động giả tạo. |
+| C-2 | R-02 (câu ≤ 60 / đoạn ≤ 120 từ) và R-01 (câu mở ≤ 30 từ) | Model không đếm được từ một cách đáng tin; chỉ thị prompt chỉ giảm chứ không bảo đảm 0 vi phạm. | P1 (chỉ thị) + đo thật bằng script T3 ở nghiệm thu live; nếu 1 chương rớt cổng độ dài thì sinh lại chương đó (tối đa 2 lần — cơ chế retry MỚI cho cổng độ dài, theo mẫu A2; retry A2 hiện có chỉ retry khi 0 thẻ trích dẫn, không áp cho cổng độ dài). Không thêm bước kiểm cứng phía server. |
+| C-3 | R-07 Jaccard ch.7↔ch.8 từng năm ≤ 0,30 | Độ tương đồng phụ thuộc cả 2 chương sinh độc lập; prompt ch.8 không kiểm soát được văn bản ch.7 đã sinh trước. | P6 (cấu trúc dẫn chiếu + chỉ viết 5 khối năm sau ch.7) + đo thật bằng T3 ở nghiệm thu live; nếu cặp năm nào > 0,30 thì sinh lại ch.8 (tối đa 2 lần). |
+| C-4 | R-04 "vì sao" cho khối năm ch.7/ch.8 | Khối năm là ma trận dữ kiện, không phải văn xuôi kết luận; không thể assert "mỗi khối năm có 1 câu vì sao" như với cung. | P2 (ghi chú diễn giải: lý giải tập trung ở §3/§4 ch.7 và gạch "Điểm đáng chú ý" ch.8; mỗi khẳng định trong khối năm vẫn nêu tên sao + cung). Test T1 assert theo diễn giải này. |
+| C-5 | M-FIX-14 (can cung không thống nhất: ch.5–6 lược, ch.7–8 giữ) | Đây là lệch hình thức do 2 worker hiểu E2 khác nhau, không phải quy tắc prompt thiếu. M-FIX-14 của nhánh A chỉ 'chấp nhận cả hai'. | P5 chọn 1 hướng duy nhất (giữ can-chi trong tên cung ở mọi chương, bỏ can năm trong văn xuôi) — đây là QUYẾT MỚI của brief này vì app sinh hồ sơ tự động cần quy ước cố định, không phải quyết của M-FIX-14. |
+| C-6 | Cờ còn mở ở nhật ký nhánh A §7 (5 cờ) | Lỗi dữ kiện/lỗi sinh văn bản của bản gốc, không thuộc prompt viết lại; sửa số trong prompt = bịa dữ kiện mới. | Ngoài phạm vi 1.5.8. 3 cờ thuộc C-6: chênh giờ Mặt Trời "-3 phút" (thực 4 phút); cụm "quản 3 bề 4 bên"; phụ lục B dài 2.762 từ (chấp nhận được — trích nguyên văn). 2 cờ còn lại đã xử lý: #3 R-04 khối năm (C-4), #4 can cung không thống nhất (C-5). Giữ nguyên văn kèm ghi chú như nhánh A đã làm; chờ chuyên gia Tử Vi xác nhận số đúng ở vòng sau (ghi vào báo cáo cuối đợt). |
+| C-7 | A8 (tên các cờ kiểm chứng: ILLEGAL_STAR_PAIR_KHONG_KIEP, ZERO, … — phương án §2.3) | Cờ là metadata (auditFlags), model không viết tên cờ vào văn bản chương; đường duy nhất tên cờ có thể lọt vào file xuất là khối cảnh báo (Q4 đã gỡ) — nên không cần chỉ thị prompt cho A8. | Không đổi prompt/xuất. Kiểm tra ở ĐK-158-06 (nếu có chương mang cờ): trong app, chương đó vẫn hiển thị tên cờ + 1 câu giải thích bằng tiếng thường (theo A8); nếu giao diện chỉ hiện tên cờ trần thì bổ sung câu giải thích ở tầng giao diện (không đưa vào file xuất). |
+| C-8 | D2 (bỏ phú + "[Thượng cách]" của tên cách cục) và D4 ("Âm Nam" giải thích 1 lần) | Vòng 2 kiểm lại: tiền đề 'đã nằm trong P1–P8' là SAI — grep P1–P8 cho thấy 0 lần xuất hiện 'Thượng cách', 'Âm Nam', 'bỏ phú'. D2 hoàn toàn không được bao phủ; D4 chỉ được bao phủ một nửa bởi quy tắc chung P3. | Bổ sung 2 chỉ thị riêng vào P3 ở brief v2 (ĐK-158-P07): D2 — 1 tên duy nhất/cách cục, bỏ phú + '[Thượng cách]'; D4 — 'Âm Nam'/'Dương Nam'/… giải thích 1 lần ở ch.1 §1. |
+| C-9 | R-12 "Đọc trong X phút" | Model không đếm được từ — KHÔNG thể dặn model tự ghi. | Đã chuyển thành X5 (tính xác định ở tầng xuất). |
+| C-10 | Bảng thuật ngữ + phụ lục A/B/C | Model không dựng được bảng tra cứu chính xác (hay bịa số/nhãn) — KHÔNG dặn model viết các phần này. | Đã chuyển thành X6/X7 (dựng xác định từ chart/period context). |
+
+(HẾT BRIEF v2 — ĐỦ 3 PHẦN.)
+
+=== LỆNH THI CÔNG (chạy ngay, làm thông suốt, không dừng xin duyệt từng bước) ===
+
+Đủ 3 phần brief v2 rồi. Thi công ngay trên app Tử Vi (AI Studio, tài khoản toanmapct@gmail.com), model **Gemini Hydrogen** (đã đổi ở PHẦN 1 — kiểm tra lại combobox trước khi chạy; nếu vẫn là Argon thì đổi sang Hydrogen rồi mới bắt đầu):
+
+1. Thi công đúng brief v2 (P1–P12, X1–X9 gồm X1b mới, T1–T4), đúng phạm vi Phụ lục B, không đụng khóa cứng mục 1.2. Chỉ thị prompt viết CÔ ĐỌNG (không dán nguyên văn brief — trần systemInstruction delta ≤ +1.500, nhóm cung ~1.440 sát trần nhất). Mọi ví dụ trong chỉ thị gắn nhãn "ví dụ:" và dùng năm tương đối (không hardcode 2026/2027 hay dữ kiện lá số 1977).
+2. Chạy đủ cổng: `bun run lint`, `bun run build`, `bun run verify:all`, `bun run verify:engine` (nếu có). Báo kết quả thật từng cổng (số test đạt/tổng, lỗi nếu có).
+3. Xuất báo cáo cuối đợt theo KHỐI CHUẨN mục E: (a) danh sách file đã tạo/sửa kèm tóm tắt thay đổi từng file; (b) kết quả từng cổng kiểm tra; (c) các điểm đã dừng hoặc giả định đã buộc phải chọn, nếu có; (d) việc còn tồn đọng. Ghi rõ VERSION đã lên 1.5.8 ở cả 3 chiều chưa.
+4. DỪNG ở đó: KHÔNG tự bấm Push to GitHub, KHÔNG tự Export ZIP, KHÔNG tự sinh hồ sơ nghiệm thu live (ĐK-158-06 làm ở vòng sau, sau khi Muse kiểm chứng độc lập). Chỉ báo cáo xong đợt thi công.

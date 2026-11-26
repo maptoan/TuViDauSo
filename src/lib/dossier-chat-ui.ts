@@ -1,4 +1,4 @@
-import type { SiHua, ZiweiChart } from './ziwei/types';
+import type { Palace, SiHua, ZiweiChart } from './ziwei/types';
 import {
   buildDossierSectionFactSheetVi,
   buildMultiYearHorizonContext,
@@ -7,11 +7,16 @@ import {
 import {
   buildChartIdentityKey as buildCanonicalChartIdentityKey,
   buildYunxianPeriodContext,
+  formatPeriodSiHuaFactLine,
   getDaXianYears,
   resolveEffectiveDaXianIndex,
   type YunxianPeriodContext,
 } from './ziwei/yunxian-context';
-import { getSiHuaByStem } from './ziwei/sihua';
+import {
+  detectSelfSihua,
+  getDaXianSiHua,
+  getSiHuaByStem,
+} from './ziwei/sihua';
 import {
   calculateTrueSolarTime,
   formatTrueSolarClock,
@@ -292,6 +297,232 @@ export function stripInternalExportMetaLines(text: string | undefined): string |
     .join('\n')
     .replace(/^\n+|\n+$/g, '')
     .replace(/\n{3,}/g, '\n\n');
+}
+
+export interface ExtractedReferenceItem {
+  id: string;
+  citationText: string;
+  chapterOrders: number[];
+}
+
+function splitMarkdownTableRow(line: string): string[] {
+  const inner = line.trim().replace(/^\|/, '').replace(/\|$/, '');
+  return inner.split('|').map((cell) => cell.trim());
+}
+
+function isMarkdownTableSeparatorLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith('|')) return false;
+  const cells = splitMarkdownTableRow(trimmed);
+  return cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
+}
+
+function cleanupPunctuationAndSpacesPreserveLines(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => {
+      if (!line.trim()) return '';
+      let out = line;
+      out = out.replace(/\(\s*\)/g, '');
+      out = out.replace(/[ \t]{2,}/g, ' ');
+      out = out.replace(/[ \t]+([,.;:!?…])/g, '$1');
+      out = out.replace(/([(\[“"'])[ \t]+/g, '$1');
+      out = out.replace(/[ \t]+([)\]”"'])/g, '$1');
+      out = out.replace(/([•\-*])\s{2,}/g, '$1 ');
+      out = out.replace(/[ \t]+$/g, '');
+      return out;
+    })
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/**
+ * X3 (ĐK-158): Tách khối tham chiếu `> 📚 **[Tư Liệu Học Thuật Tham Chiếu Trong Chương]**`
+ * TRƯỚC khi gỡ thẻ `[Nguồn: ...]`, trả về văn bản thân bài sạch + danh sách mục tham chiếu để gom về Phụ lục C.1.
+ */
+export function extractReferenceBlocksFromChapter(
+  text: string | undefined,
+  chapterOrder: number,
+): { cleanedText: string; refs: ExtractedReferenceItem[] } {
+  if (typeof text !== 'string' || !text.trim()) {
+    return { cleanedText: typeof text === 'string' ? text : '', refs: [] };
+  }
+  const lines = text.split(/\r?\n/);
+  const keptLines: string[] = [];
+  const refs: ExtractedReferenceItem[] = [];
+  let inRefBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^>\s*📚\s*/u.test(trimmed)) {
+      inRefBlock = true;
+      continue;
+    }
+    if (inRefBlock) {
+      if (trimmed.startsWith('>')) {
+        const body = trimmed.replace(/^>\s?/, '').trim();
+        const itemMatch = body.match(/^(?:[-*•]\s*)?`?\[([A-Za-z0-9_-]{3,32})\]`?\s*(.+)$/);
+        if (itemMatch) {
+          refs.push({
+            id: itemMatch[1].trim().toUpperCase(),
+            citationText: itemMatch[2].trim(),
+            chapterOrders: [chapterOrder],
+          });
+        }
+        continue;
+      }
+      inRefBlock = false;
+    }
+    keptLines.push(line);
+  }
+
+  return {
+    cleanedText: keptLines.join('\n').replace(/\n{3,}/g, '\n\n').trim(),
+    refs,
+  };
+}
+
+/**
+ * X2: Gỡ khối cảnh báo kiểm chứng `> ⚠️ **[Ghi Chú Kiểm Chứng Nguồn Học Thuật]**` khi xuất bản
+ * (không đụng khối blockquote bình thường khác).
+ */
+export function stripWarningBlockForExport(text: string | undefined): string {
+  if (typeof text !== 'string') return '';
+  if (!text.trim()) return text;
+  const lines = text.split(/\r?\n/);
+  const keptLines: string[] = [];
+  let inWarnBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^>\s*⚠️\s*\*\*\[Ghi Chú Kiểm Chứng/iu.test(trimmed)) {
+      inWarnBlock = true;
+      continue;
+    }
+    if (inWarnBlock) {
+      if (trimmed.startsWith('>')) {
+        continue;
+      }
+      inWarnBlock = false;
+    }
+    keptLines.push(line);
+  }
+
+  return keptLines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * X1b: Gỡ khối bổ sung Tứ Hóa kỳ hạn (`> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**`)
+ * và mọi nhãn nội bộ `[Tứ Hóa...]`, `[Tự Hóa...]`, `[Phi Tinh...]` còn sót trong văn bản AI khi xuất bản.
+ */
+export function stripSiHuaAddendumAndTagsForExport(text: string | undefined): string {
+  if (typeof text !== 'string') return '';
+  if (!text.trim()) return text;
+  const lines = text.split(/\r?\n/);
+  const keptLines: string[] = [];
+  let inPinBlock = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (/^>\s*📌\s*\*\*\[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn/iu.test(trimmed)) {
+      inPinBlock = true;
+      continue;
+    }
+    if (inPinBlock) {
+      if (trimmed.startsWith('>')) {
+        continue;
+      }
+      inPinBlock = false;
+    }
+    keptLines.push(line);
+  }
+
+  const withoutPin = keptLines.join('\n');
+  const withoutTags = withoutPin.replace(
+    /\[(?:Tứ Hóa|Tự Hóa|Phi Tinh)[^\]]*\]/giu,
+    '',
+  );
+  return cleanupPunctuationAndSpacesPreserveLines(withoutTags);
+}
+
+/**
+ * X1: Gỡ toàn bộ thẻ neo `[Nguồn: ...]` khi kết xuất (.MD / .HTML / PlainText).
+ * TUYỆT ĐỐI KHÔNG gọi trong đường hiển thị/cache nội bộ (`sanitizeDossierChapterText`). Lũy đẳng 100%.
+ */
+export function stripCitationTagsForExport(text: string | undefined): string {
+  if (typeof text !== 'string') return '';
+  if (!text.trim()) return text;
+
+  let out = text.replace(/`(\[Nguồn:[^\]]*\])`/giu, '$1');
+  // Xử lý cụm "Chiếu theo [Nguồn: ...], <chữ>" ở đầu câu / đầu dòng -> viết hoa chữ tiếp theo
+  out = out.replace(
+    /(^|[.!?…]\s+|\n\s*|^[•\-*]\s+)Chiếu theo\s*(?:\[Nguồn:[^\]]*\]\s*)+(?:[,:]\s*)?(\p{L})/gmu,
+    (_m, prefix: string, firstChar: string) => `${prefix}${firstChar.toUpperCase()}`,
+  );
+  // Xử lý "chiếu theo [Nguồn: ...]," ở giữa câu
+  out = out.replace(/\bchiếu theo\s*(?:\[Nguồn:[^\]]*\]\s*)+[,:]?\s*/giu, '');
+  // Xử lý cụm ngoặc đơn chỉ chứa thẻ nguồn: ([Nguồn: ...]) hoặc ([Nguồn: A]; [Nguồn: B])
+  out = out.replace(/\(\s*(?:\[Nguồn:[^\]]*\]\s*[;,]?\s*)+\)/giu, '');
+  // Gỡ mọi thẻ [Nguồn: ...] còn lại (kể cả chuỗi đa thẻ)
+  out = out.replace(/\[Nguồn:[^\]]*\]/giu, '');
+
+  return cleanupPunctuationAndSpacesPreserveLines(out);
+}
+
+/**
+ * X4: Gỡ câu lưu ý lặp cuối từng chương để chỉ giữ 1 câu lưu ý duy nhất ở cuối toàn hồ sơ.
+ */
+export function stripChapterDisclaimersForExport(text: string | undefined): string {
+  if (typeof text !== 'string') return '';
+  if (!text.trim()) return text;
+  const lines = text.split(/\r?\n/);
+  const filtered = lines.filter(
+    (line) =>
+      !/^\s*\*?Lưu ý:\s*Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số\.?\*?\s*$/iu.test(
+        line.trim(),
+      ),
+  );
+  return filtered.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/**
+ * X5: Đếm số từ UTF-8 (whitespace split, chuẩn hóa tương đương Python `split()`)
+ * và tính thời gian đọc (làm tròn số từ / 220, tối thiểu 1 phút).
+ */
+export function countWordsUtf8(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+}
+
+export function computeReadingMinutes(wordCount: number): number {
+  return Math.max(1, Math.round(wordCount / 220));
+}
+
+export function cleanChapterTextForExport(
+  rawText: string | undefined,
+  chapterId: DossierChapterId,
+  chapterOrder: number,
+  chart: ZiweiChart,
+  isIncomplete = false,
+): { cleanedText: string; refs: ExtractedReferenceItem[] } {
+  const sanitized = stripInternalExportMetaLines(
+    sanitizeDossierChapterText(rawText, chapterId, chart, {
+      skipPeriodSiHuaCheck: isIncomplete,
+    }),
+  );
+  // X3 (trích tham chiếu TRƯỚC khi gỡ thẻ nguồn)
+  const afterX3 = extractReferenceBlocksFromChapter(sanitized, chapterOrder);
+  // X2 -> X1b -> X1 -> X4
+  const afterX2 = stripWarningBlockForExport(afterX3.cleanedText);
+  const afterX1b = stripSiHuaAddendumAndTagsForExport(afterX2);
+  const afterX1 = stripCitationTagsForExport(afterX1b);
+  const afterX4 = stripChapterDisclaimersForExport(afterX1);
+  return {
+    cleanedText: afterX4,
+    refs: afterX3.refs,
+  };
 }
 
 /**
@@ -1542,7 +1773,8 @@ export function simpleMarkdownToHtml(md: string): string {
     }
   };
 
-  for (const rawLine of lines) {
+  for (let i = 0; i < lines.length; i += 1) {
+    const rawLine = lines[i];
     const trimmed = rawLine.trim();
     if (!trimmed) {
       closeLists();
@@ -1551,6 +1783,43 @@ export function simpleMarkdownToHtml(md: string): string {
     if (/^(-{3,}|\*{3,})$/.test(trimmed)) {
       closeLists();
       out.push('<hr />');
+      continue;
+    }
+    // Blockquote block
+    if (trimmed.startsWith('>')) {
+      closeLists();
+      const quoteLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith('>')) {
+        quoteLines.push(inlineMarkdownToHtml(lines[i].trim().replace(/^>\s?/, '')));
+        i += 1;
+      }
+      i -= 1;
+      out.push(`<blockquote>${quoteLines.join('<br />')}</blockquote>`);
+      continue;
+    }
+    // Markdown pipe table (header + separator + body rows)
+    if (
+      trimmed.startsWith('|') &&
+      i + 1 < lines.length &&
+      isMarkdownTableSeparatorLine(lines[i + 1])
+    ) {
+      closeLists();
+      const headers = splitMarkdownTableRow(trimmed);
+      i += 2; // skip header & separator
+      const bodyRows: string[][] = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        bodyRows.push(splitMarkdownTableRow(lines[i]));
+        i += 1;
+      }
+      i -= 1;
+      const thead = `<thead><tr>${headers.map((h) => `<th>${inlineMarkdownToHtml(h)}</th>`).join('')}</tr></thead>`;
+      const tbody = `<tbody>${bodyRows
+        .map(
+          (row) =>
+            `<tr>${headers.map((_, idx) => `<td>${inlineMarkdownToHtml(row[idx] ?? '')}</td>`).join('')}</tr>`,
+        )
+        .join('')}</tbody>`;
+      out.push(`<table class="appendix-table">${thead}${tbody}</table>`);
       continue;
     }
     const hMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
@@ -1738,78 +2007,563 @@ export function buildDossierHeaderMetadata(chart: ZiweiChart): DossierHeaderMeta
   };
 }
 
+function formatPalaceMajorsSummaryPlain(palace: Palace): string {
+  const majors = palace.stars.filter((s) => s.type === 'major');
+  if (majors.length > 0) {
+    return majors
+      .map((s) => `${translateStarName(s.name)}${s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : ''}`)
+      .join(', ');
+  }
+  if (palace.borrowedStars?.length) {
+    const fromVi = palace.borrowedFromName ? ` từ ${translatePalaceName(palace.borrowedFromName)}` : '';
+    return `Vô chính diệu (mượn ${palace.borrowedStars.map((s) => translateStarName(s)).join(', ')}${fromVi})`;
+  }
+  return 'Vô chính diệu';
+}
+
+function getShenPalaceMeaningSentenceVi(shenPalaceNameCn: string, shenPalaceNameVi: string): string {
+  const cleanKey = shenPalaceNameCn.replace(/宫$/u, '');
+  switch (cleanKey) {
+    case '命':
+      return 'Mệnh Thân đồng cung nghĩa là bản thân đương số tự làm chủ định hướng cuộc đời, ít bị hoàn cảnh bên ngoài chi phối.';
+    case '福德':
+      return 'Thân cư Phúc Đức nghĩa là đời sống tinh thần, tâm thế và phúc phần gia đạo là chỗ dựa cốt lõi của đương số.';
+    case '官禄':
+      return 'Thân cư Quan Lộc nghĩa là sự nghiệp, công danh và năng lực hành động là trọng tâm cả đời đương số.';
+    case '迁移':
+      return 'Thân cư Thiên Di nghĩa là môi trường bên ngoài, sự dịch chuyển và các mối quan hệ xã hội định hình mạnh cuộc đời đương số.';
+    case '财帛':
+      return 'Thân cư Tài Bạch nghĩa là tài chính, khả năng tạo lập và quản lý nguồn lực giữ vai trò quyết định với đương số.';
+    case '夫妻':
+      return 'Thân cư Phu Thê nghĩa là gia đình và hôn nhân là trọng tâm cả đời đương số.';
+    default:
+      return `Thân cư ${shenPalaceNameVi} nghĩa là các vấn đề thuộc cung này giữ vai trò trọng tâm trong hậu vận của đương số.`;
+  }
+}
+
+export function buildDossierQuickHeaderLines(chart: ZiweiChart): {
+  mingLine: string;
+  shenLine: string;
+  daXianLine: string;
+} {
+  const mingPal = chart.palaces.find((p) => p.branch === chart.mingGongBranch) ?? chart.palaces[0];
+  const shenPal = chart.palaces.find((p) => p.branch === chart.shenGongBranch) ?? chart.palaces[0];
+  const mingMajors = formatPalaceMajorsSummaryPlain(mingPal);
+  const mingLine = `Mệnh: ${mingMajors} tại ${VI_BRANCHES[mingPal.branch]} (${VI_STEMS[mingPal.stem]} ${VI_BRANCHES[mingPal.branch]}).`;
+  const shenLine =
+    mingPal.branch === shenPal.branch
+      ? `Thân: Thân đồng cung tại Mệnh (${VI_BRANCHES[shenPal.branch]}).`
+      : `Thân: Thân cư ${translatePalaceName(shenPal.name)} tại ${VI_BRANCHES[shenPal.branch]}.`;
+
+  const curDxIdx =
+    typeof chart.currentDaXianIndex === 'number' &&
+    chart.currentDaXianIndex >= 0 &&
+    chart.currentDaXianIndex < chart.daXians.length
+      ? chart.currentDaXianIndex
+      : -1;
+  const curDx = curDxIdx >= 0 ? chart.daXians[curDxIdx] : null;
+  const daXianLine = curDx
+    ? `Đại hạn hiện tại: ${curDx.startAge}–${curDx.endAge} tuổi tại cung ${translatePalaceName(curDx.palaceName)} (${VI_BRANCHES[curDx.palaceBranch]}).`
+    : 'Đại hạn hiện tại: Chưa vào Đại Hạn.';
+
+  return { mingLine, shenLine, daXianLine };
+}
+
 /**
- * B6: Khối Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định 100%, 0 gọi AI).
- * Chỉ chứa tọa độ sao/cung xác định từ engine, không bình giải chủ quan.
+ * P10 (Nhánh B 1.5.8): Khối Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu tự nhiên).
+ * Dùng ngôi xưng "đương số" (0 lần "bạn"), chỉ chứa dữ kiện xác định từ engine.
  */
-export function buildDeterministicExecutiveSummaryVi(chart: ZiweiChart): string[] {
-  const yinYang = translateYinYang(chart.yinYangGender);
-  const ju = translateWuxingJu(chart.wuxingJuName);
-  const mingZhuVi = chart.mingZhu ? translateStarName(chart.mingZhu) : 'Không rõ';
-  const shenZhuVi = chart.shenZhu ? translateStarName(chart.shenZhu) : 'Không rõ';
+export function buildDeterministicExecutiveSummaryVi(
+  chart: ZiweiChart,
+  baseYear?: number,
+): string[] {
+  const focusYear =
+    typeof baseYear === 'number' && Number.isFinite(baseYear)
+      ? baseYear
+      : (DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026);
+  const nextYear = focusYear + 1;
 
-  const formatMajorSummary = (palaceBranch: number): { palaceNameVi: string; branchVi: string; ganZhiVi: string; majorsVi: string } => {
-    const pal = chart.palaces.find((p) => p.branch === palaceBranch) ?? chart.palaces[0];
+  const info = buildDossierHeaderMetadata(chart);
+  const mingPal = chart.palaces.find((p) => p.branch === chart.mingGongBranch) ?? chart.palaces[0];
+  const shenPal = chart.palaces.find((p) => p.branch === chart.shenGongBranch) ?? chart.palaces[0];
+  const mingMajorsDesc = formatPalaceMajorsSummaryPlain(mingPal);
+  const shenPalaceNameVi = translatePalaceName(shenPal.name);
+
+  const timeClause = info.hasExactBirthTime
+    ? info.trueSolarTimeHHMM
+      ? `lúc ${info.clockTimeVi} (giờ Mặt Trời thật ${info.trueSolarTimeHHMM}, giờ ${info.hourBranchNameVi})`
+      : `lúc ${info.clockTimeVi} (giờ ${info.hourBranchNameVi})`
+    : `trong trường hợp chưa rõ giờ đồng hồ gốc (tạm an giờ ${info.hourBranchNameVi})`;
+
+  const sentence1 =
+    mingPal.branch === shenPal.branch
+      ? `Đương số (${info.yinYang}, ${info.ju}) sinh ngày ${info.solar} ${timeClause}, có cung Mệnh và cung Thân đồng cung tại ${VI_BRANCHES[mingPal.branch]} (${VI_STEMS[mingPal.stem]} ${VI_BRANCHES[mingPal.branch]}) với chính tinh ${mingMajorsDesc}.`
+      : `Đương số (${info.yinYang}, ${info.ju}) sinh ngày ${info.solar} ${timeClause}, có cung Mệnh đóng tại ${VI_BRANCHES[mingPal.branch]} (${VI_STEMS[mingPal.stem]} ${VI_BRANCHES[mingPal.branch]}) với chính tinh ${mingMajorsDesc}, còn cung Thân của đương số đóng tại cung ${shenPalaceNameVi} ở ${VI_BRANCHES[shenPal.branch]}.`;
+
+  const sentence2 = getShenPalaceMeaningSentenceVi(shenPal.name, shenPalaceNameVi);
+
+  const natalStemIdx = chart.lunarInfo.yearStem;
+  const natalStemVi = VI_STEMS[natalStemIdx] ?? '';
+  const natalGanZhiVi = `${natalStemVi} ${VI_BRANCHES[chart.lunarInfo.yearBranch] ?? ''}`;
+  const natalTransforms = getSiHuaByStem(natalStemIdx);
+  const describeNatalTransform = (key: SiHua): string => {
+    const starCn = natalTransforms[key];
+    const starVi = starCn ? translateStarName(starCn) : 'Không rõ';
+    const pal = starCn ? chart.palaces.find((p) => p.stars.some((s) => s.name === starCn)) : undefined;
+    const palVi = pal ? translatePalaceName(pal.name) : 'chưa rõ cung';
+    return `${starVi} Hóa ${translateSiHua(key)} tại ${palVi}`;
+  };
+  const sentence3 = `Bốn sao Tứ Hóa bản mệnh (Can ${natalStemVi} năm ${natalGanZhiVi}) của đương số gồm ${describeNatalTransform('禄')}, ${describeNatalTransform('权')}, ${describeNatalTransform('科')}, và ${describeNatalTransform('忌')}.`;
+
+  const nominalAgeFocus = focusYear - chart.lunarInfo.lunarYear + 1;
+  const dxIdxFocus = resolveEffectiveDaXianIndex(chart, 'liunian', focusYear);
+  const pCtxFocus = buildYunxianPeriodContext(chart, { mode: 'liunian', year: focusYear });
+  const dxFocusLabel =
+    dxIdxFocus >= 0 && chart.daXians[dxIdxFocus]
+      ? `đại hạn ${chart.daXians[dxIdxFocus].startAge}–${chart.daXians[dxIdxFocus].endAge} tuổi tại cung ${translatePalaceName(chart.daXians[dxIdxFocus].palaceName)}`
+      : 'trạng thái chưa vào Đại Hạn';
+  const sentence4 = `Năm ${focusYear} (${nominalAgeFocus} tuổi âm${pCtxFocus ? `, năm ${pCtxFocus.ganZhiVi}` : ''}), đương số đang ở ${dxFocusLabel}${pCtxFocus ? ` với Lưu Mệnh đóng tại ${VI_BRANCHES[pCtxFocus.branchIndex]} kích hoạt trực tiếp cung gốc ${pCtxFocus.activatedPalace.natalPalaceNameVi}` : ''}.`;
+
+  const nominalAgeNext = nextYear - chart.lunarInfo.lunarYear + 1;
+  const dxIdxNext = resolveEffectiveDaXianIndex(chart, 'liunian', nextYear);
+  const pCtxNext = buildYunxianPeriodContext(chart, { mode: 'liunian', year: nextYear });
+  const lnLoc = pCtxNext?.periodSiHua.find((s) => s.mutagenKey === '禄');
+  const lnKy = pCtxNext?.periodSiHua.find((s) => s.mutagenKey === '忌');
+  const dxNextNote =
+    dxIdxNext < 0
+      ? ' (chưa vào Đại Hạn)'
+      : dxIdxNext !== dxIdxFocus && chart.daXians[dxIdxNext]
+        ? ` (chuyển sang đại hạn ${chart.daXians[dxIdxNext].startAge}–${chart.daXians[dxIdxNext].endAge} tuổi tại cung ${translatePalaceName(chart.daXians[dxIdxNext].palaceName)})`
+        : '';
+  const locText = lnLoc
+    ? `${lnLoc.starNameVi} tại Cung ${lnLoc.periodPalaceRoleVi} (trùng ${lnLoc.natalPalaceNameVi})`
+    : 'trục thuận lợi của Lưu Niên';
+  const kyText = lnKy
+    ? `${lnKy.starNameVi} tại Cung ${lnKy.periodPalaceRoleVi} (trùng ${lnKy.natalPalaceNameVi})`
+    : 'trục cần đề phòng';
+  const sentence5 = `Sang năm ${nextYear} (${nominalAgeNext} tuổi âm${pCtxNext ? `, năm ${pCtxNext.ganZhiVi}` : ''})${dxNextNote}, Lưu Lộc rơi vào ${locText} nhưng Lưu Kỵ rơi vào ${kyText}, nên đương số cần thận trọng và kiểm soát rủi ro kỹ lưỡng.`;
+
+  return [sentence1, sentence2, sentence3, sentence4, sentence5];
+}
+
+interface GlossaryEntrySpec {
+  term: string;
+  bodyText: string;
+}
+
+function buildCoreElevenGlossaryEntries(chart: ZiweiChart): GlossaryEntrySpec[] {
+  const mingPal = chart.palaces.find((p) => p.branch === chart.mingGongBranch) ?? chart.palaces[0];
+  const shenPal = chart.palaces.find((p) => p.branch === chart.shenGongBranch) ?? chart.palaces[0];
+  const curDxIdx =
+    typeof chart.currentDaXianIndex === 'number' &&
+    chart.currentDaXianIndex >= 0 &&
+    chart.currentDaXianIndex < chart.daXians.length
+      ? chart.currentDaXianIndex
+      : -1;
+  const curDx = curDxIdx >= 0 ? chart.daXians[curDxIdx] : null;
+  const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
+  const pCtxFocus = buildYunxianPeriodContext(chart, { mode: 'liunian', year: focusYear });
+  const vcdPalace = chart.palaces.find((p) => p.isEmpty && p.borrowedFromName);
+  const mingMajorsWithBrightness = mingPal.stars
+    .filter((s) => s.type === 'major')
+    .slice(0, 2)
+    .map((s) => `${translateStarName(s.name)}${s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : ''}`)
+    .join(', ');
+  const mingOpp = chart.palaces.find((p) => p.branch === (mingPal.branch + 6) % 12);
+  const mingThA = chart.palaces.find((p) => p.branch === (mingPal.branch + 4) % 12);
+  const mingThB = chart.palaces.find((p) => p.branch === (mingPal.branch + 8) % 12);
+
+  const natalTransforms = getSiHuaByStem(chart.lunarInfo.yearStem);
+  const locStarCn = natalTransforms['禄'];
+  const locPal = chart.palaces.find((p) => p.stars.some((s) => s.name === locStarCn));
+
+  const mingShenExample =
+    mingPal.branch === shenPal.branch
+      ? ` Ví dụ trên lá số của đương số, Mệnh và Thân đồng cung tại ${VI_BRANCHES[mingPal.branch]}.`
+      : ` Ví dụ trên lá số của đương số, Mệnh đóng tại ${VI_BRANCHES[mingPal.branch]} còn Thân cư ${translatePalaceName(shenPal.name)} tại ${VI_BRANCHES[shenPal.branch]}.`;
+
+  const daXianExample = curDx
+    ? ` Hiện đương số đang ở Đại Hạn ${curDx.startAge}–${curDx.endAge} tuổi tại cung ${translatePalaceName(curDx.palaceName)}.`
+    : '';
+
+  const liuNianExample = pCtxFocus
+    ? ` Ví dụ năm ${focusYear} (${pCtxFocus.ganZhiVi}), Lưu Mệnh đóng tại ${VI_BRANCHES[pCtxFocus.branchIndex]} kích hoạt cung gốc ${pCtxFocus.activatedPalace.natalPalaceNameVi}.`
+    : '';
+
+  const siHuaExample =
+    locStarCn && locPal
+      ? ` Ví dụ Tứ Hóa Bản Mệnh của đương số có ${translateStarName(locStarCn)} Hóa Lộc tại cung ${translatePalaceName(locPal.name)}.`
+      : '';
+
+  const tamPhuongExample =
+    mingOpp && mingThA && mingThB
+      ? ` Với cung Mệnh của đương số tại ${VI_BRANCHES[mingPal.branch]}, trục này gồm Mệnh, đối cung ${translatePalaceName(mingOpp.name)} (${VI_BRANCHES[mingOpp.branch]}) và hai cung Tam Hợp là ${translatePalaceName(mingThA.name)} (${VI_BRANCHES[mingThA.branch]}), ${translatePalaceName(mingThB.name)} (${VI_BRANCHES[mingThB.branch]}).`
+      : '';
+
+  const brightnessExample = mingMajorsWithBrightness
+    ? ` Ví dụ tại cung Mệnh của đương số có ${mingMajorsWithBrightness}.`
+    : '';
+
+  const vcdExample = vcdPalace
+    ? ` Ví dụ trên lá số này, cung ${translatePalaceName(vcdPalace.name)} (${VI_BRANCHES[vcdPalace.branch]}) là cung Vô chính diệu.`
+    : '';
+
+  const xungExample = mingOpp
+    ? ` Ví dụ cung ${translatePalaceName(mingOpp.name)} (${VI_BRANCHES[mingOpp.branch]}) xung chiếu trực tiếp vào cung Mệnh của đương số.`
+    : '';
+
+  const borrowExample =
+    vcdPalace && vcdPalace.borrowedStars?.length
+      ? ` Ví dụ cung ${translatePalaceName(vcdPalace.name)} mượn Chính tinh ${vcdPalace.borrowedStars.map((s) => translateStarName(s)).join(', ')} từ đối cung ${translatePalaceName(vcdPalace.borrowedFromName)}.`
+      : '';
+
+  return [
+    {
+      term: 'Mệnh/Thân',
+      bodyText: `Cung Mệnh phản ánh bản chất tiên thiên và cốt cách gốc của đương số; cung Thân phản ánh xu hướng hành động, môi trường trọng tâm và kết quả ở hậu vận.${mingShenExample}`,
+    },
+    {
+      term: 'Đại Hạn',
+      bodyText: `Chu kỳ vận trình 10 năm liên tiếp đi qua lần lượt 12 cung trên lá số, định hình bối cảnh nền tảng cho từng giai đoạn cuộc đời đương số.${daXianExample}`,
+    },
+    {
+      term: 'Lưu Niên',
+      bodyText: `Vận trình từng năm dương lịch xoay quanh Thiên Can và Địa Chi của năm đó, làm nổi bật các sự kiện cụ thể trong khung Đại Hạn.${liuNianExample}`,
+    },
+    {
+      term: 'Tứ Hóa',
+      bodyText: `Bốn trạng thái biến hóa của sao gồm Hóa Lộc (tài lộc, hanh thông), Hóa Quyền (quyền lực, chủ động), Hóa Khoa (danh tiếng, quý nhân, hóa giải) và Hóa Kỵ (trở ngại, áp lực, nút thắt).${siHuaExample}`,
+    },
+    {
+      term: 'Tam Phương Tứ Chính',
+      bodyText: `Hệ quy chiếu 4 cung liên kết chặt chẽ khi luận giải một cung bất kỳ, gồm bản cung, đối cung xung chiếu (+6) và hai cung Tam Hợp (+4 và +8).${tamPhuongExample}`,
+    },
+    {
+      term: 'Tam Hợp',
+      bodyText: `Hai cung cách bản cung đúng 4 vị trí theo chiều thuận (+4) và nghịch (+8) trên vòng Địa Chi, tạo thành thế chân kiềng hỗ trợ trực tiếp cho bản cung.`,
+    },
+    {
+      term: 'Độ sáng sao',
+      bodyText: `Mức độ phát huy lực lượng của sao theo vị trí Địa Chi: Miếu (mạnh nhất), Vượng (mạnh), Đắc (khá), Lợi (tốt), Bình (trung bình), Hãm (yếu).${brightnessExample}`,
+    },
+    {
+      term: 'Vô chính diệu',
+      bodyText: `Cung không có Chính tinh nào tọa thủ trực tiếp bên trong, thường linh hoạt theo hoàn cảnh và chịu ảnh hưởng mạnh từ đối cung lẫn các sao trợ tinh.${vcdExample}`,
+    },
+    {
+      term: 'xung chiếu',
+      bodyText: `Tác động trực diện từ cung đối diện cách bản cung 6 vị trí Địa Chi (+6), có sức chi phối trực tiếp về cơ hội lẫn áp lực lên bản cung.${xungExample}`,
+    },
+    {
+      term: 'mượn sao',
+      bodyText: `Quy ước lấy bộ Chính tinh ở đối cung sang tham chiếu cho cung Vô chính diệu; chiều ngược lại cung có Chính tinh không mượn sao của cung Vô chính diệu.${borrowExample}`,
+    },
+    {
+      term: 'cách cục',
+      bodyText: `Tổ hợp sao đặc trưng hình thành từ vị trí Mệnh Thân, Tam Phương Tứ Chính và Tứ Hóa trên lá số, phản ánh khuynh hướng nổi bật về tài năng, sự nghiệp và biến động của đương số.`,
+    },
+  ];
+}
+
+/**
+ * X6: Bảng Thuật Ngữ 11 mục đứng ngay sau Kết Luận Nhanh trong bản xuất (.MD & .HTML).
+ */
+export function buildBodyGlossaryMarkdown(chart: ZiweiChart): string {
+  const entries = buildCoreElevenGlossaryEntries(chart);
+  const lines = ['## Bảng Thuật Ngữ'];
+  for (const item of entries) {
+    lines.push(`- **${item.term}**: ${item.bodyText}`);
+  }
+  return lines.join('\n');
+}
+
+function formatChapterReadingGuideLines(focusYear: number, nextYear: number): string[] {
+  return [
+    'Đọc Kết Luận Nhanh trước để nắm cốt tủy lá số.',
+    `Chương 1 cho bức tranh tổng quan; chương 2–4 luận từng cung; chương 5–6 luận vận hạn năm ${focusYear} và ${nextYear}; chương 7–8 luận chiến lược 5 năm và tầm nhìn 10 năm.`,
+    'Phụ lục dùng để tra cứu: bảng theo cung, bảng theo năm và nguồn tham khảo.',
+  ];
+}
+
+/**
+ * X7: Dựng 3 Phụ lục A/B/C hoàn toàn xác định từ `chart` + `refs` (tách từ X3).
+ * Không bao giờ lấy văn bản do AI sinh làm nguồn; an toàn với lá số 0 VCD / 0 Tự Hóa / chưa vào Đại Hạn.
+ */
+export function buildDossierAppendicesMarkdown(
+  chart: ZiweiChart,
+  refs: readonly ExtractedReferenceItem[],
+): string {
+  const lines: string[] = [];
+  const info = buildDossierHeaderMetadata(chart);
+  const curDxIdx =
+    typeof chart.currentDaXianIndex === 'number' &&
+    chart.currentDaXianIndex >= 0 &&
+    chart.currentDaXianIndex < chart.daXians.length
+      ? chart.currentDaXianIndex
+      : -1;
+  const nextDxIdx =
+    curDxIdx >= 0 && curDxIdx + 1 < chart.daXians.length
+      ? curDxIdx + 1
+      : curDxIdx < 0 && chart.daXians.length > 0
+        ? 0
+        : -1;
+
+  // ── Phụ lục A ────────────────────────────────────────────────────────────────
+  lines.push('## Phụ lục A — Bảng Tra Cứu Theo Cung');
+  lines.push('');
+  lines.push('### A.1. Bảng Đại Hạn 12 Cung');
+  lines.push('| Cung | Can Chi | Tuổi Đại Hạn | Giai đoạn năm | Ghi chú |');
+  lines.push('| :--- | :--- | :--- | :--- | :--- |');
+  for (let i = 0; i < chart.daXians.length; i += 1) {
+    const dx = chart.daXians[i];
+    const pal = chart.palaces.find((p) => p.branch === dx.palaceBranch);
+    const palNameVi = pal ? translatePalaceName(pal.name) : translatePalaceName(dx.palaceName);
+    const ganZhiVi = pal ? `${VI_STEMS[pal.stem]} ${VI_BRANCHES[pal.branch]}` : VI_BRANCHES[dx.palaceBranch];
+    const yrs = getDaXianYears(chart, i);
+    const yrsStr = yrs.length > 0 ? `${yrs[0]}–${yrs[yrs.length - 1]}` : '—';
+    const note = i === curDxIdx ? 'Đại hạn hiện tại' : i === nextDxIdx ? 'Đại hạn kế tiếp' : '—';
+    lines.push(`| ${palNameVi} | ${ganZhiVi} | ${dx.startAge}–${dx.endAge} tuổi | ${yrsStr} | ${note} |`);
+  }
+
+  lines.push('');
+  lines.push('### A.2. Bảng Mượn Sao (Cung Vô Chính Diệu)');
+  const emptyPalaces = chart.palaces.filter((p) => p.isEmpty);
+  if (emptyPalaces.length === 0) {
+    lines.push('Lá số này không có cung Vô chính diệu (cả 12 cung đều có Chính tinh tọa thủ).');
+  } else {
+    lines.push('| Cung Vô chính diệu | Can Chi | Mượn sao từ đối cung | Chính tinh được mượn |');
+    lines.push('| :--- | :--- | :--- | :--- |');
+    for (const p of emptyPalaces) {
+      const fromVi = p.borrowedFromName ? translatePalaceName(p.borrowedFromName) : 'Đối cung';
+      const borrowedVi =
+        p.borrowedStars && p.borrowedStars.length > 0
+          ? p.borrowedStars.map((s) => translateStarName(s)).join(', ')
+          : 'Không có';
+      lines.push(
+        `| ${translatePalaceName(p.name)} | ${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]} | ${fromVi} | ${borrowedVi} |`,
+      );
+    }
+  }
+
+  lines.push('');
+  lines.push('### A.3. Bảng Tam Phương Tứ Chính Theo Từng Cung');
+  lines.push('| Bản cung | Chính tinh bản cung | Đối cung xung chiếu (+6) | Hai cung Tam Hợp (+4, +8) |');
+  lines.push('| :--- | :--- | :--- | :--- |');
+  const formatPalMajorsCompact = (pal?: Palace): string => {
+    if (!pal) return 'Không rõ';
     const majors = pal.stars.filter((s) => s.type === 'major');
-    const majorsVi =
-      majors.length > 0
-        ? majors.map((s) => `${translateStarName(s.name)}${s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : ''}`).join(', ')
-        : pal.borrowedStars?.length
-          ? `Vô chính diệu (mượn ${pal.borrowedStars.map((s) => translateStarName(s)).join(', ')})`
-          : 'Vô chính diệu';
-    return {
-      palaceNameVi: translatePalaceName(pal.name),
-      branchVi: VI_BRANCHES[pal.branch],
-      ganZhiVi: `${VI_STEMS[pal.stem]} ${VI_BRANCHES[pal.branch]}`,
-      majorsVi,
-    };
+    if (majors.length === 0) return 'Vô chính diệu';
+    return majors
+      .map((s) => `${translateStarName(s.name)}${s.brightnessRaw ? ` [${translateBrightness(s.brightnessRaw)}]` : ''}`)
+      .join(', ');
   };
+  const orderedPalaces = [...chart.palaces].sort((a, b) => a.branch - b.branch);
+  for (const p of orderedPalaces) {
+    const opp = chart.palaces.find((x) => x.branch === (p.branch + 6) % 12);
+    const thA = chart.palaces.find((x) => x.branch === (p.branch + 4) % 12);
+    const thB = chart.palaces.find((x) => x.branch === (p.branch + 8) % 12);
+    lines.push(
+      `| ${translatePalaceName(p.name)} (${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}) | ${formatPalMajorsCompact(p)} | ${opp ? `${translatePalaceName(opp.name)} (${VI_BRANCHES[opp.branch]})` : '—'} | ${thA ? `${translatePalaceName(thA.name)} (${VI_BRANCHES[thA.branch]})` : '—'}, ${thB ? `${translatePalaceName(thB.name)} (${VI_BRANCHES[thB.branch]})` : '—'} |`,
+    );
+  }
 
-  const mingInfo = formatMajorSummary(chart.mingGongBranch);
-  const shenInfo = formatMajorSummary(chart.shenGongBranch);
+  lines.push('');
+  lines.push('### A.4. Thông Số An Sao & Thời Gian Sinh');
+  lines.push(`- **Đương số**: ${info.name} (${info.yinYang})`);
+  lines.push(`- **Giờ sinh**: ${info.birthTimeFullSummaryVi}`);
+  lines.push(`- **Nơi sinh & Kinh độ**: ${info.locationVi}`);
+  lines.push(`- **Cục số**: ${info.ju} · **Mệnh Chủ**: ${info.mingZhuVi} · **Thân Chủ**: ${info.shenZhuVi}`);
 
-  const birthStemIdx = chart.lunarInfo.yearStem;
-  const birthStemVi = VI_STEMS[birthStemIdx] ?? '';
-  const birthGanZhiVi = `${birthStemVi} ${VI_BRANCHES[chart.lunarInfo.yearBranch] ?? ''}`;
-  const natalTransforms = getSiHuaByStem(birthStemIdx);
-  const findStarPalace = (starCn: string): string => {
-    const pal = chart.palaces.find((p) => p.stars.some((s) => s.name === starCn));
-    return pal ? `${translatePalaceName(pal.name)} - ${VI_BRANCHES[pal.branch]}` : 'Không xác định';
-  };
+  // ── Phụ lục B ────────────────────────────────────────────────────────────────
+  const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
+  const h5End = focusYear + 4;
+  const h10End = focusYear + 9;
+  const horizon10 = buildMultiYearHorizonContext(chart, focusYear, h10End);
 
-  const line1 = `Căn cơ Bản Mệnh & Cục: ${yinYang} · Cục ${ju} · Mệnh Chủ: ${mingZhuVi} · Thân Chủ: ${shenZhuVi}.`;
-  const line2 = `Trục Mệnh – Thân & Chính tinh: Mệnh tại ${mingInfo.branchVi} (${mingInfo.ganZhiVi}) [${mingInfo.majorsVi}]; Thân cư ${shenInfo.palaceNameVi} tại ${shenInfo.branchVi} (${shenInfo.ganZhiVi}) [${shenInfo.majorsVi}].`;
-  const line3 = `Tứ Hóa Bản Mệnh (Can ${birthStemVi} · năm ${birthGanZhiVi}): Hóa Lộc: ${translateStarName(natalTransforms['禄'])} (${findStarPalace(natalTransforms['禄'])}) · Hóa Quyền: ${translateStarName(natalTransforms['权'])} (${findStarPalace(natalTransforms['权'])}) · Hóa Khoa: ${translateStarName(natalTransforms['科'])} (${findStarPalace(natalTransforms['科'])}) · Hóa Kỵ: ${translateStarName(natalTransforms['忌'])} (${findStarPalace(natalTransforms['忌'])}).`;
+  lines.push('');
+  lines.push('## Phụ lục B — Bảng Tra Cứu Theo Năm');
+  lines.push('');
+  lines.push(`### B.1. Bảng Thiên Can Địa Chi & Đại Hạn Các Năm (${focusYear}–${h10End})`);
+  lines.push('| Năm | Can Chi | Tuổi âm | Đại Hạn chủ quản | Lưu Mệnh kích hoạt |');
+  lines.push('| :--- | :--- | :--- | :--- | :--- |');
+  for (const row of horizon10.rows) {
+    const dxCol = row.governingDaXian.isPreDaXian
+      ? 'Chưa vào Đại Hạn'
+      : `${row.governingDaXian.palaceNameVi} (${row.governingDaXian.ageRangeVi})`;
+    lines.push(
+      `| ${row.year} | ${row.lunarGanZhiVi} | ${row.nominalAge} tuổi | ${dxCol} | ${row.activatedPalace.branchVi} (trùng ${row.activatedPalace.natalPalaceNameVi}) |`,
+    );
+  }
 
-  const summarizeYearLine = (year: number, labelPrefix: string): string => {
-    const nominalAge = year - chart.lunarInfo.lunarYear + 1;
-    const dxIdx = resolveEffectiveDaXianIndex(chart, 'liunian', year);
-    let dxLabel = 'chưa vào Đại Hạn';
-    if (dxIdx >= 0 && chart.daXians[dxIdx]) {
-      const dx = chart.daXians[dxIdx];
-      const yrs = getDaXianYears(chart, dxIdx);
-      const yrsStr = yrs.length > 0 ? `${yrs[0]}–${yrs[yrs.length - 1]}` : '';
-      dxLabel = `${translatePalaceName(dx.palaceName)} (${dx.startAge}–${dx.endAge} tuổi${yrsStr ? `, ${yrsStr}` : ''})`;
+  const pushHorizonSiHuaRows = (title: string, rows: typeof horizon10.rows) => {
+    lines.push('');
+    lines.push(title);
+    for (const row of rows) {
+      lines.push(`- **Năm ${row.year} (${row.lunarGanZhiVi} · ${row.nominalAge} tuổi âm)**:`);
+      for (const sh of row.liuNianSiHua.allFour) {
+        lines.push(`  - ${formatPeriodSiHuaFactLine(sh, 'Lưu').replace(/^•\s*/, '')}`);
+      }
     }
-    const pCtx = buildYunxianPeriodContext(chart, { mode: 'liunian', year });
-    if (!pCtx) {
-      return `${labelPrefix} ${year} (${nominalAge} tuổi âm): Đại hạn ${dxLabel}.`;
-    }
-    const lnLoc = pCtx.periodSiHua.find((s) => s.mutagenKey === '禄');
-    const lnKy = pCtx.periodSiHua.find((s) => s.mutagenKey === '忌');
-    const locText = lnLoc
-      ? `${lnLoc.starNameVi} tại Cung ${lnLoc.periodPalaceRoleVi} (trùng ${lnLoc.natalPalaceNameVi})`
-      : 'Không rõ';
-    const kyText = lnKy
-      ? `${lnKy.starNameVi} tại Cung ${lnKy.periodPalaceRoleVi} (trùng ${lnKy.natalPalaceNameVi})`
-      : 'Không rõ';
-    return `${labelPrefix} ${year} (${pCtx.ganZhiVi} · ${nominalAge} tuổi âm): Đại hạn ${dxLabel} · Lưu Mệnh tại ${VI_BRANCHES[pCtx.branchIndex]} (trùng ${pCtx.activatedPalace.natalPalaceNameVi}) · Lưu Lộc: ${locText} / Lưu Kỵ: ${kyText}.`;
   };
 
-  const line4 = summarizeYearLine(2026, 'Tiêu điểm Lưu Niên');
-  const line5 = summarizeYearLine(2027, 'Chuyển dịch Lưu Niên');
+  pushHorizonSiHuaRows(`### B.2. Bảng Lưu Tứ Hóa Giai Đoạn ${focusYear}–${h5End}`, horizon10.rows.slice(0, 5));
+  pushHorizonSiHuaRows(`### B.3. Bảng Lưu Tứ Hóa Giai Đoạn ${h5End + 1}–${h10End}`, horizon10.rows.slice(5));
 
-  return [line1, line2, line3, line4, line5];
+  lines.push('');
+  lines.push(`### B.4. Vị Trí Sao Lưu Động (${focusYear}–${h10End})`);
+  for (const row of horizon10.rows) {
+    const dynDetail = row.dynamicStars
+      .map(
+        (d) =>
+          `${d.starLabelVi} tại Cung ${d.periodPalaceRoleVi} (${d.natalPalaceNameVi} - ${d.natalGanZhiVi})`,
+      )
+      .join(' · ');
+    lines.push(`- **${row.year} (${row.lunarGanZhiVi})**: ${dynDetail}`);
+  }
+
+  lines.push('');
+  lines.push('### B.5. Danh Sách Tứ Hóa Đại Hạn Hiện Tại & Kế Tiếp');
+  const formatDaXianSiHuaLines = (dxIdx: number, tag: string) => {
+    const dx = chart.daXians[dxIdx];
+    const pal = chart.palaces.find((p) => p.branch === dx.palaceBranch);
+    const palNameVi = pal ? translatePalaceName(pal.name) : translatePalaceName(dx.palaceName);
+    const stemIdx = pal ? pal.stem : 0;
+    const stemVi = VI_STEMS[stemIdx] ?? '';
+    const transforms = getDaXianSiHua(chart, dxIdx)?.transforms ?? getSiHuaByStem(stemIdx);
+    const parts = (['禄', '权', '科', '忌'] as SiHua[]).map((sh) => {
+      const starCn = transforms[sh];
+      const targetPal = chart.palaces.find((x) => x.stars.some((s) => s.name === starCn));
+      const targetVi = targetPal ? translatePalaceName(targetPal.name) : 'Không xác định';
+      return `${translateStarName(starCn)} Hóa ${translateSiHua(sh)} → ${targetVi}`;
+    });
+    lines.push(
+      `- **${tag} (${dx.startAge}–${dx.endAge} tuổi · đóng tại ${palNameVi} · Can ${stemVi})**: ${parts.join('; ')}`,
+    );
+  };
+  if (curDxIdx >= 0) {
+    formatDaXianSiHuaLines(curDxIdx, 'Đại hạn hiện tại');
+  } else {
+    lines.push('- **Đại hạn hiện tại**: Chưa vào Đại Hạn.');
+  }
+  if (nextDxIdx >= 0) {
+    formatDaXianSiHuaLines(nextDxIdx, curDxIdx >= 0 ? 'Đại hạn kế tiếp' : 'Đại hạn đầu tiên');
+  }
+
+  lines.push('');
+  lines.push('### B.6. Bảng Tứ Hóa Đại Hạn Kỳ Theo Cung (Trừ Kỳ Kế Tiếp)');
+  let b6Count = 0;
+  for (let i = 0; i < chart.daXians.length; i += 1) {
+    if (i === nextDxIdx) continue;
+    const dx = chart.daXians[i];
+    const pal = chart.palaces.find((p) => p.branch === dx.palaceBranch);
+    const palNameVi = pal ? translatePalaceName(pal.name) : translatePalaceName(dx.palaceName);
+    const stemIdx = pal ? pal.stem : 0;
+    const stemVi = VI_STEMS[stemIdx] ?? '';
+    const transforms = getSiHuaByStem(stemIdx);
+    const parts = (['禄', '权', '科', '忌'] as SiHua[]).map((sh) => {
+      const starCn = transforms[sh];
+      const targetPal = chart.palaces.find((x) => x.stars.some((s) => s.name === starCn));
+      const targetVi = targetPal ? translatePalaceName(targetPal.name) : 'Không xác định';
+      return `${translateStarName(starCn)} Hóa ${translateSiHua(sh)} → ${targetVi}`;
+    });
+    lines.push(
+      `- [Tứ Hóa Đại Hạn Kỳ ${dx.startAge}–${dx.endAge} (đóng tại ${palNameVi} · Can ${stemVi})] ${parts.join('; ')}`,
+    );
+    b6Count += 1;
+  }
+  if (b6Count === 0) {
+    lines.push('- Chưa có dữ liệu kỳ Đại Hạn bổ sung.');
+  }
+
+  lines.push('');
+  lines.push('### B.7. Bảng Tự Hóa Can Cung');
+  const selfSiHuaClauses: string[] = [];
+  for (const p of orderedPalaces) {
+    const ganZhiVi = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+    const palNameVi = translatePalaceName(p.name);
+    for (const sh of detectSelfSihua(p)) {
+      selfSiHuaClauses.push(
+        `- [Tự Hóa Can Cung ${ganZhiVi} · ${palNameVi}] ${translateStarName(sh.starName)} Tự Hóa ${translateSiHua(sh.siHua)}`,
+      );
+    }
+  }
+  if (selfSiHuaClauses.length === 0) {
+    lines.push('Lá số này không có cung Tự Hóa (0 dòng Tự Hóa Can Cung).');
+  } else {
+    lines.push(...selfSiHuaClauses);
+  }
+
+  // ── Phụ lục C ────────────────────────────────────────────────────────────────
+  lines.push('');
+  lines.push('## Phụ lục C — Nguồn Tham Khảo');
+  lines.push('');
+  lines.push('### C.1. Danh Mục Tư Liệu Học Thuật Tham Chiếu');
+  lines.push(
+    'Các mã nguồn dưới đây được tổng hợp và khử trùng từ phần luận giải của hồ sơ (`CL-...` là cổ thư Public Domain; `NH-...` là bài giảng Thiên Kỷ của Nghê Hải Hạ), kèm số thứ tự chương đã viện dẫn.',
+  );
+
+  const dedupedRefs: ExtractedReferenceItem[] = [];
+  const refById = new Map<string, ExtractedReferenceItem>();
+  for (const r of refs) {
+    const existing = refById.get(r.id);
+    if (existing) {
+      for (const ord of r.chapterOrders) {
+        if (!existing.chapterOrders.includes(ord)) {
+          existing.chapterOrders.push(ord);
+        }
+      }
+    } else {
+      const clone: ExtractedReferenceItem = {
+        id: r.id,
+        citationText: r.citationText,
+        chapterOrders: [...r.chapterOrders],
+      };
+      refById.set(r.id, clone);
+      dedupedRefs.push(clone);
+    }
+  }
+  if (dedupedRefs.length === 0) {
+    lines.push('- Chưa ghi nhận mã tư liệu tham chiếu trích xuất từ các chương hiện có.');
+  } else {
+    for (const r of dedupedRefs) {
+      const chList = [...r.chapterOrders].sort((a, b) => a - b).join(', ');
+      lines.push(`- \`[${r.id}]\` ${r.citationText} (Chương ${chList})`);
+    }
+  }
+
+  lines.push('');
+  lines.push('### C.2. Bảng Thuật Ngữ Đầy Đủ (15 Mục)');
+  lines.push(
+    'Bảng dưới đây giữ nguyên thứ tự 11 mục thuật ngữ cốt lõi ở phần thân bài (1–11) và bổ sung 4 thuật ngữ chuyên sâu ở cuối (12–15: Phi Tinh, Tự Hóa, cung phụ trợ, cát tinh / sát tinh):',
+  );
+  const fullGlossary: GlossaryEntrySpec[] = [
+    ...buildCoreElevenGlossaryEntries(chart),
+    {
+      term: 'Phi Tinh',
+      bodyText:
+        'Kỹ thuật lấy Thiên Can của một cung phát động 4 hóa (Lộc, Quyền, Khoa, Kỵ) bay sang các cung có 4 sao đó tọa thủ để xem sự tương tác nhân quả liên cung.',
+    },
+    {
+      term: 'Tự Hóa',
+      bodyText:
+        'Hiện tượng sao do chính Thiên Can của một cung hóa ra lại nằm ngay tại bản cung đó, biểu thị sự tự phát động, tự biến đổi hoặc hao tán tại chỗ.',
+    },
+    {
+      term: 'cung phụ trợ (của Đại Hạn)',
+      bodyText:
+        'Các cung chức năng thứ yếu xoay quanh Lưu Mệnh hoặc Đại Hạn dùng để kiểm tra mối liên kết bổ trợ giữa tầng vận hạn với lá số Bản Mệnh gốc.',
+    },
+    {
+      term: 'cát tinh / sát tinh',
+      bodyText:
+        'Hai nhóm trợ tinh đối lập lực tác động trong Tử Vi: cát tinh (sao tốt như Tả Phù, Hữu Bật, Văn Xương, Văn Khúc, Thiên Khôi, Thiên Việt) hỗ trợ thuận lợi; sát tinh (sao xấu như Kình Dương, Đà La, Hỏa Tinh, Linh Tinh, Địa Không, Địa Kiếp) tạo thử thách và xung đột.',
+    },
+  ];
+  fullGlossary.forEach((item, idx) => {
+    lines.push(`${idx + 1}. **${item.term}**: ${item.bodyText}`);
+  });
+
+  return lines.join('\n');
 }
 
 /**
@@ -1926,19 +2680,12 @@ export function buildDossierPageOneHtml(
   exportedAt = new Date(),
 ): string {
   const info = buildDossierHeaderMetadata(chart);
+  const quickHeader = buildDossierQuickHeaderLines(chart);
   const summaryLines = buildDeterministicExecutiveSummaryVi(chart);
   const gridHtml = buildDeterministicChartGridHtml(chart);
 
   const summaryHtml = summaryLines
-    .map((line) => {
-      const colonIdx = line.indexOf(':');
-      if (colonIdx > 0) {
-        const lead = line.slice(0, colonIdx + 1);
-        const tail = line.slice(colonIdx + 1);
-        return `<li><strong>${escapeHtml(lead)}</strong>${escapeHtml(tail)}</li>`;
-      }
-      return `<li>${escapeHtml(line)}</li>`;
-    })
+    .map((line) => `<li>${escapeHtml(line)}</li>`)
     .join('\n');
 
   return `<section class="dossier-page-one" aria-label="Trang 1 — Mệnh Thư Tổng Lược & Tinh Bàn">
@@ -1950,12 +2697,13 @@ export function buildDossierPageOneHtml(
         <div><strong>Dương lịch:</strong> ${escapeHtml(info.solar)} · <strong>Âm lịch:</strong> ${escapeHtml(info.lunar)}</div>
         <div><strong>Giờ sinh &amp; Chân Thái Dương Thời:</strong> ${escapeHtml(info.birthTimeFullSummaryVi)}</div>
         <div><strong>Nơi sinh &amp; Kinh độ:</strong> ${escapeHtml(info.locationVi)} · <strong>Mệnh Chủ:</strong> ${escapeHtml(info.mingZhuVi)} · <strong>Thân Chủ:</strong> ${escapeHtml(info.shenZhuVi)}</div>
+        <div>${escapeHtml(quickHeader.mingLine)} ${escapeHtml(quickHeader.shenLine)} ${escapeHtml(quickHeader.daXianLine)}</div>
         <div><strong>Tiến độ hoàn thiện:</strong> ${completedCount}/8 chương · <strong>Thời điểm xuất:</strong> ${escapeHtml(exportedAt.toLocaleString('vi-VN'))}</div>
       </div>
     </header>
 
     <div class="executive-summary-box">
-      <h2>Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định)</h2>
+      <h2>Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu)</h2>
       <ol class="executive-summary-list">
         ${summaryHtml}
       </ol>
@@ -2360,6 +3108,40 @@ export const DOSSIER_EDITORIAL_PRINT_CSS = `
     break-inside: avoid;
     page-break-inside: avoid;
   }
+  .ziwei-editorial-root .appendix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    line-height: 1.4;
+    background: #FFFDF8;
+    margin: 10px 0 16px;
+  }
+  .ziwei-editorial-root .appendix-table th,
+  .ziwei-editorial-root .appendix-table td {
+    border: 1px solid #78350F;
+    padding: 5px 8px;
+    vertical-align: top;
+    text-align: left;
+  }
+  .ziwei-editorial-root .appendix-table th {
+    background: var(--paper-surface);
+    color: #5C3804;
+    font-weight: 700;
+  }
+  .ziwei-editorial-root .glossary-section,
+  .ziwei-editorial-root .appendices-section {
+    margin: 20px 0;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-soft);
+  }
+  .ziwei-editorial-root .toc-reading-guide {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px dashed var(--border-soft);
+    font-size: 12px;
+    color: var(--ink-sub);
+  }
+  .ziwei-editorial-root .toc-reading-guide p { margin: 3px 0; }
   .ziwei-editorial-root footer.dossier-foot {
     margin-top: 32px;
     padding-top: 12px;
@@ -2447,9 +3229,75 @@ export const DOSSIER_EDITORIAL_PRINT_CSS = `
   }
 `;
 
+interface PreparedChapterExportItem {
+  spec: DossierChapterSpec;
+  isDone: boolean;
+  bodyMarkdown: string;
+  readingMinutes: number;
+  refs: ExtractedReferenceItem[];
+}
+
+function prepareAllChaptersForExport(
+  chart: ZiweiChart,
+  states: Record<DossierChapterId, DossierChapterState>,
+): { items: PreparedChapterExportItem[]; allRefs: ExtractedReferenceItem[] } {
+  const items: PreparedChapterExportItem[] = [];
+  const allRefs: ExtractedReferenceItem[] = [];
+
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    const st = states[spec.id];
+    const cleanDone = cleanChapterTextForExport(st?.text, spec.id, spec.order, chart, false);
+    const cleanInc = cleanChapterTextForExport(
+      st?.incompleteText,
+      spec.id,
+      spec.order,
+      chart,
+      true,
+    );
+    const isDone = st?.status === 'completed' && Boolean(cleanDone.cleanedText);
+    const refs = isDone ? cleanDone.refs : cleanInc.refs;
+    allRefs.push(...refs);
+
+    let bodyMarkdown = '';
+    if (isDone) {
+      bodyMarkdown = cleanDone.cleanedText;
+    } else if (cleanInc.cleanedText) {
+      bodyMarkdown = [
+        '> **[CHƯA HOÀN TẤT — Chưa có luận giải AI hoàn chỉnh cho chương này]**',
+        '',
+        '*Phần văn bản đã nhận trước khi gián đoạn:*',
+        '',
+        cleanInc.cleanedText,
+      ].join('\n');
+    } else {
+      const { factSheetMarkdown } = resolveChapterDeterministicFactSheet(chart, spec);
+      bodyMarkdown = [
+        '> **[CHƯA HOÀN TẤT — Chưa có luận giải AI hoàn chỉnh cho chương này]**',
+        ...(factSheetMarkdown
+          ? ['', '*Bảng dữ kiện xác định của chương:*', '', factSheetMarkdown]
+          : []),
+      ].join('\n');
+    }
+
+    // X5 (ĐK-158-P10): Đếm trên toàn bộ span chương (tính cả tiêu đề & `---` cuối span, trừ dòng `Đọc trong N phút`)
+    const spanForCount = `## ${spec.titleVi}\n\n${bodyMarkdown}\n\n---`;
+    const readingMinutes = computeReadingMinutes(countWordsUtf8(spanForCount));
+
+    items.push({
+      spec,
+      isDone,
+      bodyMarkdown,
+      readingMinutes,
+      refs,
+    });
+  }
+
+  return { items, allRefs };
+}
+
 /**
- * F1 + S5 + B6: Xuất bản .MD (chỉ giữ Header S5 đầy đủ + 5 dòng Cốt Tủy B6 + văn bản chương thuần,
- * tuyệt đối KHÔNG chèn lưới 4×4 hay bảng ma trận B3 vào .MD).
+ * F1 + S5 + B6 + Nhánh B (1.5.8 X1–X8): Xuất bản .MD chuẩn người đọc
+ * (Header + 3 dòng tóm tắt + Kết Luận Nhanh 5 Câu + Bảng Thuật Ngữ 11 mục + Mục Lục có phút đọc & hướng dẫn + 8 Chương sạch thẻ/cảnh báo/tham chiếu/bổ sung/disclaimer + Phụ lục A/B/C + 1 câu lưu ý cuối file).
  */
 export function buildDossierMarkdownExport(
   chart: ZiweiChart,
@@ -2457,16 +3305,16 @@ export function buildDossierMarkdownExport(
   exportedAt = new Date(),
 ): string {
   const info = buildDossierHeaderMetadata(chart);
+  const quickHeader = buildDossierQuickHeaderLines(chart);
   const summaryLines = buildDeterministicExecutiveSummaryVi(chart);
-  const completedCount = DOSSIER_CHAPTER_SPECS.filter(
-    (s) => states[s.id]?.status === 'completed' && Boolean(states[s.id]?.text?.trim()),
-  ).length;
+  const { items, allRefs } = prepareAllChaptersForExport(chart, states);
+  const completedCount = items.filter((item) => item.isDone).length;
+  const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
+  const nextYear = focusYear + 1;
 
   const lines: string[] = [];
   lines.push(`# HỒ SƠ LUẬN GIẢI TỬ VI THIÊN KỶ — ${info.name.toUpperCase()}`);
-  lines.push(
-    `- **Đương số**: ${info.name} (${info.yinYang}) · **Cục số**: ${info.ju}`,
-  );
+  lines.push(`- **Đương số**: ${info.name} (${info.yinYang}) · **Cục số**: ${info.ju}`);
   lines.push(
     `- **Dương lịch**: ${info.solar} · **Âm lịch**: ${info.lunar} · **An Mệnh tại ${info.mingBranch}**: ${info.mingMajors}`,
   );
@@ -2474,55 +3322,40 @@ export function buildDossierMarkdownExport(
   lines.push(
     `- **Nơi sinh / Kinh độ**: ${info.locationVi} · **Mệnh Chủ**: ${info.mingZhuVi} · **Thân Chủ**: ${info.shenZhuVi}`,
   );
+  lines.push(`- ${quickHeader.mingLine}`);
+  lines.push(`- ${quickHeader.shenLine}`);
+  lines.push(`- ${quickHeader.daXianLine}`);
   lines.push(
     `- **Tiến độ hoàn thiện**: ${completedCount}/8 chương · **Xuất lúc**: ${exportedAt.toLocaleString('vi-VN')}`,
   );
 
-  lines.push('\n## Kết Luận Nhanh — Cốt Tủy Lá Số (5 Dòng Xác Định)');
+  lines.push('\n## Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu)');
   for (const sLine of summaryLines) {
     lines.push(`- ${sLine}`);
   }
 
+  lines.push('\n' + buildBodyGlossaryMarkdown(chart));
+
   lines.push('\n## Mục Lục');
-  for (const spec of DOSSIER_CHAPTER_SPECS) {
-    const st = states[spec.id];
-    const statusLabel =
-      st?.status === 'completed' && st.text?.trim()
-        ? 'Hoàn tất'
-        : 'Chưa hoàn tất';
-    lines.push(`- **${spec.titleVi}** — *${statusLabel}*`);
+  for (const item of items) {
+    const statusLabel = item.isDone ? 'Hoàn tất' : 'Chưa hoàn tất';
+    lines.push(
+      `- **${item.spec.titleVi}** — *${statusLabel}* · Đọc trong khoảng ${item.readingMinutes} phút`,
+    );
+  }
+  lines.push('');
+  for (const guideLine of formatChapterReadingGuideLines(focusYear, nextYear)) {
+    lines.push(`- ${guideLine}`);
   }
 
-  for (const spec of DOSSIER_CHAPTER_SPECS) {
-    const st = states[spec.id];
-    const cleanText = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.text, spec.id, chart),
-    )?.trim();
-    const cleanIncomplete = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart, {
-        skipPeriodSiHuaCheck: true,
-      }),
-    )?.trim();
-
-    lines.push(`\n---\n\n## ${spec.titleVi}`);
-    if (st?.status === 'completed' && cleanText) {
-      lines.push(cleanText);
-    } else {
-      lines.push(
-        `> **[CHƯA HOÀN TẤT — Chưa có luận giải AI hoàn chỉnh cho chương này]**`,
-      );
-      if (cleanIncomplete) {
-        lines.push('\n*Phần văn bản đã nhận trước khi gián đoạn:*\n');
-        lines.push(cleanIncomplete);
-      } else {
-        const { factSheetMarkdown } = resolveChapterDeterministicFactSheet(chart, spec);
-        if (factSheetMarkdown) {
-          lines.push('\n*Bảng dữ kiện xác định của chương:*\n');
-          lines.push(factSheetMarkdown);
-        }
-      }
-    }
+  for (const item of items) {
+    lines.push(`\n---\n\n## ${item.spec.titleVi}`);
+    lines.push(`Đọc trong ${item.readingMinutes} phút`);
+    lines.push('');
+    lines.push(item.bodyMarkdown);
   }
+
+  lines.push('\n---\n\n' + buildDossierAppendicesMarkdown(chart, allRefs));
 
   lines.push(
     '\n---\n*Lưu ý: Hồ sơ phục vụ tham khảo nghiên cứu mệnh lý Tử Vi Đẩu Số theo hệ thống Thiên Kỷ.*',
@@ -2541,7 +3374,8 @@ export function buildDossierPlainTextExport(
 }
 
 /**
- * F1 + QĐ-G5: Xuất file .html độc lập chuẩn in (Trang 1 B1+B6+B2, bảng B3 ở Ch.7/8, theme Giấy Cổ + @media print).
+ * F1 + QĐ-G5 + X9: Xuất file .html độc lập chuẩn in, khớp đủ nội dung X1–X8 như bản .md
+ * đồng thời giữ Trang 1 (B1+B6+B2), bảng ma trận B3 trước Ch.7/Ch.8 và CSS Giấy Cổ + @media print.
  */
 export function buildDossierStandaloneHtmlExport(
   chart: ZiweiChart,
@@ -2549,56 +3383,53 @@ export function buildDossierStandaloneHtmlExport(
   exportedAt = new Date(),
 ): string {
   const info = buildDossierHeaderMetadata(chart);
-  const completedCount = DOSSIER_CHAPTER_SPECS.filter(
-    (s) => states[s.id]?.status === 'completed' && Boolean(states[s.id]?.text?.trim()),
-  ).length;
+  const { items, allRefs } = prepareAllChaptersForExport(chart, states);
+  const completedCount = items.filter((item) => item.isDone).length;
+  const focusYear = DOSSIER_CHAPTER_SPECS.find((s) => s.id === 'year_2026')?.year ?? 2026;
+  const nextYear = focusYear + 1;
 
   const pageOneHtml = buildDossierPageOneHtml(chart, completedCount, exportedAt);
+  const glossaryHtml = `<section class="glossary-section">${simpleMarkdownToHtml(buildBodyGlossaryMarkdown(chart))}</section>`;
 
-  const tocHtml = DOSSIER_CHAPTER_SPECS.map((spec) => {
-    const st = states[spec.id];
-    const isDone = st?.status === 'completed' && Boolean(st.text?.trim());
-    return `<li><a href="#sec-${spec.id}">${escapeHtml(spec.titleVi)}</a> <span class="toc-status ${isDone ? 'done' : 'pending'}">${isDone ? 'Hoàn tất' : 'Chưa hoàn tất'}</span></li>`;
-  }).join('\n');
+  const tocHtml = items
+    .map((item) => {
+      return `<li><a href="#sec-${item.spec.id}">${escapeHtml(item.spec.titleVi)}</a> <span class="toc-status ${item.isDone ? 'done' : 'pending'}">${item.isDone ? 'Hoàn tất' : 'Chưa hoàn tất'}</span> · Đọc trong khoảng ${item.readingMinutes} phút</li>`;
+    })
+    .join('\n');
 
-  const chaptersHtml = DOSSIER_CHAPTER_SPECS.map((spec) => {
-    const st = states[spec.id];
-    const cleanText = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.text, spec.id, chart),
-    )?.trim();
-    const cleanIncomplete = stripInternalExportMetaLines(
-      sanitizeDossierChapterText(st?.incompleteText, spec.id, chart, {
-        skipPeriodSiHuaCheck: true,
-      }),
-    )?.trim();
-    const isDone = st?.status === 'completed' && Boolean(cleanText);
+  const guideHtml = `<div class="toc-reading-guide">${formatChapterReadingGuideLines(focusYear, nextYear)
+    .map((l) => `<p>${escapeHtml(l)}</p>`)
+    .join('')}</div>`;
 
-    const matrixPrefixHtml =
-      spec.sectionId === 'horizon_5y'
-        ? buildMultiYearMatrixTableHtml(chart, 5)
-        : spec.sectionId === 'horizon_10y'
-          ? buildMultiYearMatrixTableHtml(chart, 10)
-          : '';
+  const chaptersHtml = items
+    .map((item) => {
+      const matrixPrefixHtml =
+        item.spec.sectionId === 'horizon_5y'
+          ? buildMultiYearMatrixTableHtml(chart, 5)
+          : item.spec.sectionId === 'horizon_10y'
+            ? buildMultiYearMatrixTableHtml(chart, 10)
+            : '';
 
-    if (isDone && cleanText) {
-      return `<section id="sec-${spec.id}" class="chapter">
-        <h2>${escapeHtml(spec.titleVi)}</h2>
+      if (item.isDone) {
+        return `<section id="sec-${item.spec.id}" class="chapter">
+        <h2>${escapeHtml(item.spec.titleVi)}</h2>
+        <div class="chapter-meta">Đọc trong ${item.readingMinutes} phút</div>
         ${matrixPrefixHtml}
-        <div class="chapter-body">${simpleMarkdownToHtml(cleanText)}</div>
+        <div class="chapter-body">${simpleMarkdownToHtml(item.bodyMarkdown)}</div>
       </section>`;
-    }
+      }
 
-    const fallbackMd = cleanIncomplete
-      ? cleanIncomplete
-      : resolveChapterDeterministicFactSheet(chart, spec).factSheetMarkdown;
-
-    return `<section id="sec-${spec.id}" class="chapter chapter-incomplete">
-      <h2>${escapeHtml(spec.titleVi)}</h2>
-      <div class="incomplete-banner">CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ${cleanIncomplete ? ' (hiển thị phần đã nhận trước khi gián đoạn)' : ' (hiển thị bảng dữ kiện xác định)'}.</div>
+      return `<section id="sec-${item.spec.id}" class="chapter chapter-incomplete">
+      <h2>${escapeHtml(item.spec.titleVi)}</h2>
+      <div class="chapter-meta">Đọc trong ${item.readingMinutes} phút</div>
+      <div class="incomplete-banner">CHƯA HOÀN TẤT — Chương này chưa có bài luận giải AI đầy đủ.</div>
       ${matrixPrefixHtml}
-      <div class="chapter-body">${simpleMarkdownToHtml(fallbackMd)}</div>
+      <div class="chapter-body">${simpleMarkdownToHtml(item.bodyMarkdown)}</div>
     </section>`;
-  }).join('\n');
+    })
+    .join('\n');
+
+  const appendicesHtml = `<section class="appendices-section">${simpleMarkdownToHtml(buildDossierAppendicesMarkdown(chart, allRefs))}</section>`;
 
   return `<!DOCTYPE html>
 <html lang="vi">
@@ -2632,13 +3463,16 @@ export function buildDossierStandaloneHtmlExport(
 <body>
   <article class="sheet ziwei-editorial-root">
     ${pageOneHtml}
+    ${glossaryHtml}
     <nav class="toc">
       <h2>Mục Lục Hồ Sơ</h2>
       <ul>${tocHtml}</ul>
+      ${guideHtml}
     </nav>
     ${chaptersHtml}
+    ${appendicesHtml}
     <footer class="dossier-foot">
-      Tử Vi Thiên Kỷ — Nội dung phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.
+      Lưu ý: Hồ sơ phục vụ tham khảo nghiên cứu mệnh lý Tử Vi Đẩu Số theo hệ thống Thiên Kỷ.
     </footer>
   </article>
 </body>

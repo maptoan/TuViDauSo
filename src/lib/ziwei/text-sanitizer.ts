@@ -425,7 +425,10 @@ export function enforceCanonicalPalaceGroupHeadings(text: string, chart: ZiweiCh
   for (const p of chart.palaces) {
     const canonicalNameVi = translatePalaceName(p.name);
     if (canonicalNameVi) {
-      canonicalByNameLower.set(canonicalNameVi.normalize('NFC').toLowerCase(), formatCanonicalPalaceHeading(p));
+      canonicalByNameLower.set(
+        canonicalNameVi.normalize('NFC').toLowerCase(),
+        formatCanonicalPalaceHeading(p, { chart, onlyCurrentAndNextDaXian: true }),
+      );
     }
   }
 

@@ -2,12 +2,32 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.7` *(đồng bộ với `/VERSION` và `package.json`)*
-- **Cập nhật lần cuối**: `25/11/2026`
-- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`)
+- **Áp dụng cho phiên bản ứng dụng**: `1.5.8` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Cập nhật lần cuối**: `26/11/2026`
+- **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.5.8] — 26/11/2026
+
+### Đưa Quy Tắc Cải Tiến Hồ Sơ Vào Prompt & Tầng Xuất Bản (`BRIEF 1.5.8 v2` + `Errata E-01..E-03`)
+- **Nhóm Prompt (`P1–P12`, `server.ts`, `dossier-context.ts`, `text-sanitizer.ts`, `dossier-chat-ui.ts`, `E-01`)**:
+  - **P1–P3, P6–P9 (`server.ts`)**: Chuẩn hóa xưng hô `"đương số"` (`0` `"bạn"`, trừ `"bạn bè"`), cấm sáo ngữ mở chương + mở câu ngắn `<= 30` từ, tách đoạn `<= 120` từ / câu `<= 60` từ / gạch đầu dòng `<= 100` từ, câu chốt in đậm `<= 40` từ ngay sau `### Cung ...`, nhân-quả gắn tên sao cụ thể, cấm biệt ngữ (`Phi Tinh`, `cát tinh`, `sát tinh`), chỉ ghi độ sáng lần đầu mỗi sao/chương, phân tách rõ 2026 vs 2027 không lặp văn mẫu, và bắt buộc 150–250 từ cho mỗi cung Chương 2–4 trong ngưỡng trần `systemInstruction` (`ĐK-158-05`).
+  - **P4 (`dossier-context.ts`, `text-sanitizer.ts`, `E-01`)**: Thêm tùy chọn `{ chart, onlyCurrentAndNextDaXian: true }` cho `formatCanonicalPalaceHeading` và gọi qua `enforceCanonicalPalaceGroupHeadings` để chỉ giữ nhãn `[Đại hạn ...]` trên Đại hạn hiện tại và kế tiếp (giữ nguyên chữ ký & mặc định của `formatCanonicalPalaceHeading`).
+  - **P5 (`server.ts`)**: Yêu cầu §1 Chương 6–8 trình bày 4 gạch đầu dòng Tứ Hóa kỳ hạn rõ tên sao + tên cung khớp `verifyAndEnsureCompletePeriodSiHua`.
+  - **P10–P11 (`dossier-chat-ui.ts`)**: Viết lại `buildDeterministicExecutiveSummaryVi(chart, baseYear?)` (5 câu tự nhiên, `"đương số"`, hỗ trợ VCD, trẻ chưa vào Đại Hạn, khuyết giờ sinh, năm tương đối) và bổ sung `buildDossierQuickHeaderLines` (3 dòng tóm tắt đầu hồ sơ).
+- **Nhóm Xuất Bản (`X1–X9`, `dossier-chat-ui.ts`)**:
+  - **X1–X4 & X1b**: Giữ nguyên thẻ `[Nguồn: ...]` và khối kiểm chứng/tham chiếu trong app để phục vụ hậu kiểm; tại tầng xuất bản (`.MD`/`.HTML`/`.TXT`), `cleanChapterTextForExport` tách trước khối `> 📚` gom vào Phụ lục C.1 (`X3`), rồi gỡ khối cảnh báo `> ⚠️` (`X2`), khối Tứ Hóa bổ sung `> 📌` & nhãn `[Tứ Hóa]`/`[Phi Tinh]`/`[Tự Hóa]` (`X1b`), toàn bộ thẻ `[Nguồn: ...]` kèm viết hoa hậu dấu phẩy (`X1`), và disclaimer lẻ từng chương (`X4`, chỉ giữ 1 câu cuối hồ sơ).
+  - **X5 (`ĐK-158-P10`)**: Tính thời gian đọc `Math.max(1, Math.round(words / 220))` trên toàn span chương từ `## Chương N ...` tới `---` (trừ dòng `Đọc trong N phút`), gắn vào Mục Lục và dòng 2 mỗi chương.
+  - **X6–X8**: Thêm Bảng Thuật Ngữ 11 mục ở thân bài (`buildBodyGlossaryMarkdown`), Phụ lục A.1–A.4 / B.1–B.7 (`B.6` động `chart.daXians.length - 1`) / C.1–C.2 (`buildDossierAppendicesMarkdown`), và 3 dòng tóm tắt đầu + hướng dẫn đọc ở Mục Lục.
+  - **X9**: Bổ sung phân giải bảng ống `| ... |` (`<table class="appendix-table">`), `<blockquote>` và CSS tương ứng trong `simpleMarkdownToHtml` / `DOSSIER_EDITORIAL_PRINT_CSS`, bảo toàn `buildDossierPageOneHtml` và `<table class="matrix-table">`.
+- **Nhóm Kiểm Định & Đồng Bộ (`T1–T4`, `E-02..E-03`, `ĐK-158-05..07`)**:
+  - **T1 (`scripts/verify-dossier-context.ts`)**: Cập nhật whitelist `ĐK-158-02` (`E-02`/`E-03`), bổ sung Bài 11 kiểm tra neo `P1–P9`, giữ nguyên `buildStrictExplanationChatPrompt`, và chốt trần `systemInstruction` (`3915/4800/4958/4797/4920/4920/5476`) + Fact Sheet.
+  - **T2 (`scripts/verify-dossier-chat-ui.ts`)**: Cập nhật `EXPECTED_VERSION = '1.5.8'`, thêm `T2-1` và `T2-2` phủ đủ `X1–X9`, `X1b`, `P5`, `P10`, và đồng bộ 3 chiều `VERSION` / `package.json` / `APP_VERSION`.
+  - **T3 (`scripts/verify-dossier-readability.ts`)**: Tạo script kiểm định độc lập cổng `R-01..R-12` + vệ sinh văn bản cho file `.MD` xuất ra.
 
 ---
 

@@ -339,17 +339,17 @@ QUY TẮC RÀO CHỐNG BỊA & CHUẨN MỰC THUẬT NGỮ (BẮT BUỘC TUÂN T
    - Khi bàn về bất kỳ cung nào có Lưu Tứ Hóa (hoặc Đại Hạn Tứ Hóa) tọa thủ HAY đối cung xung chiếu, BẮT BUỘC phải gọi đúng nhãn vai trò kỳ hạn từ Bảng dữ kiện ("Cung Lưu <Tên Cung>" đối với Lưu Niên, hoặc "Cung Đại Hạn <Tên Cung>" đối với Đại Hạn) cho CẢ cung tọa thủ lẫn đối cung xung chiếu, kèm tên cung Bản Mệnh gốc trùng vào đó; tuyệt đối không tự suy vai trò và TUYỆT ĐỐI CẤM lược bỏ chữ "Lưu" (như viết "tam hợp Tài Bạch (trùng Mệnh Cung)" gây nhầm với Tài Bạch gốc).
    - Đọc trực tiếp tọa độ sao, Cát/Sát tinh và vai trò Lưu/Đại Hạn từ mục [Tam Phương Tứ Chính & Điểm Xung Chiếu Của Kỳ Hạn (Tra Cứu Cố Định — Không Tự Nhẩm Địa Chi)], không tự nhẩm lại cung tam hợp hay đối cung.
    - BẮT BUỘC phải nhắc và phân tích ĐỦ CẢ 4 SAO TỨ HÓA CỦA KỲ HẠN (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ — nêu rõ tên sao + loại hóa + cung kỳ hạn tọa thủ + đối cung xung chiếu), tuyệt đối không được bỏ sót bất kỳ hóa nào.
-4. Phân biệt rõ tính chất kỳ hạn:
-    - Nếu là ĐẠI HẠN (10 năm): luận giải như xu thế nền tảng, môi trường phát triển và trọng tâm chuyển dịch trong suốt thập kỷ.
-    - Nếu là LƯU NIÊN (1 năm): luận giải như sự kiện cụ thể, biến chuyển và điểm ứng kỳ trong năm đó (đặt trong bối cảnh Đại Hạn gốc).
-    - Chương LƯU NIÊN: viết 900–1.300 từ cho thân bài (không tính tiêu đề, dòng dữ kiện Tứ Hóa, khối tham chiếu); dừng luận giải khi đủ ý, không kéo dài thêm; phân tích đủ Tam Phương Tứ Chính của Lưu Mệnh và Đại Hạn gốc hiện hành.
-    - Mỗi dòng Lưu Tứ Hóa BẮT BUỘC nêu đủ **tên Hóa + tên sao + độ sáng** (ví dụ: "Lưu Hóa Khoa → Sao Văn Xương [Miếu]"); mỗi lần nêu sao lưu (Lưu Lộc Tồn, Lưu Thiên Mã, Lưu Văn Xương, Lưu Văn Khúc…) BẮT BUỘC kèm tên cung Bản Mệnh gốc trong ngoặc.
+4. Phân biệt rõ tính chất kỳ hạn & kỷ luật văn phong (P1–P9):
+    - ĐẠI HẠN (10 năm): luận xu thế nền tảng. LƯU NIÊN (1 năm): luận sự kiện, điểm ứng kỳ (đặt trong Đại Hạn gốc), viết 900–1.300 từ cho thân bài (không tính tiêu đề, dòng dữ kiện Tứ Hóa, khối tham chiếu); dừng luận giải khi đủ ý, không kéo dài thêm; phân tích đủ Tam Phương Tứ Chính của Lưu Mệnh và Đại Hạn gốc.
+    - Mỗi dòng Lưu Tứ Hóa trong \`### 1.\` trình bày thành **4 gạch đầu dòng**, mỗi gạch nêu đủ **tên Hóa + tên sao + độ sáng** + Cung Lưu + đối cung xung chiếu (ví dụ: "Lưu Hóa Khoa → Sao Văn Xương [Miếu] tại Cung Lưu ..."); \`### 2.–4.\` không lặp lại bảng thô. Sao lưu (Lưu Lộc Tồn, Lưu Thiên Mã…) kèm tên cung Bản Mệnh gốc trong ngoặc.
+    - Ngôi xưng duy nhất là **"đương số"**, CẤM dùng "bạn" (trừ "bạn bè"). Câu mở đầu ≤ 30 từ (đi thẳng trọng tâm, cấm "Xét về"/"Về mặt"/"Nhìn chung"); mỗi câu ≤ 60 từ; mỗi đoạn ≤ 120 từ; mỗi gạch ≤ 100 từ; mỗi nhận định nêu rõ **vì sao** (sao + cung).
+    - Không thêm thông tin ngoài gốc; cách cục dùng 1 tên duy nhất (bỏ phú + "[Thượng cách]"); dùng "sao tốt / sao xấu"; mỗi sao tối đa 1 nhãn [Độ sáng]/chương; giữ Can Chi trong tên cung, bỏ Can năm dư trong văn xuôi, dùng "trùng"/"cung gốc"; giải thích 1 lần ở ch.1 §1 với nhãn Âm/Dương, không nhắc lại; không in thô nhãn [Tứ Hóa...]/[Phi Tinh...]/[Tự Hóa...] ra văn xuôi.
     - Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
 5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
    - Khi sử dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tới Nghê Hải Hạ / Thiên Kỷ / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` có trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó (ví dụ: \`[Nguồn: NH-SIHUA-001]\`).
    - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc gán khẩu quyết ngoài danh sách.
    - Khi bảng đối chiếu không rỗng, BẮT BUỘC toàn chương ≥ 1 thẻ \`[Nguồn: <ID>]\` hợp lệ (ưu tiên từng mục có dữ kiện khớp); chỉ gắn khi khớp điều kiện lá số (không gán Nữ mệnh cho Nam hay Hóa Kỵ xung Mệnh khi thiếu), nếu 0 mục khớp thì ghi rõ luận thuần túy từ dữ kiện tinh đẩu.
-6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", "kho lúa", "bảo thủ"; giữ nguyên trụ Can Chi hợp lệ như "Canh Thìn", "Canh Dần"), tuyệt đối không mở đầu chương bằng câu dẫn nhập kiểu "Dưới đây là phần luận giải chi tiết cho kỳ hạn …" — vào thẳng đề mục \`### 1. …\`, trình bày bằng Markdown theo đúng 4 đề mục:
+6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không chữ Hán, đúng chính tả "căng độ", "kho lúa", "bảo thủ"; giữ trụ "Canh Thìn", "Canh Dần"), tuyệt đối không mở đầu bằng câu dẫn nhập kiểu "Dưới đây là..." — vào thẳng \`### 1. …\`, theo đúng 4 đề mục:
    ### 1. Chủ Đề Kỳ Hạn (${isDahan ? 'Xu Thế 10 Năm' : 'Sự Kiện Trong Năm'})
    ### 2. Điểm Cát & Động Lực Thuận Lợi
    ### 3. Điểm Hung & Trục Xung Chiếu Cần Lưu Ý
@@ -537,51 +537,51 @@ export function buildStrictDossierSectionPrompt(
     sectionId === 'palaces_core' ||
     sectionId === 'palaces_family' ||
     sectionId === 'palaces_social_health';
-  const isHorizon = sectionId === 'horizon_5y' || sectionId === 'horizon_10y';
+  const isHorizon5y = sectionId === 'horizon_5y';
+  const isHorizon10y = sectionId === 'horizon_10y';
 
   const familyGenderRule =
     sectionId === 'palaces_family'
-      ? `\n   - Khi luận cung Phu Thê và các sao phối ngẫu, căn cứ trường Đương số trong Bảng dữ kiện: đương số nam thì không dùng khuôn diễn đạt dành cho nữ và ngược lại.`
+      ? `\n   - Luận Phu Thê căn cứ trường Đương số: đương số nam thì không dùng khuôn diễn đạt dành cho nữ và ngược lại.`
       : '';
 
   const sectionRules = isPalaceGroup
-    ? `4. ĐỊNH DẠNG & SÀN ĐỘ DÀI BẮT BUỘC CHO NHÓM 4 CUNG:
-   - Phải viết đầy đủ 4 đề mục Markdown \`### Cung <Tên Cung> (<Can Chi>)\` tách biệt cho cả 4 cung: ${(sectionCtx.palaceNamesVi ?? []).join(', ')}. KHÔNG được gộp sơ sài hay bỏ sót bất kỳ cung nào.
-   - Lưu ý: tiêu đề mục cung (gồm cả nhãn [AN MỆNH]/[AN THÂN]/[Đại hạn X–Y tuổi]) sẽ được app chuẩn hóa hậu kiểm tự động theo dữ kiện lá số; AI giữ đúng mẫu \`### Cung <Tên Cung> (<Can Chi>)\` và tập trung viết thân bài thật sâu sắc cho từng cung.
-   - Mỗi cung BẮT BUỘC đạt độ sâu phân tích **250–350 từ MỖI cung** (tổng toàn chương **1,000–1,400 từ**).
-   - Trong mỗi cung: phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), Cát tinh/Sát tinh đi kèm, Tam Phương Tứ Chính (đối cung + 2 cung tam hợp), Tứ Hóa theo đúng tiền tố tầng và Tự Hóa/Phi Tinh (nếu có), cùng lời khuyên thực tiễn.
-    - Khi nhắc Tứ Hóa Đại Hạn của một kỳ tuổi, chỉ dùng Can và bộ sao của đúng kỳ đó theo dòng [Tứ Hóa Đại Hạn Kỳ ...] của cung tương ứng. Thẻ [Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại; không gán Can của kỳ hiện tại cho các kỳ quá khứ hay tương lai.
-    - Trong mỗi cung thuộc Chương 2, 3, 4, BẮT BUỘC phân tích dòng \`[Tứ Hóa Đại Hạn Kỳ X–Y]\` gắn với đại hạn đóng tại cung đó (nêu rõ kỳ tuổi, Thiên Can và đủ 4 hóa Lộc/Quyền/Khoa/Kỵ), bên cạnh \`[Phi Tinh Can Cung ...]\`.${familyGenderRule}`
-    : isHorizon
-      ? `4. QUY TẮC TỐI THƯỢNG CHO PHÂN TÍCH ĐA NĂM & ĐỘ DÀI (BẮT BUỘC):
-   - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
-   - Với mỗi năm trong Ma Trận, BẠN CHỈ ĐƯỢC PHÉP trích dẫn Năm, Tuổi, Can Chi, Đại Hạn chủ quản, Quan hệ Đại Hạn–Lưu Niên, Cung Bản Mệnh kích hoạt, đủ cả 4 sao Lưu Tứ Hóa (Hóa Lộc, Hóa Quyền, Hóa Khoa, Hóa Kỵ) kèm nhãn "Cung Lưu <Tên Cung>" (cả tọa thủ lẫn đối cung xung chiếu), các Sao Lưu và Cờ xung hợp đã in TRỰC TIẾP trong bảng Ma Trận.
-   - Khi liệt kê 4 sao Lưu Tứ Hóa của từng năm, BẮT BUỘC theo đúng mẫu: \`{Sao} Hóa {X} tại Cung Lưu {A} [trùng {B}] (xung Cung Lưu {C} [trùng {D}])\` — không được lược đối cung xung chiếu.
-   - TUYỆT ĐỐI CẤM tự tính nhẩm hoặc bịa thêm bất kỳ sao lưu niên, cung hạn hay năm nào nằm ngoài bảng Ma Trận.
-   - Nếu một năm được ghi **"chưa vào Đại Hạn"**, PHẢI nêu rõ đương số chưa vào Đại Hạn ở năm đó và tuyệt đối không tự bịa cung Đại Hạn hay Tứ Hóa Đại Hạn.
-   - Chỉ gắn thẻ \`[Nguồn: ...]\` vào đoạn bình giải lý thuyết tương ứng với chủ đề của thẻ; không gắn thẻ Tứ Hóa chuyên đề đơn lẻ vào câu liệt kê danh sách 4 sao Tứ Hóa Đại Hạn.
-   - Tuyệt đối không mở đầu bằng câu dẫn nhập và không lặp lại tên chương ở đầu bài; sử dụng thống nhất cấp tiêu đề \`### 1.\`, \`### 2.\`, \`### 3.\`, \`### 4.\` cho các phần chính.
-   - Trình bày rõ: Tổng quan chuyển dịch & mốc chuyển Đại Hạn → Phân tích nhịp từng năm dựa trên Ma Trận (xét đủ 4 Lưu Tứ Hóa) → Điểm rơi cơ hội/rủi ro nổi bật → Chiến lược hành động.`
-      : `4. ĐỊNH DẠNG & ĐỘ DÀI BẮT BUỘC CHO CHƯƠNG TỔNG QUAN:
-   - Độ dài mục tiêu toàn chương: **750–1,100 từ**.
-   - Trình bày theo 4 đề mục Markdown rõ ràng:
+    ? `4. ĐỊNH DẠNG & SÀN ĐỘ DÀI NHÓM 4 CUNG:
+   - Viết đủ 4 mục \`### Cung <Tên Cung> (<Can Chi>)\` tách biệt cho: ${(sectionCtx.palaceNamesVi ?? []).join(', ')}; tiêu đề (chỉ giữ nhãn [Đại hạn ...] cho 2 kỳ hiện tại/kế tiếp) sẽ được app chuẩn hóa hậu kiểm.
+   - Ngay sau mỗi tiêu đề cung, viết **1 dòng kết luận in đậm** ≤ 40 từ rồi nêu câu **vì sao** (sao + cung + cách cục). Độ sâu **150–250 từ MỖI cung** (tổng chương **800–1.100 từ**).
+   - Phân tích Chính tinh + độ sáng (hoặc Vô chính diệu mượn đối cung), sao tốt/sao xấu, Tam Phương Tứ Chính, Tứ Hóa và lời khuyên thực tiễn.
+   - Thẻ [Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại. Chỉ phân tích Đại Hạn hiện tại và kế tiếp (ví dụ kỳ đang sống và kỳ kế tiếp); mọi đoạn phi tinh còn lại BỎ (không liệt kê lan man phi tinh các cung/kỳ khác).${familyGenderRule}`
+    : isHorizon5y
+      ? `4. QUY TẮC PHÂN TÍCH 5 NĂM (CH.7):
+   - Độ dài mục tiêu: **1.600–1.900 từ**. Bố cục: \`### 1.\` Tổng quan → \`### 2.\` Nhịp từng năm (5 khối \`#### Năm YYYY\`) → \`### 3.\` Điểm rơi cơ hội/rủi ro → \`### 4.\` Chiến lược hành động; không mở đầu dẫn nhập và không lặp lại tên chương ở đầu bài.
+   - Chỉ trích Năm, Tuổi, Can Chi, Đại Hạn, Quan hệ ĐH–LN, Cung kích hoạt, đủ cả 4 sao Lưu Tứ Hóa kèm "Cung Lưu <Tên Cung>" theo mẫu \`{Sao} Hóa {X} tại Cung Lưu {A} [trùng {B}] (xung Cung Lưu {C} [trùng {D}])\`, Sao lưu và Cờ trong Ma Trận. TUYỆT ĐỐI CẤM tự tính nhẩm ngoài Ma Trận; năm **"chưa vào Đại Hạn"** phải ghi rõ. Lý giải **vì sao** tập trung ở §3/§4, mỗi khẳng định trong khối năm nêu tên sao + cung.
+   - Tuyệt đối không gắn thẻ Tứ Hóa chuyên đề đơn lẻ vào câu liệt kê danh sách 4 sao Tứ Hóa Đại Hạn.`
+      : isHorizon10y
+        ? `4. QUY TẮC PHÂN TÍCH 10 NĂM (CH.8):
+   - Độ dài mục tiêu: **1.500–1.700 từ**. Không mở đầu dẫn nhập, không lặp lại tên chương ở đầu bài; trình bày \`### 1.\`.. \`### 4.\`/\`### 5.\`.
+   - 5 năm đầu đã phân tích ở ch.7: chỉ tóm tắt dẫn chiếu sang ch.7 kèm 1–2 gạch điểm riêng mỗi năm; **chỉ viết 5 khối năm sau ch.7** (ví dụ: từ năm hiện tại + 5 đến + 9). Cấm lặp câu "Lưu Niên đi qua cung chức năng phụ trợ của Đại Hạn".
+   - Chỉ trích dữ kiện có trong Ma Trận theo mẫu \`{Sao} Hóa {X} tại Cung Lưu {A} [trùng {B}] (xung Cung Lưu {C} [trùng {D}])\`. TUYỆT ĐỐI CẤM tự tính nhẩm ngoài Ma Trận; năm **"chưa vào Đại Hạn"** phải ghi rõ. Lý giải **vì sao** ở gạch "Điểm đáng chú ý", mỗi khẳng định nêu tên sao + cung.`
+        : `4. ĐỊNH DẠNG & ĐỘ DÀI CHƯƠNG TỔNG QUAN (CH.1):
+   - Độ dài mục tiêu: **900–1.100 từ**. Nhãn Âm/Dương (ví dụ Âm Nam/Dương Nữ) chỉ **giải thích 1 lần ở ch.1 §1**, các mục/chương sau gọi thẳng tên không giải thích lại.
+   - Trình bày theo 4 đề mục Markdown:
      ### 1. Bức Tranh Bản Mệnh & Thân Cư (Ngũ Hành Cục · Âm Dương · Chính Tinh)
      ### 2. Cách Cục Tiên Thiên & Trục Tam Phương Tứ Chính (Mệnh – Tài – Quan – Di)
      ### 3. Dòng Chảy Tứ Hóa Bản Mệnh & Ngữ Cảnh Đại Hạn Hiện Tại
      ### 4. Trục Thế Mạnh Cốt Lõi & Nguyên Tắc Tu Dưỡng Dài Hạn`;
 
   const systemInstruction = `Bạn là chuyên gia luận giải Tử Vi Đẩu Số theo hệ thống Thiên Kỷ (Nghê Hải Hạ) và Tử Vi Đẩu Số Toàn Thư.
-QUY TẮC RÀO CHỐNG BỊA (BẮT BUỘC TUÂN THỦ 100%):
-1. CHỈ ĐƯỢC phép luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] và [TÓM TẮT LÁ SỐ BẢN MỆNH] được cung cấp.
-2. TUYỆT ĐỐI CẤM tự bịa thêm sao, cấm đổi cung vị của sao, cấm tự gán Tứ Hóa không có trong dữ kiện. Không tự gọi riêng lẻ Địa Không, hoặc cặp Địa Không + Thiên Không, là 'Không Kiếp' nếu Địa Kiếp không đồng cung hoặc không nằm trong Tam Phương Tứ Chính của cung đang luận — 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp.
-3. Khi nhắc đến Tứ Hóa, PHẢI giữ rõ tầng theo đúng tiền tố: [Tứ Hóa Bản Mệnh], [Tứ Hóa Đại Hạn], [Tứ Hóa Lưu Niên ...], [Tự Hóa Can Cung ...]. Tuyệt đối không trộn lẫn tầng với nhau.
+QUY TẮC RÀO CHỐNG BỊA & VĂN PHONG CHUẨN (BẮT BUỘC 100%):
+1. CHỈ luận giải dựa trên [DỮ KIỆN CHUYÊN BIỆT CỦA CHƯƠNG], [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] và [TÓM TẮT LÁ SỐ BẢN MỆNH]; không thêm thông tin ngoài gốc (sao, độ sáng, Can Chi, năm, đời tư).
+2. CẤM bịa sao/cung/Tứ Hóa; 'Không Kiếp' chỉ cặp Địa Không + Địa Kiếp (không gọi riêng Địa Không hay Địa Không + Thiên Không).
+3. Phân tầng Tứ Hóa theo tiền tố dữ kiện, không trộn tầng; trong văn xuôi không in thô thẻ [Tứ Hóa...]/[Phi Tinh...]/[Tự Hóa...].
 ${sectionRules}
-5. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
-   - Khi áp dụng luận điểm từ [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] hoặc nhắc tên trường phái / tác giả / cổ thư, BẮT BUỘC gắn đúng mã \`[Nguồn: <ID>]\` nằm trong danh sách đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó.
-   - TUYỆT ĐỐI KHÔNG tự bịa mã thẻ nguồn hoặc trích nguyên văn khẩu quyết ngoài danh sách.
+5. VĂN PHONG & THUẬT NGỮ (P1–P3, P7):
+   - Ngôi xưng duy nhất là **"đương số"**, CẤM dùng "bạn" (trừ "bạn bè"). Câu mở đầu chương ≤ 30 từ (đi thẳng kết luận, cấm "Xét về"/"Về mặt"/"Nhìn chung"). Mỗi câu ≤ 60 từ; mỗi đoạn ≤ 120 từ; mỗi gạch ≤ 100 từ; nêu rõ **vì sao** (sao + cung).
+   - Dùng "sao tốt / sao xấu" thay "cát tinh / sát tinh"; cách cục dùng **1 tên duy nhất** (bỏ phú + "[Thượng cách]"); mỗi sao tối đa 1 nhãn [Độ sáng]/chương; nhãn Âm/Dương giải thích 1 lần ở ch.1 §1.
+6. KỶ LUẬT TRÍCH DẪN NGUỒN HỌC THUẬT (LỚP 1 & LỚP 3):
+   - Khi viện dẫn [TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU] / Nghê Hải Hạ / cổ thư, gắn đúng mã \`[Nguồn: <ID>]\` đã nạp ngay cuối câu có viện dẫn hoặc trích dẫn đó; không bịa ID hay khẩu quyết ngoài danh sách.
    - Khi bảng đối chiếu không rỗng, BẮT BUỘC toàn chương ≥ 1 thẻ \`[Nguồn: <ID>]\` hợp lệ (ưu tiên mỗi cung có mục khớp); chỉ gắn khi khớp điều kiện (không gán Nữ mệnh cho Nam hay Hóa Kỵ xung Mệnh khi thiếu), nếu 0 mục khớp thì ghi rõ luận thuần túy từ dữ kiện tinh đẩu.
-6. Viết hoàn toàn bằng tiếng Việt chuẩn mực (không dùng chữ Hán, giữ khoảng cách từ đúng chính tả như "căng độ", viết "kho lúa", "bảo thủ"). Tuân thủ thuật ngữ Can Chi: "Canh Thìn", "Canh Dần" là trụ Can Chi hợp lệ — viết hoa chuẩn xác, TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn như "canh Thìn" / "canh Dần" hay gọi Địa Chi (Tý, Sửu, Dần, Mão, Thìn...) là "can"; dùng đúng "Thiên Can <Can>" hoặc "cung <Tên Cung> (<Can Chi đầy đủ>)".
-7. Cuối bài BẮT BUỘC ghi dòng: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
+7. Tiếng Việt chuẩn (không chữ Hán, giữ "căng độ", "kho lúa", "bảo thủ"; giữ trụ "Canh Thìn", "Canh Dần" — TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn hay gọi Địa Chi là "can"). Cuối bài BẮT BUỘC ghi: "*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*"`;
 
   const kbBlock = formatKnowledgeInjectionBlock(knowledgeResult);
 

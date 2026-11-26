@@ -54,10 +54,12 @@ import {
   MAX_DOSSIERS_IN_SESSION,
   StorageLike,
   StoredChatMessage,
+  buildBodyGlossaryMarkdown,
   buildChartIdentityKey,
   buildChatStorageKey,
   buildDeterministicChartGridHtml,
   buildDeterministicExecutiveSummaryVi,
+  buildDossierAppendicesMarkdown,
   buildDossierChapterCacheKey,
   buildDossierHeaderMetadata,
   buildDossierMarkdownExport,
@@ -68,9 +70,12 @@ import {
   buildMultiYearMatrixTableHtml,
   buildPeriodCacheKeyForYear,
   classifyDossierFailure,
+  computeReadingMinutes,
+  countWordsUtf8,
   createBestPartialSnapshot,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
+  extractReferenceBlocksFromChapter,
   filterPersistableChatMessages,
   formatDossierSourceBadge,
   formatReauditTimestampVi,
@@ -91,7 +96,11 @@ import {
   saveDossierSectionToCache,
   setSharedDossierGenerating,
   shouldAutoReauditChapter,
+  stripChapterDisclaimersForExport,
+  stripCitationTagsForExport,
   stripInternalExportMetaLines,
+  stripSiHuaAddendumAndTagsForExport,
+  stripWarningBlockForExport,
   subscribeSharedDossierGenerating,
   trimChatExcerpt,
   trimChatHistoryForRequest,
@@ -99,7 +108,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.5.7';
+const EXPECTED_VERSION = '1.5.8';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -674,12 +683,22 @@ runTest('[PHA 1 · TEST-4] enforceCanonicalPalaceGroupHeadings cho Chương 2/3/
   const phuMauPalace = anChart.palaces.find((p) => p.name.includes('父母'))!;
   const ziNvPalace = anChart.palaces.find((p) => p.name.includes('子女'))!;
 
-  const expectedMing = formatCanonicalPalaceHeading(mingPalace);
-  const expectedPhuMau = formatCanonicalPalaceHeading(phuMauPalace);
-  const expectedZiNv = formatCanonicalPalaceHeading(ziNvPalace);
+  const expectedMing = formatCanonicalPalaceHeading(mingPalace, {
+    chart: anChart,
+    onlyCurrentAndNextDaXian: true,
+  });
+  const expectedPhuMau = formatCanonicalPalaceHeading(phuMauPalace, {
+    chart: anChart,
+    onlyCurrentAndNextDaXian: true,
+  });
+  const expectedZiNv = formatCanonicalPalaceHeading(ziNvPalace, {
+    chart: anChart,
+    onlyCurrentAndNextDaXian: true,
+  });
 
   assert.ok(expectedMing.includes('[AN MỆNH]'));
-  assert.ok(expectedPhuMau.includes('[Đại hạn '));
+  assert.ok(formatCanonicalPalaceHeading(phuMauPalace).includes('[Đại hạn '));
+  assert.equal(expectedPhuMau.includes('[Đại hạn '), false);
 
   const sampleText = [
     `### Cung Mệnh (Ất Mão)`,
@@ -754,7 +773,10 @@ runTest('[PHA 2 · TEST-5] QĐ-G5 S5 (giờ chưa rõ) + Làm sạch cache cũ T
   const anId = buildChartIdentityKey(anChart);
   const anStorageKey = buildDossierStorageKey(anId);
   const phuMauPalace = anChart.palaces.find((p) => p.name.includes('父母'))!;
-  const expectedPhuMauHeading = formatCanonicalPalaceHeading(phuMauPalace);
+  const expectedPhuMauHeading = formatCanonicalPalaceHeading(phuMauPalace, {
+    chart: anChart,
+    onlyCurrentAndNextDaXian: true,
+  });
 
   const store = new MemoryStorage();
   upsertLruSessionEntry(
@@ -794,12 +816,12 @@ runTest('[PHA 2 · TEST-5] QĐ-G5 S5 (giờ chưa rõ) + Làm sạch cache cũ T
   assert.ok(hydrated.sections.palaces_social_health?.text?.includes(expectedPhuMauHeading));
   assert.equal(hydrated.sections.palaces_social_health?.text?.includes('φ'), false);
 
-  // 3) Trang 1 tích hợp (B1+B6+B2): 5 dòng Cốt Tủy + lưới 12 cung 4x4 chuẩn Địa Chi
+  // 3) Trang 1 tích hợp (B1+B6+B2): 5 câu Cốt Tủy P10 + lưới 12 cung 4x4 chuẩn Địa Chi
   const execSummary = buildDeterministicExecutiveSummaryVi(anChart);
   assert.equal(execSummary.length, 5);
-  assert.ok(execSummary[0].includes('Căn cơ Bản Mệnh & Cục:'));
-  assert.ok(execSummary[1].includes('Trục Mệnh – Thân & Chính tinh:'));
-  assert.ok(execSummary[2].includes('Tứ Hóa Bản Mệnh'));
+  assert.ok(execSummary[0].includes('Đương số') && execSummary[0].includes('cung Mệnh'));
+  assert.ok(execSummary[1].includes('đương số'));
+  assert.ok(execSummary[2].includes('Tứ Hóa bản mệnh'));
   assert.ok(execSummary[3].includes('2026'));
   assert.ok(execSummary[4].includes('2027'));
 
@@ -818,7 +840,7 @@ runTest('[PHA 2 · TEST-5] QĐ-G5 S5 (giờ chưa rõ) + Làm sạch cache cũ T
 
   const pageOneHtml = buildDossierPageOneHtml(anChart, 2, new Date('2026-11-17T09:00:00Z'));
   assert.ok(pageOneHtml.includes('MỆNH THƯ TỔNG LƯỢC'));
-  assert.ok(pageOneHtml.includes('Kết Luận Nhanh — Cốt Tủy Lá Số'));
+  assert.ok(pageOneHtml.includes('Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu)'));
   assert.ok(pageOneHtml.includes('ziwei-chart-grid'));
 
   // 4) B3 Bảng Ma Trận 5 cột CHỈ ở .HTML (không đưa vào .MD / PlainText) + B4/B5 CSS in ấn
@@ -915,7 +937,10 @@ runTest('[PHA 3 · TEST-7] Chặn SSE từng chunk (sanitizeLayer3AOnly) + Pipel
   const ctx2026 = buildYunxianPeriodContext(anChart, { mode: 'liunian', year: 2026 });
   assert.ok(ctx2026);
   const phuMauPalace = anChart.palaces.find((p) => p.name.includes('父母'))!;
-  const expectedPhuMauHeading = formatCanonicalPalaceHeading(phuMauPalace);
+  const expectedPhuMauHeading = formatCanonicalPalaceHeading(phuMauPalace, {
+    chart: anChart,
+    onlyCurrentAndNextDaXian: true,
+  });
 
   // (a) sanitizeLayer3AOnly trên chunk rời: xóa "φ", KHÔNG cắt từ giữa ranh giới và KHÔNG đụng "Canh Thìn" / "Canh Dần"
   const chunkA = 'Trong cácφ cung tuổi Canh Thìn và Canh Dần, mức căng';
@@ -952,8 +977,9 @@ runTest('[PHA 3 · TEST-7] Chặn SSE từng chunk (sanitizeLayer3AOnly) + Pipel
   assert.ok(finalText.includes('kho lúa'));
   assert.ok(finalText.includes('bảo thủ'));
   assert.ok(finalText.includes('Canh Thìn') && finalText.includes('Canh Dần'));
-  assert.ok(finalText.includes(expectedPhuMauHeading), 'Tiêu đề cung phải chuẩn có [Đại hạn ...]');
-  assert.ok(expectedPhuMauHeading.includes('[Đại hạn '));
+  assert.ok(finalText.includes(expectedPhuMauHeading), 'Tiêu đề cung phải chuẩn hóa theo quy tắc 2 cung Đại hạn hiện tại/kế tiếp');
+  assert.equal(expectedPhuMauHeading.includes('[Đại hạn '), false);
+  assert.ok(formatCanonicalPalaceHeading(phuMauPalace).includes('[Đại hạn '));
 
   const marker = '> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**';
   const markerIdx = finalText.indexOf(marker);
@@ -2096,6 +2122,226 @@ runTest('[BRIEF 1.5.7 · ĐK-157-P08/C1] Đồng bộ phiên bản 3 chiều VER
   assert.equal(versionFile, EXPECTED_VERSION);
   assert.equal(pkgJson.version, EXPECTED_VERSION);
   assert.equal(APP_VERSION, EXPECTED_VERSION);
+});
+
+runTest('[BRIEF 1.5.8 · T2-1] X1 stripCitationTagsForExport + X1b + X2 + X3 + X4 giữ nguyên tầng hiển thị nội bộ', () => {
+  const sampleText = [
+    '### 1. Tổng Quan Mệnh Cục',
+    'Chiếu theo [Nguồn: CL-TV-001], thiên lương miếu vượng giúp đương số vững vàng [Nguồn: NH-STAR-002] [Nguồn: NH-SIHUA-003].',
+    'Ngoài ra, luận điểm trong ngoặc ([Nguồn: CL-TV-002]) và backtick `[Nguồn: NH-004]` cũng cần gỡ sạch khi xuất.',
+    'Nguồn: Tử Vi Đẩu Số Toàn Thư vẫn phải giữ lại bình thường.',
+    '',
+    '> Quote bình thường trong bài vẫn phải giữ nguyên.',
+    '',
+    'Có nhãn dư [Tứ Hóa Bản Mệnh - Can Đinh] và [Phi Tinh Can Cung Mệnh (Ất)] [Tự Hóa Can Cung Đinh Mão] trong văn xuôi.',
+    '',
+    '> 📌 **[Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn Theo Lá Số]**',
+    '> Bảng đối chiếu đủ 4/4 sao Tứ Hóa Lưu Niên:',
+    '> • **[Tứ Hóa Lưu Niên] Lưu Hóa Lộc → Sao Thiên Đồng**',
+    '',
+    '> ⚠️ **[Ghi Chú Kiểm Chứng Nguồn Học Thuật]**: Trong bài có một số nhận định mở rộng chưa gắn mã thẻ đối chiếu.',
+    '',
+    '> 📚 **[Tư Liệu Học Thuật Tham Chiếu Trong Chương]**',
+    '> - `[CL-TV-001]` Tử Vi Đẩu Số Toàn Thư · **Tổng Quan** *(Cổ thư Public Domain)*',
+    '> - `[NH-STAR-002]` Thiên Kỷ · **Thiên Lương** · Video BV1xx (01:02:03) *(CC-BY-NC-SA-4.0)*',
+    '',
+    '*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*',
+  ].join('\n');
+
+  // Tầng hiển thị nội bộ (sanitizeDossierChapterText) KHÔNG được gỡ thẻ [Nguồn: ...]
+  const chart = buildNguyenVanAn1995Chart();
+  const inAppDisplay = sanitizeDossierChapterText(sampleText, 'chapter_overview', chart) ?? '';
+  assert.ok(inAppDisplay.includes('[Nguồn: CL-TV-001]'));
+  assert.ok(inAppDisplay.includes('Tư Liệu Học Thuật Tham Chiếu Trong Chương'));
+
+  // X3: Tách khối tham chiếu TRƯỚC khi strip thẻ
+  const afterX3 = extractReferenceBlocksFromChapter(sampleText, 1);
+  assert.equal(afterX3.refs.length, 2);
+  assert.equal(afterX3.refs[0].id, 'CL-TV-001');
+  assert.equal(afterX3.refs[1].id, 'NH-STAR-002');
+  assert.equal(afterX3.cleanedText.includes('Tư Liệu Học Thuật Tham Chiếu'), false);
+
+  // X2: Gỡ cảnh báo nhưng giữ quote thường
+  const afterX2 = stripWarningBlockForExport(afterX3.cleanedText);
+  assert.equal(afterX2.includes('Ghi Chú Kiểm Chứng Nguồn Học Thuật'), false);
+  assert.ok(afterX2.includes('> Quote bình thường trong bài vẫn phải giữ nguyên.'));
+
+  // X1b: Gỡ khối bổ sung 📌 và nhãn [Tứ Hóa]/[Phi Tinh]/[Tự Hóa]
+  const afterX1b = stripSiHuaAddendumAndTagsForExport(afterX2);
+  assert.equal(afterX1b.includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn'), false);
+  assert.equal(afterX1b.includes('[Tứ Hóa'), false);
+  assert.equal(afterX1b.includes('[Phi Tinh'), false);
+  assert.equal(afterX1b.includes('[Tự Hóa'), false);
+
+  // X1: Gỡ đủ thẻ [Nguồn: ...] + xử lý "Chiếu theo [Nguồn: ...], <chữ thường>" -> viết hoa + 0 double space
+  const afterX1 = stripCitationTagsForExport(afterX1b);
+  assert.equal(afterX1.includes('[Nguồn:'), false);
+  assert.ok(afterX1.includes('Thiên lương miếu vượng giúp đương số vững vàng.'));
+  assert.ok(afterX1.includes('Nguồn: Tử Vi Đẩu Số Toàn Thư vẫn phải giữ lại bình thường.'));
+  assert.equal(/  +/.test(afterX1), false);
+  assert.equal(stripCitationTagsForExport(afterX1), afterX1, 'X1 phải lũy đẳng');
+
+  // X4: Gỡ disclaimer lẻ của chương
+  const afterX4 = stripChapterDisclaimersForExport(afterX1);
+  assert.equal(afterX4.includes('Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số'), false);
+});
+
+runTest('[BRIEF 1.5.8 · T2-2] X5 phút đọc + X6 Bảng Thuật Ngữ 11 mục + X7 Phụ lục A/B/C + X9 HTML parity + P10', () => {
+  const anChart = buildNguyenVanAn1995Chart();
+  const chartId = buildChartIdentityKey(anChart);
+  const states = {} as Record<DossierChapterId, DossierChapterState>;
+  const words330 = Array.from({ length: 330 }, (_, i) => `từ${i}`).join(' ');
+
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    const chText = [
+      `### 1. Mở Đầu`,
+      `Đương số bước vào phân tích ${spec.shortLabelVi} ${words330} [Nguồn: NH-TEST-001].`,
+      '',
+      '> 📚 **[Tư Liệu Học Thuật Tham Chiếu Trong Chương]**',
+      '> - `[NH-TEST-001]` Thiên Kỷ · **Bài Giảng Test** *(CC-BY-NC-SA-4.0)*',
+      '',
+      '*Lưu ý: Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số.*',
+    ].join('\n');
+
+    states[spec.id] = {
+      chapterId: spec.id,
+      sectionCacheKey: buildDossierChapterCacheKey(chartId, spec.id),
+      status: 'completed',
+      text: chText,
+    };
+  }
+
+  const md = buildDossierMarkdownExport(anChart, states, new Date('2026-11-26T10:00:00Z'));
+  const html = buildDossierStandaloneHtmlExport(anChart, states, new Date('2026-11-26T10:00:00Z'));
+
+  // X1/X2/X3/X4 trong bản xuất (thân bài trước Phụ lục A)
+  const appStart = md.indexOf('## Phụ lục A');
+  assert.ok(appStart > 0);
+  const mdBodyOnly = md.slice(0, appStart);
+  assert.equal(mdBodyOnly.includes('[Nguồn:'), false);
+  assert.equal(mdBodyOnly.includes('Ghi Chú Kiểm Chứng'), false);
+  assert.equal(mdBodyOnly.includes('Tư Liệu Học Thuật Tham Chiếu Trong Chương'), false);
+  assert.equal(mdBodyOnly.includes('Nội dung tham khảo phục vụ nghiên cứu mệnh lý Tử Vi Đẩu Số'), false);
+  // Đúng 1 disclaimer cuối file
+  assert.equal(
+    (md.match(/\*Lưu ý: Hồ sơ phục vụ tham khảo nghiên cứu mệnh lý Tử Vi Đẩu Số theo hệ thống Thiên Kỷ\.\*/g) ?? []).length,
+    1,
+  );
+
+  // X5: Kiểm tra 8/8 dòng "Đọc trong N phút" và mục lục khớp số từ thật (kể cả tiêu đề, trừ dòng Đọc trong N phút)
+  const chapterMatches = mdBodyOnly.split(/(?=^## Chương \d+ )/m).filter((s) => s.startsWith('## Chương '));
+  assert.equal(chapterMatches.length, 8);
+  for (const chBlock of chapterMatches) {
+    const lines = chBlock.split('\n');
+    const titleLine = lines[0];
+    const readLine = lines[1];
+    const mRead = readLine.match(/^Đọc trong (\d+) phút$/);
+    assert.ok(mRead, `Thiếu dòng Đọc trong N phút ở ${titleLine}`);
+    const spanWithoutRead = [titleLine, ...lines.slice(2)].join('\n');
+    const expectedMin = computeReadingMinutes(countWordsUtf8(spanWithoutRead));
+    assert.equal(Number(mRead[1]), expectedMin, `Sai số phút ở ${titleLine}`);
+    assert.ok(md.includes(`Đọc trong khoảng ${expectedMin} phút`));
+    assert.ok(html.includes(`Đọc trong ${expectedMin} phút`));
+  }
+
+  // X6: Bảng Thuật Ngữ 11 mục đúng thứ tự
+  const glossaryMd = buildBodyGlossaryMarkdown(anChart);
+  const expected11Terms = [
+    'Mệnh/Thân',
+    'Đại Hạn',
+    'Lưu Niên',
+    'Tứ Hóa',
+    'Tam Phương Tứ Chính',
+    'Tam Hợp',
+    'Độ sáng sao',
+    'Vô chính diệu',
+    'xung chiếu',
+    'mượn sao',
+    'cách cục',
+  ];
+  let prevIdx = -1;
+  for (const term of expected11Terms) {
+    const idx = glossaryMd.indexOf(`**${term}**`);
+    assert.ok(idx > prevIdx, `Bảng thuật ngữ thiếu hoặc sai thứ tự mục ${term}`);
+    prevIdx = idx;
+  }
+  assert.equal(/\bbạn\b/iu.test(glossaryMd), false);
+
+  // X7: Phụ lục A.1 (12 cung), B.6 (tổng số Kỳ - 1 dòng, suy từ chart.daXians), C.1 khử trùng + (Chương 1, 2, ..., 8)
+  const refMatches = extractReferenceBlocksFromChapter(
+    [
+      '> 📚 **[Tư Liệu Học Thuật Tham Chiếu Trong Chương]**',
+      '> - `[NH-TEST-001]` Thiên Kỷ · **Bài Giảng Test** *(CC-BY-NC-SA-4.0)*',
+    ].join('\n'),
+    1,
+  ).refs;
+  const appMd = buildDossierAppendicesMarkdown(anChart, [
+    ...refMatches,
+    { id: 'NH-TEST-001', citationText: refMatches[0].citationText, chapterOrders: [2] },
+  ]);
+  const a1Section = appMd.slice(appMd.indexOf('### A.1.'), appMd.indexOf('### A.2.'));
+  assert.equal((a1Section.match(/^\|\s*[^:\-\s][^|]*\|/gm) ?? []).length - 1, anChart.daXians.length);
+  const b6Section = appMd.slice(appMd.indexOf('### B.6.'), appMd.indexOf('### B.7.'));
+  const b6Rows = b6Section.match(/^- \[Tứ Hóa Đại Hạn Kỳ /gm) ?? [];
+  assert.equal(b6Rows.length, anChart.daXians.length - 1, 'B.6 phải có đúng chart.daXians.length - 1 dòng');
+  assert.ok(appMd.includes('`[NH-TEST-001]`') && appMd.includes('(Chương 1, 2)'));
+  assert.ok(md.includes('(Chương 1, 2, 3, 4, 5, 6, 7, 8)'));
+
+  // X9: HTML parity + giữ PageOne + giữ matrix-table
+  assert.equal(html.includes('[Nguồn:'), false);
+  assert.equal(html.includes('Ghi Chú Kiểm Chứng'), false);
+  assert.ok(html.includes('Bảng Thuật Ngữ'));
+  assert.ok(html.includes('Phụ lục A — Bảng Tra Cứu Theo Cung'));
+  assert.ok(html.includes('Phụ lục C — Nguồn Tham Khảo'));
+  assert.ok(html.includes('<table class="matrix-table">'));
+  assert.ok(html.includes('<table class="appendix-table">'));
+
+  // P10: 5 câu trên đủ các nhánh (VCD, trẻ em chưa vào Đại Hạn, khuyết giờ sinh, năm tương đối)
+  const childChart = generateChart({
+    name: 'Bé Mẫu 2024',
+    year: 2024,
+    month: 6,
+    day: 15,
+    hour: 4,
+    gender: 'male',
+  });
+  const childSummary = buildDeterministicExecutiveSummaryVi(childChart, 2028);
+  assert.equal(childSummary.length, 5);
+  for (const line of childSummary) {
+    assert.equal(/\bbạn\b/iu.test(line), false);
+  }
+  assert.ok(childSummary[0].includes('chưa rõ giờ đồng hồ gốc'));
+  assert.ok(childSummary[3].includes('2028') && childSummary[3].includes('chưa vào Đại Hạn'));
+  assert.ok(childSummary[4].includes('2029'));
+
+  // Khẳng định lá số không có Tự Hóa & không có VCD không crash trong phụ lục
+  const synthNoEmptyNoSelf = {
+    ...anChart,
+    palaces: anChart.palaces.map((p) => ({
+      ...p,
+      isEmpty: false,
+      borrowedFromName: undefined,
+      borrowedStars: undefined,
+      stars: [],
+    })),
+  };
+  const safeApp = buildDossierAppendicesMarkdown(synthNoEmptyNoSelf, []);
+  assert.ok(safeApp.includes('không có cung Vô chính diệu'));
+  assert.ok(safeApp.includes('không có cung Tự Hóa'));
+  assert.ok(safeApp.includes('Chưa ghi nhận mã tư liệu tham chiếu'));
+
+  // P5: Mẫu §1 đủ 4 gạch (mỗi gạch có tên sao) KHÔNG bị verifyAndEnsureCompletePeriodSiHua nối khối bổ sung
+  const ctx2026 = buildYunxianPeriodContext(anChart, { mode: 'liunian', year: 2026 })!;
+  const cleanSection1 = [
+    '### 1. Chủ Đề Kỳ Hạn (Sự Kiện Trong Năm)',
+    ...ctx2026.periodSiHua.map(
+      (s) =>
+        `- Lưu ${s.mutagenVi} → Sao ${s.starNameVi} [${s.brightnessVi}] tại Cung ${s.periodPalaceRoleVi} (trùng ${s.natalPalaceNameVi}), xung chiếu Cung ${s.oppositePeriodPalaceRoleVi}.`,
+    ),
+  ].join('\n');
+  const sihuaCheck = verifyAndEnsureCompletePeriodSiHua(cleanSection1, ctx2026);
+  assert.equal(sihuaCheck.isComplete, true);
+  assert.equal(sihuaCheck.patchedText.includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn'), false);
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);
