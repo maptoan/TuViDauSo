@@ -55,6 +55,27 @@ import type {
   KnowledgeRetrievalResult,
 } from './server/knowledge-base/types.ts';
 import { APP_VERSION } from './src/lib/app-version.ts';
+import type { StreamInterruptedEvent } from './server/key-pool/types.ts';
+import {
+  FEW_SHOT_QUESTIONS_BY_CHAPTER,
+  FORBIDDEN_ADVICE_QUESTION_RE,
+  FORBIDDEN_PRONOUN_RE,
+  buildChatQuestionSuggestionsPrompt,
+  parseAndSanitizeSuggestionsResponse,
+  validateChatQuestionSuggestionsInput,
+  verifyQuestionSuggestionsGate,
+  type ChatQuestionSuggestionsBody,
+} from './server/chat-suggestions.ts';
+
+export {
+  FEW_SHOT_QUESTIONS_BY_CHAPTER,
+  FORBIDDEN_ADVICE_QUESTION_RE,
+  FORBIDDEN_PRONOUN_RE,
+  buildChatQuestionSuggestionsPrompt,
+  parseAndSanitizeSuggestionsResponse,
+  validateChatQuestionSuggestionsInput,
+  verifyQuestionSuggestionsGate,
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1794,6 +1815,158 @@ export function registerApiRoutes(app: express.Express) {
       }
     } finally {
       stopHeartbeat();
+    }
+  });
+
+  // POST /api/chat-question-suggestions — Sinh 3 gợi ý câu hỏi theo nội dung chương (1.7.0, JSON, không SSE)
+  app.post('/api/chat-question-suggestions', async (req, res) => {
+    const validated = validateChatQuestionSuggestionsInput(
+      req.body as ChatQuestionSuggestionsBody,
+    );
+    if (!validated.ok) {
+      res.status(400).json({
+        error: 'INVALID_INPUT',
+        message: validated.message,
+      });
+      return;
+    }
+
+    const abortController = new AbortController();
+    let clientClosed = false;
+    res.on('close', () => {
+      if (!res.writableEnded) {
+        clientClosed = true;
+        abortController.abort();
+      }
+    });
+
+    const maxAttempts = 2;
+    let lastFailureReason = '';
+    let lastFailedAt: 'parse' | 'gate_a' | 'gate_b' = 'parse';
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      if (clientClosed || res.writableEnded) return;
+
+      const { systemInstruction, prompt } = buildChatQuestionSuggestionsPrompt({
+        chart: validated.chart,
+        chartB: validated.chartB,
+        contextMode: validated.contextMode,
+        sectionTitle: validated.sectionTitle,
+        periodContext: validated.periodContext,
+        excerpt: validated.excerpt,
+        chapterId: validated.chapterId,
+        isFallbackFactSheet: validated.isFallbackFactSheet,
+        askedQuestions: validated.askedQuestions,
+        previousSuggestions: validated.previousSuggestions,
+        retryReason: attempt > 1 ? lastFailureReason : undefined,
+      });
+
+      let accumulatedText = '';
+      let wasInterrupted = false;
+      let interruptedEvent: StreamInterruptedEvent | null = null;
+
+      try {
+        const finalMeta = await keyPoolManager.executeStream({
+          prompt,
+          systemInstruction,
+          signal: abortController.signal,
+          onChunk: (text) => {
+            const safeChunk = sanitizeLayer3AOnly(text);
+            if (safeChunk) {
+              accumulatedText += safeChunk;
+            }
+          },
+          onInterrupted: (ev) => {
+            wasInterrupted = true;
+            interruptedEvent = ev;
+          },
+        });
+
+        if (clientClosed || res.writableEnded) return;
+
+        // ĐK-HD1-04 & ĐK-HD2-02: Kiểm tra cả callback onInterrupted lẫn finalMeta.interrupted trước mọi JSON.parse
+        if (wasInterrupted || finalMeta?.interrupted) {
+          const ev = interruptedEvent as StreamInterruptedEvent | null;
+          const errorCategory = ev?.errorCategory ?? 'NETWORK_OR_5XX';
+          res.status(503).json({
+            error: 'AI_POOL_EXHAUSTED',
+            errorCategory,
+            minRemainingCooldownSec: ev?.minRemainingCooldownSec ?? null,
+            message:
+              ev?.reason ||
+              'Luồng sinh gợi ý bị gián đoạn trước khi hoàn tất. Vui lòng thử lại.',
+          });
+          return;
+        }
+
+        const parsed = parseAndSanitizeSuggestionsResponse(accumulatedText);
+        if (!parsed.ok) {
+          lastFailedAt = 'parse';
+          lastFailureReason = parsed.reason;
+          console.warn(
+            `[chat-question-suggestions] attempt=${attempt} parse failed (${validated.chapterId}): ${parsed.reason}`,
+          );
+          continue;
+        }
+
+        const gated = verifyQuestionSuggestionsGate(parsed.suggestions, {
+          chart: validated.chart,
+          chapterId: validated.chapterId,
+          periodContext: validated.periodContext,
+          askedQuestions: validated.askedQuestions,
+          previousSuggestions: validated.previousSuggestions,
+        });
+        if (!gated.ok) {
+          lastFailedAt = gated.failedAt;
+          lastFailureReason = gated.reason;
+          console.warn(
+            `[chat-question-suggestions] attempt=${attempt} ${gated.failedAt} failed (${validated.chapterId}): ${gated.reason}`,
+          );
+          continue;
+        }
+
+        const retryCount = attempt - 1;
+        console.log(
+          `[chat-question-suggestions] ok`,
+          JSON.stringify({
+            chapterId: validated.chapterId,
+            retryCount,
+            modelUsed: finalMeta.modelUsed,
+            promptChars: systemInstruction.length + prompt.length,
+            outputChars: accumulatedText.length,
+          }),
+        );
+        res.setHeader('Cache-Control', 'no-store');
+        res.status(200).json({
+          suggestions: gated.suggestions,
+          retryCount,
+          meta: finalMeta,
+        });
+        return;
+      } catch (err) {
+        if (clientClosed || res.writableEnded) return;
+        const payload = buildStructuredStreamErrorPayload(err);
+        res.status(payload.httpStatus).json({
+          error: payload.error,
+          errorCategory: payload.errorCategory,
+          minRemainingCooldownSec: payload.minRemainingCooldownSec,
+          message: payload.message,
+        });
+        return;
+      }
+    }
+
+    if (!clientClosed && !res.writableEnded) {
+      console.warn(
+        `[chat-question-suggestions] exhausted retries (${validated.chapterId}): failedAt=${lastFailedAt} reason=${lastFailureReason}`,
+      );
+      res.status(422).json({
+        error: 'SUGGESTIONS_VALIDATION_FAILED',
+        failedAt: lastFailedAt,
+        retryCount: 1,
+        message: 'Không sinh được gợi ý đạt chuẩn chất lượng lúc này — vui lòng thử lại.',
+        detail: lastFailureReason,
+      });
     }
   });
 

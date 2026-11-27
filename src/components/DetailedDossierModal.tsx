@@ -1527,6 +1527,9 @@ export default function DetailedDossierModal({
   };
 
   const handleOpenChatForSelectedChapter = () => {
+    const hasChapterText = Boolean(
+      selectedState.text?.trim() || selectedState.incompleteText?.trim(),
+    );
     const excerpt =
       selectedState.text?.trim() ||
       selectedState.incompleteText?.trim() ||
@@ -1539,11 +1542,9 @@ export default function DetailedDossierModal({
       periodContext: selectedDeterministic.periodContext,
       factSheetVi: selectedDeterministic.factSheetMarkdown,
       excerptVi: excerpt,
-      starterQuestions: [
-        `Điểm mấu chốt cần hành động ngay trong ${selectedSpec.shortLabelVi}?`,
-        `Tứ Hóa nào tác động mạnh nhất ở chương này và cần lưu ý rủi ro gì?`,
-        `Nếu muốn cải thiện vận thế của phần này, đương số nên ưu tiên điều gì?`,
-      ],
+      starterQuestions: [],
+      chapterId: selectedSpec.id,
+      isFallbackFactSheet: !hasChapterText,
     });
   };
 

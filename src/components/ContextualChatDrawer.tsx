@@ -10,12 +10,15 @@ import {
   StoredChatThread,
   buildChartIdentityKey,
   buildChatStorageKey,
+  buildChatSuggestionCacheKey,
+  chatSuggestionsCache,
   classifyDossierFailure,
   createInitialChatQuotaState,
   evaluateChatQuotaStatus,
   filterPersistableChatMessages,
   getBrowserSessionStorage,
   getSharedDossierGenerating,
+  getSuggestionRefreshCooldownRemainingSec,
   normalizeKnownBareCitationTags,
   readLruSessionEntry,
   recordChatQuestionSent,
@@ -102,9 +105,19 @@ export default function ContextualChatDrawer({
   const [quotaState, setQuotaState] = useState<ChatQuotaState>(() =>
     createInitialChatQuotaState(),
   );
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [lastRefreshSuggestionsAtMs, setLastRefreshSuggestionsAtMs] = useState<
+    number | null
+  >(null);
 
   const abortRef = useRef<AbortController | null>(null);
+  const suggestionsAbortRef = useRef<AbortController | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messagesRef = useRef<StoredChatMessage[]>([]);
+  messagesRef.current = messages;
 
   const chartIdentityKey = useMemo(
     () => (context ? buildChartIdentityKey(context.chart) : ''),
@@ -115,6 +128,20 @@ export default function ContextualChatDrawer({
     () =>
       context && chartIdentityKey
         ? buildChatStorageKey(chartIdentityKey, context.contextKey)
+        : '',
+    [context, chartIdentityKey],
+  );
+
+  const isChapterAiSuggestionsMode = Boolean(context?.chapterId);
+
+  const suggestionCacheKey = useMemo(
+    () =>
+      context && context.chapterId && chartIdentityKey
+        ? buildChatSuggestionCacheKey(
+            chartIdentityKey,
+            context.contextKey,
+            context.excerptVi,
+          )
         : '',
     [context, chartIdentityKey],
   );
@@ -132,6 +159,7 @@ export default function ContextualChatDrawer({
   // Nạp lịch sử hội thoại theo cặp (lá số + phần luận giải) & quota phiên từ sessionStorage
   useEffect(() => {
     if (!context || !chartIdentityKey || !storageKey) {
+      messagesRef.current = [];
       setMessages([]);
       return;
     }
@@ -145,19 +173,163 @@ export default function ContextualChatDrawer({
       storageKey,
     );
     if (saved && Array.isArray(saved.messages)) {
-      const cleanMessages = filterPersistableChatMessages(saved.messages);
-      setMessages(
-        cleanMessages.map((m) =>
-          m.role === 'assistant' && m.content
-            ? { ...m, content: sanitizeAiVietnameseOutput(m.content) }
-            : m,
-        ),
+      const cleanMessages = filterPersistableChatMessages(saved.messages).map((m) =>
+        m.role === 'assistant' && m.content
+          ? { ...m, content: sanitizeAiVietnameseOutput(m.content) }
+          : m,
       );
+      messagesRef.current = cleanMessages;
+      setMessages(cleanMessages);
     } else {
+      messagesRef.current = [];
       setMessages([]);
     }
     setNowMs(Date.now());
   }, [context, chartIdentityKey, storageKey]);
+
+  const fetchSuggestions = useCallback(
+    async (opts: {
+      bypassCache: boolean;
+      previousSuggestions?: string[];
+      isRetryAfterError?: boolean;
+    }) => {
+      if (
+        !open ||
+        !context ||
+        !context.chapterId ||
+        !chartIdentityKey ||
+        !suggestionCacheKey ||
+        isDossierBlocked
+      ) {
+        return;
+      }
+
+      if (opts.bypassCache && !opts.isRetryAfterError) {
+        const startNow = Date.now();
+        setLastRefreshSuggestionsAtMs(startNow);
+        setNowMs(startNow);
+      }
+
+      suggestionsAbortRef.current?.abort();
+      const controller = new AbortController();
+      suggestionsAbortRef.current = controller;
+
+      setSuggestionsLoading(true);
+      setSuggestionsError(null);
+
+      const askedQuestions = messagesRef.current
+        .filter((m) => m.role === 'user' && m.content.trim().length > 0)
+        .slice(-6)
+        .map((m) => m.content.trim());
+
+      try {
+        const res = await fetch('/api/chat-question-suggestions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chart: context.chart,
+            chartB: context.chartB ?? null,
+            contextMode: context.contextMode,
+            contextKey: context.contextKey,
+            sectionTitle: context.sectionTitle,
+            periodContext: context.periodContext ?? null,
+            excerpt: trimChatExcerpt(context.excerptVi),
+            chapterId: context.chapterId,
+            isFallbackFactSheet: Boolean(context.isFallbackFactSheet),
+            askedQuestions,
+            previousSuggestions:
+              opts.bypassCache && opts.previousSuggestions?.length
+                ? opts.previousSuggestions
+                : undefined,
+          }),
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          setAiSuggestions([]);
+          setSuggestionsError('Không sinh được gợi ý lúc này — bấm thử lại');
+          if (opts.bypassCache) {
+            setLastRefreshSuggestionsAtMs(null);
+          }
+          return;
+        }
+
+        const data = (await res.json()) as { suggestions?: unknown };
+        if (
+          !Array.isArray(data?.suggestions) ||
+          data.suggestions.length !== 3 ||
+          !data.suggestions.every((s) => typeof s === 'string' && s.trim().length > 0)
+        ) {
+          setAiSuggestions([]);
+          setSuggestionsError('Không sinh được gợi ý lúc này — bấm thử lại');
+          if (opts.bypassCache) {
+            setLastRefreshSuggestionsAtMs(null);
+          }
+          return;
+        }
+
+        const validSuggestions = data.suggestions as string[];
+        chatSuggestionsCache.set(suggestionCacheKey, validSuggestions);
+        setAiSuggestions(validSuggestions);
+        setSuggestionsError(null);
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          setAiSuggestions([]);
+          setSuggestionsError('Không sinh được gợi ý lúc này — bấm thử lại');
+          if (opts.bypassCache) {
+            setLastRefreshSuggestionsAtMs(null);
+          }
+        }
+      } finally {
+        if (suggestionsAbortRef.current === controller) {
+          setSuggestionsLoading(false);
+        }
+      }
+    },
+    [open, context, chartIdentityKey, suggestionCacheKey, isDossierBlocked],
+  );
+
+  // Tự động nạp gợi ý từ cache in-memory hoặc sinh mới khi mở ngăn chương hồ sơ (chỉ khi có chapterId)
+  useEffect(() => {
+    if (
+      !open ||
+      !context ||
+      !context.chapterId ||
+      !chartIdentityKey ||
+      !suggestionCacheKey
+    ) {
+      suggestionsAbortRef.current?.abort();
+      setSuggestionsLoading(false);
+      setSuggestionsError(null);
+      setAiSuggestions([]);
+      return;
+    }
+
+    const cached = chatSuggestionsCache.get(suggestionCacheKey);
+    if (cached && cached.length === 3) {
+      suggestionsAbortRef.current?.abort();
+      setAiSuggestions(cached);
+      setSuggestionsError(null);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    if (isDossierBlocked) {
+      return;
+    }
+
+    void fetchSuggestions({ bypassCache: false });
+    return () => {
+      suggestionsAbortRef.current?.abort();
+    };
+  }, [
+    open,
+    context,
+    chartIdentityKey,
+    suggestionCacheKey,
+    isDossierBlocked,
+    fetchSuggestions,
+  ]);
 
   // Hủy luồng nếu đóng drawer hoặc unmount
   useEffect(() => {
@@ -170,6 +342,7 @@ export default function ContextualChatDrawer({
   useEffect(() => {
     return () => {
       abortRef.current?.abort();
+      suggestionsAbortRef.current?.abort();
     };
   }, []);
 
@@ -180,7 +353,7 @@ export default function ContextualChatDrawer({
     }
   }, [messages, open]);
 
-  // Đếm ngược mỗi giây khi còn cooldown 8s
+  // Đếm ngược mỗi giây khi còn cooldown 8s (luồng gửi tin nhắn hoặc nút đổi gợi ý)
   const quotaEval = useMemo(
     () =>
       evaluateChatQuotaStatus(quotaState, {
@@ -191,13 +364,23 @@ export default function ContextualChatDrawer({
     [quotaState, nowMs, isDossierBlocked, streaming],
   );
 
+  const refreshCooldownRemainingSec = useMemo(
+    () => getSuggestionRefreshCooldownRemainingSec(lastRefreshSuggestionsAtMs, nowMs),
+    [lastRefreshSuggestionsAtMs, nowMs],
+  );
+
   useEffect(() => {
-    if (!open || quotaEval.cooldownRemainingSec <= 0) return;
+    if (
+      !open ||
+      (quotaEval.cooldownRemainingSec <= 0 && refreshCooldownRemainingSec <= 0)
+    ) {
+      return;
+    }
     const timer = window.setInterval(() => {
       setNowMs(Date.now());
     }, 500);
     return () => window.clearInterval(timer);
-  }, [open, quotaEval.cooldownRemainingSec]);
+  }, [open, quotaEval.cooldownRemainingSec, refreshCooldownRemainingSec]);
 
   const persistThread = useCallback(
     (nextMessages: StoredChatMessage[]) => {
@@ -261,6 +444,32 @@ export default function ContextualChatDrawer({
     } catch {
       // ignore clipboard errors
     }
+  };
+
+  const handlePickSuggestion = (suggestion: string) => {
+    setInput(suggestion.slice(0, CHAT_MAX_QUESTION_CHARS));
+    window.requestAnimationFrame(() => {
+      const el = inputRef.current;
+      if (el) {
+        el.focus();
+        const len = el.value.length;
+        el.setSelectionRange(len, len);
+      }
+    });
+  };
+
+  const handleRefreshSuggestions = () => {
+    if (
+      isDossierBlocked ||
+      suggestionsLoading ||
+      refreshCooldownRemainingSec > 0
+    ) {
+      return;
+    }
+    void fetchSuggestions({
+      bypassCache: true,
+      previousSuggestions: aiSuggestions,
+    });
   };
 
   const sendQuestion = async (rawQuestion: string) => {
@@ -608,27 +817,117 @@ export default function ContextualChatDrawer({
           )}
         </div>
 
-        {/* Starter questions bar */}
-        {context.starterQuestions.length > 0 && (
+        {/* Starter / AI Suggestions bar */}
+        {isChapterAiSuggestionsMode ? (
           <div className="px-4 py-2.5 border-b border-[var(--t-border)] bg-[var(--t-card)]/60 space-y-1.5">
-            <div className="text-[11px] font-semibold text-[var(--t-text2)] flex items-center gap-1.5">
-              <Sparkles className="w-3 h-3 text-[var(--t-gold)]" />
-              <span>Gợi ý câu hỏi bám sát phần đang xem</span>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-[11px] font-semibold text-[var(--t-text2)] flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-[var(--t-gold)] shrink-0" />
+                <span>Gợi ý câu hỏi bám sát phần đang xem</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRefreshSuggestions}
+                disabled={
+                  isDossierBlocked ||
+                  suggestionsLoading ||
+                  refreshCooldownRemainingSec > 0
+                }
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:border-[var(--t-gold)] hover:text-[var(--t-gold)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0 font-mono-tabular"
+              >
+                <RefreshCw
+                  className={`w-3 h-3 ${suggestionsLoading ? 'animate-spin text-[var(--t-gold)]' : ''}`}
+                />
+                <span>
+                  {suggestionsLoading
+                    ? 'Đang tạo...'
+                    : refreshCooldownRemainingSec > 0
+                      ? `Đổi 3 câu khác (${refreshCooldownRemainingSec}s)`
+                      : 'Đổi 3 câu khác'}
+                </span>
+              </button>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {context.starterQuestions.map((sq, idx) => (
+
+            {context.isFallbackFactSheet && (
+              <p className="text-[11px] text-[var(--t-faint)] leading-snug">
+                Chương chưa sinh — gợi ý dựa trên bảng dữ kiện lá số.
+              </p>
+            )}
+
+            {suggestionsLoading ? (
+              <div className="space-y-1.5">
+                <div className="text-[11px] text-[var(--t-gold)]">
+                  Đang gợi ý câu hỏi...
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {[0, 1, 2].map((idx) => (
+                    <div
+                      key={idx}
+                      className="h-7 w-full sm:w-[48%] rounded-lg border border-[var(--t-border)] bg-[var(--t-bg)]/70 animate-pulse"
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : suggestionsError ? (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg px-2.5 py-2 border border-amber-500/40 bg-amber-950/20 text-[11px] text-amber-200">
+                <span>{suggestionsError}</span>
                 <button
-                  key={idx}
                   type="button"
-                  disabled={!quotaEval.canSend}
-                  onClick={() => sendQuestion(sq)}
-                  className="text-left px-2.5 py-1.5 rounded-lg text-[11px] border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:border-[var(--t-gold)] hover:text-[var(--t-gold)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer leading-snug"
+                  disabled={isDossierBlocked}
+                  onClick={() =>
+                    void fetchSuggestions({
+                      bypassCache: true,
+                      previousSuggestions: aiSuggestions,
+                      isRetryAfterError: true,
+                    })
+                  }
+                  className="px-2 py-0.5 rounded-md font-semibold border border-[var(--t-gold)]/60 bg-[var(--t-gold)]/15 text-[var(--t-gold)] hover:bg-[var(--t-gold)]/25 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap shrink-0"
                 >
-                  {sq}
+                  Thử lại
                 </button>
-              ))}
-            </div>
+              </div>
+            ) : isDossierBlocked && aiSuggestions.length === 0 ? (
+              <div className="text-[11px] text-[var(--t-faint)]">
+                Đang chờ sinh xong chương hồ sơ để gợi ý câu hỏi…
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {aiSuggestions.map((sq, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={isDossierBlocked || quotaEval.isCapReached}
+                    onClick={() => handlePickSuggestion(sq)}
+                    className="text-left px-2.5 py-1.5 rounded-lg text-[11px] border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:border-[var(--t-gold)] hover:text-[var(--t-gold)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer leading-snug"
+                  >
+                    {sq}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        ) : (
+          context.starterQuestions.length > 0 && (
+            <div className="px-4 py-2.5 border-b border-[var(--t-border)] bg-[var(--t-card)]/60 space-y-1.5">
+              <div className="text-[11px] font-semibold text-[var(--t-text2)] flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-[var(--t-gold)]" />
+                <span>Gợi ý câu hỏi bám sát phần đang xem</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {context.starterQuestions.map((sq, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    disabled={!quotaEval.canSend}
+                    onClick={() => sendQuestion(sq)}
+                    className="text-left px-2.5 py-1.5 rounded-lg text-[11px] border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:border-[var(--t-gold)] hover:text-[var(--t-gold)] disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer leading-snug"
+                  >
+                    {sq}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
         )}
 
         {/* Messages list */}
@@ -782,6 +1081,7 @@ export default function ContextualChatDrawer({
             className="space-y-2"
           >
             <textarea
+              ref={inputRef}
               rows={2}
               value={input}
               onChange={(e) =>

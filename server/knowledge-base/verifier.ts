@@ -846,10 +846,10 @@ export function verifyDaXianStemsInText(
   return flags;
 }
 
-const KHONG_KIEP_PAIR_RE =
+export const KHONG_KIEP_PAIR_RE =
   /(?<!\p{L})(?:(?:bộ\s+đôi|bộ|cặp)\s+)?(?:(?:địa\s+)?không(?:\s*[-/–—]\s*|\s+và\s+|\s+)(?:địa\s+)?kiếp(?:\s*\/\s*(?:địa\s+)?không)?|(?:địa\s+)?kiếp(?:\s*[-/–—]\s*|\s+và\s+|\s+)(?:địa\s+)?không(?:\s*\/\s*(?:địa\s+)?kiếp)?)(?!\p{L})/giu;
 
-const KHONG_KIEP_NEGATION_RE =
+export const KHONG_KIEP_NEGATION_RE =
   /(?:không\s+(?:phải(?:\s+là)?|tạo(?:\s+thành)?|kết\s+hợp(?:\s+thành)?|gọi(?:\s+là)?|xem\s+là|coi\s+là|hình\s+thành)\s+(?:bộ\s+đôi\s+|bộ\s+|cặp\s+|cách\s+)?(?:địa\s+)?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không)|tránh\s+gọi(?:\s+là)?\s+[^.!?\n]{0,20}?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không)|không\s+được\s+gọi\s+(?:là\s+)?['"\u201C\u2018]?(?:bộ\s+|cặp\s+)?(?:địa\s+)?(?:không[\s\-/–—]+kiếp|kiếp[\s\-/–—]+không))/iu;
 
 const QUOTED_SPAN_RE = /["\u201C\u201D'\u2018\u2019«„]([^"\u201C\u201D'\u2018\u2019»\n]{2,200})["\u201C\u201D'\u2018\u2019»]/gu;
@@ -900,6 +900,29 @@ function buildKhongKiepSanFangMap(chart: ZiweiChart): Map<string, boolean> {
     result.set(natalName, hasDiaKhong && hasDiaKiep);
   }
   return result;
+}
+
+/**
+ * ĐK-HD2-01 (1.7.0): Kiểm tra phạm vi các cung của chương hiện tại có ít nhất 1 cung
+ * hội đủ cả Địa Không lẫn Địa Kiếp trong Bản cung ∪ Tam Phương Tứ Chính hay không.
+ */
+export function chapterScopeHasKhongKiepPair(
+  chart: ZiweiChart,
+  palaceNamesVi: readonly string[],
+): boolean {
+  if (!chart?.palaces?.length || !Array.isArray(palaceNamesVi) || palaceNamesVi.length === 0) {
+    return false;
+  }
+  const sanFangMap = buildKhongKiepSanFangMap(chart);
+  for (const name of palaceNamesVi) {
+    const trimmed = typeof name === 'string' ? name.trim() : '';
+    if (!trimmed) continue;
+    const canon = PERIOD_ROLE_CANONICAL_BY_LOWER.get(trimmed.toLowerCase()) ?? trimmed;
+    if (sanFangMap.get(canon) === true) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function resolvePeriodRoleToNatalMap(

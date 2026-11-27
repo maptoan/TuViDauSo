@@ -27,6 +27,7 @@ import {
 } from '../server/knowledge-base/retriever';
 import {
   RETRY_MIN_LENGTH_RATIO,
+  chapterScopeHasKhongKiepPair,
   chooseBetterAudit,
   shouldRetryForCriticalFlags,
   shouldRetryForZeroCitations,
@@ -45,11 +46,18 @@ import {
   upsertChartToLibrary,
 } from '../src/lib/chart-library';
 import {
+  FEW_SHOT_QUESTIONS_BY_CHAPTER,
+  FORBIDDEN_ADVICE_QUESTION_RE,
+  FORBIDDEN_PRONOUN_RE,
+  buildChatQuestionSuggestionsPrompt,
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
   buildStrictPeriodAiPrompt,
   buildStructuredStreamErrorPayload,
+  parseAndSanitizeSuggestionsResponse,
   registerApiRoutes,
+  validateChatQuestionSuggestionsInput,
+  verifyQuestionSuggestionsGate,
 } from '../server';
 import {
   APP_VERSION,
@@ -62,6 +70,8 @@ import {
   CHAT_SOFT_CAP_AMBER_AT,
   CHAT_SOFT_CAP_BASE,
   CHAT_SOFT_CAP_UNLOCK_STEP,
+  ChatSuggestionsMemoryCache,
+  DOSSIER_CHAPTER_SCOPE_PALACES_VI,
   DOSSIER_CHAPTER_SPECS,
   DOSSIER_INTER_CHAPTER_PACING_MS,
   DOSSIER_LRU_INDEX_KEY,
@@ -74,6 +84,7 @@ import {
   buildBodyGlossaryMarkdown,
   buildChartIdentityKey,
   buildChatStorageKey,
+  buildChatSuggestionCacheKey,
   buildDeterministicChartGridHtml,
   buildDeterministicExecutiveSummaryVi,
   buildDossierAppendicesMarkdown,
@@ -101,6 +112,7 @@ import {
   getChatCooldownRemainingSec,
   getDossierChapterContentLength,
   getSharedDossierGenerating,
+  getSuggestionRefreshCooldownRemainingSec,
   listLruSessionKeys,
   readDossierCacheEntry,
   readLruSessionEntry,
@@ -127,7 +139,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.6.0';
+const EXPECTED_VERSION = '1.7.0';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -3058,6 +3070,501 @@ runTest('[BRIEF 1.6.0 · TEST-21] removeAllDossierChaptersFromLibrary & restoreD
       resetState: true,
     });
   }
+});
+
+runTest('[BRIEF 1.7.0 · TEST-22a] Prompt builder gợi ý, bảng 36 few-shot theo chương, cổng định dạng & bảng test regex cấm (16 cấm / 12 qua / 36 few-shot)', () => {
+  const chart = buildNguyenVanAn1995Chart();
+
+  // (1) Đủ 8 chương few-shot tổng 36 câu, không chứa "Căn cứ:" và không bị chặn bởi regex cấm
+  let totalFewShot = 0;
+  for (const spec of DOSSIER_CHAPTER_SPECS) {
+    const samples = FEW_SHOT_QUESTIONS_BY_CHAPTER[spec.id];
+    assert.ok(Array.isArray(samples) && samples.length >= 4 && samples.length <= 5);
+    totalFewShot += samples.length;
+    for (const q of samples) {
+      assert.equal(q.includes('Căn cứ:'), false);
+      assert.equal(
+        FORBIDDEN_PRONOUN_RE.test(q),
+        false,
+        `Few-shot ${spec.id} không được vi phạm ngôi xưng: ${q}`,
+      );
+      assert.equal(
+        FORBIDDEN_ADVICE_QUESTION_RE.test(q),
+        false,
+        `Few-shot ${spec.id} không được chứa cấu trúc xin lời khuyên: ${q}`,
+      );
+    }
+  }
+  assert.equal(totalFewShot, 36);
+
+  // (2) Prompt builder bám chương, đủ 4 góc, exclusion, không nạp KB học thuật
+  const built = buildChatQuestionSuggestionsPrompt({
+    chart,
+    contextMode: 'natal',
+    sectionTitle: 'Chương 2 — Nhóm Cung Cốt Lõi',
+    excerpt: '### Cung Mệnh (Ất Mão)\nThiên Cơ đi cùng Hóa Khoa tại Mệnh.',
+    chapterId: 'palaces_core',
+    askedQuestions: ['Câu hỏi đã hỏi trước đó?'],
+    previousSuggestions: ['Gợi ý cũ đã hiển thị?'],
+  });
+  assert.ok(built.systemInstruction.includes('Góc (1)'));
+  assert.ok(built.systemInstruction.includes('Góc (4)'));
+  assert.ok(built.systemInstruction.includes('đương số'));
+  assert.ok(built.prompt.includes('BẢNG DỮ KIỆN LÁ SỐ XÁC ĐỊNH'));
+  assert.ok(built.prompt.includes('Câu hỏi đã hỏi trước đó?'));
+  assert.ok(built.prompt.includes('Gợi ý cũ đã hiển thị?'));
+  assert.equal(built.prompt.includes('TƯ LIỆU HỌC THUẬT ĐỐI CHIẾU'), false);
+  for (const sample of FEW_SHOT_QUESTIONS_BY_CHAPTER.palaces_core) {
+    assert.ok(built.prompt.includes(sample));
+  }
+  // Chương khác không lọt vào prompt
+  assert.equal(built.prompt.includes(FEW_SHOT_QUESTIONS_BY_CHAPTER.horizon_10y[0]), false);
+
+  const built2026 = buildChatQuestionSuggestionsPrompt({
+    chart,
+    contextMode: 'period',
+    sectionTitle: 'Chương 5 — Lưu Niên 2026',
+    excerpt: '',
+    chapterId: 'year_2026',
+    isFallbackFactSheet: true,
+  });
+  assert.ok(built2026.systemInstruction.includes('Lưu Niên 2026'));
+  assert.ok(built2026.prompt.includes('CHƯƠNG CHƯA SINH'));
+
+  // (3) Bảng test regex cấm theo §6 (16 câu cấm đều khớp, 12 câu hợp lệ đều qua)
+  const forbiddenSamples = [
+    'Đương số có nên đầu tư vào bất động sản năm nay?',
+    'Đương số nên làm gì để cải thiện vận thế?',
+    'Đương số nên ưu tiên điều gì?',
+    'Đương số nên đầu tư vào lĩnh vực nào?',
+    'Đương số cần chuẩn bị những gì cho năm tới?',
+    'Đương số cần làm gì khi gặp khó khăn?',
+    'Nên hoãn quyết định này hay tiến hành ngay?',
+    'Nên giữ hay nên bán tài sản này?',
+    'Đương số nên rà soát lại hợp đồng không?',
+    'Đương số nên hạn chế chi tiêu ở khoản nào?',
+    'Đương số nên chọn hướng nào?',
+    'Làm gì để hóa giải áp lực này?',
+    'Bạn nên làm gì khi gặp hạn này?',
+    'Thân chủ cần chuẩn bị những gì?',
+    'Anh/chị có nên đầu tư không?',
+    'Tôi nên làm gì tiếp theo?',
+  ];
+  assert.equal(forbiddenSamples.length, 16);
+  for (const s of forbiddenSamples) {
+    const matched = FORBIDDEN_PRONOUN_RE.test(s) || FORBIDDEN_ADVICE_QUESTION_RE.test(s);
+    assert.equal(matched, true, `Phải chặn câu bị cấm: "${s}"`);
+  }
+
+  const allowedSamples = [
+    'Điều kiện nào làm Thiên Cơ phát huy hết mức?',
+    'Dấu hiệu nào cho thấy Thiên Hình đang kìm hãm?',
+    'Mốc nào cho thấy một khoản vay đã chạm ngưỡng mạo hiểm?',
+    'Việc nào làm trước khi chuyển sang Đại Hạn mới?',
+    'Dấu hiệu nào cho thấy áp lực đang đến từ công việc, và dấu hiệu nào cho thấy nó đang đến từ gia đình?',
+    'Điều kiện nào cần có để Song Lộc phát huy?',
+    'Khi nào uy tín nhờ Hóa Khoa giữ được dòng tiền?',
+    'Dấu hiệu nào cho thấy nó đã trượt sang đầu tư mạo hiểm?',
+    'Bạn đời có vai trò gì trong việc giữ tài lộc?',
+    'Kết bạn với người tuổi nào thì hợp?',
+    'Bạn bè có giúp đương số vượt qua khó khăn không?',
+    'Thiên Cơ [Đắc] đi cùng Hóa Khoa và Thái Âm [Vượng] đi cùng Hóa Lộc cùng nhập Mệnh, dấu hiệu nào cho thấy chúng đang phát huy?',
+  ];
+  assert.equal(allowedSamples.length, 12);
+  for (const s of allowedSamples) {
+    const matched = FORBIDDEN_PRONOUN_RE.test(s) || FORBIDDEN_ADVICE_QUESTION_RE.test(s);
+    assert.equal(matched, false, `Không được chặn câu hợp lệ: "${s}"`);
+  }
+
+  // (4) Cổng định dạng + dedupe + exclusion (gate_a)
+  assert.equal(
+    verifyQuestionSuggestionsGate(['Chỉ có 2 câu?', 'Câu thứ hai?'], {
+      chart,
+      chapterId: 'palaces_core',
+    }).ok,
+    false,
+  );
+  assert.equal(
+    verifyQuestionSuggestionsGate(['', 'Câu 2?', 'Câu 3?'], {
+      chart,
+      chapterId: 'palaces_core',
+    }).ok,
+    false,
+  );
+  assert.equal(
+    verifyQuestionSuggestionsGate(['A'.repeat(201), 'Câu 2?', 'Câu 3?'], {
+      chart,
+      chapterId: 'palaces_core',
+    }).ok,
+    false,
+  );
+  assert.equal(
+    verifyQuestionSuggestionsGate(
+      ['**Điều kiện** nào đổi chiều?', 'Điều kiện nào đổi chiều?', 'Mốc nào vượt ngưỡng?'],
+      { chart, chapterId: 'palaces_core' },
+    ).ok,
+    false,
+  );
+  assert.equal(
+    verifyQuestionSuggestionsGate(
+      ['Điều kiện nào đổi chiều?', 'Dấu hiệu nào phân biệt?', 'Mốc nào vượt ngưỡng?'],
+      {
+        chart,
+        chapterId: 'palaces_core',
+        askedQuestions: ['điều kiện nào đổi chiều?'],
+      },
+    ).ok,
+    false,
+  );
+  const validGate = verifyQuestionSuggestionsGate(
+    [
+      'Điều kiện nào làm sao Thiên Cơ tại Mệnh phát huy hết mức?',
+      'Dấu hiệu nào phân biệt áp lực Quan Lộc với áp lực gia đạo?',
+      'Mốc nào cho thấy khoản chi ở Tài Bạch đã chạm ngưỡng rủi ro?',
+    ],
+    { chart, chapterId: 'palaces_core' },
+  );
+  assert.equal(validGate.ok, true);
+});
+
+runTest('[BRIEF 1.7.0 · TEST-22b] Cổng KP-3 từng gợi ý độc lập + kiểm bù phạm vi chương + thứ tự (a) trước (b)', () => {
+  const baseChart = buildNguyenVanAn1995Chart();
+
+  // Tạo chart không có Địa Không / Địa Kiếp ở bất kỳ cung nào
+  const chartNoKhongKiep = structuredClone(baseChart);
+  for (const p of chartNoKhongKiep.palaces) {
+    p.stars = p.stars.filter((s) => s.name !== '地空' && s.name !== '地劫');
+  }
+  assert.equal(
+    chapterScopeHasKhongKiepPair(
+      chartNoKhongKiep,
+      DOSSIER_CHAPTER_SCOPE_PALACES_VI.palaces_core,
+    ),
+    false,
+  );
+
+  // Tạo chart có Địa Không ở Mệnh và Địa Kiếp ở Quan Lộc (cùng Tam Phương của Mệnh/Quan Lộc -> palaces_core hợp lệ, palaces_family không có)
+  const chartCoreHasPair = structuredClone(chartNoKhongKiep);
+  const menhPalace = chartCoreHasPair.palaces.find((p) => p.name === '命宫')!;
+  const quanPalace = chartCoreHasPair.palaces.find((p) => p.name === '官禄')!;
+  menhPalace.stars.push({ name: '地空', type: 'sha' });
+  quanPalace.stars.push({ name: '地劫', type: 'sha' });
+
+  assert.equal(
+    chapterScopeHasKhongKiepPair(
+      chartCoreHasPair,
+      DOSSIER_CHAPTER_SCOPE_PALACES_VI.palaces_core,
+    ),
+    true,
+  );
+
+  // (1) Gợi ý nhắc "Không Kiếp" KHÔNG nhắc tên cung ở chương không có cặp -> rớt gate_b
+  const failNoPalaceNoPair = verifyQuestionSuggestionsGate(
+    [
+      'Điều kiện nào làm Thiên Cơ phát huy?',
+      'Dấu hiệu nào cho thấy cặp Không Kiếp đang tác động mạnh?',
+      'Mốc nào cho thấy rủi ro vượt ngưỡng?',
+    ],
+    { chart: chartNoKhongKiep, chapterId: 'palaces_core' },
+  );
+  assert.equal(failNoPalaceNoPair.ok, false);
+  if (!failNoPalaceNoPair.ok) {
+    assert.equal(failNoPalaceNoPair.failedAt, 'gate_b');
+  }
+
+  // (2) Gợi ý nhắc "Không Kiếp" KHÔNG nhắc tên cung ở chương CÓ cung đủ cặp -> qua gate_b
+  const passNoPalaceWithPair = verifyQuestionSuggestionsGate(
+    [
+      'Điều kiện nào làm Thiên Cơ phát huy?',
+      'Dấu hiệu nào cho thấy cặp Không Kiếp đang tác động mạnh?',
+      'Mốc nào cho thấy rủi ro vượt ngưỡng?',
+    ],
+    { chart: chartCoreHasPair, chapterId: 'palaces_core' },
+  );
+  assert.equal(passNoPalaceWithPair.ok, true);
+
+  // (3) Kiểm từng gợi ý độc lập (không rò rỉ cung từ câu trước):
+  // Câu 1 nhắc cung Mệnh (có cặp ở chartCoreHasPair), Câu 2 nhắc cung Phu Thê (cần bảo đảm Phu Thê không có cặp trong Tam Phương!)
+  const chartOnlyMenhHasPair = structuredClone(chartNoKhongKiep);
+  const menh2 = chartOnlyMenhHasPair.palaces.find((p) => p.name === '命宫')!;
+  menh2.stars.push({ name: '地空', type: 'sha' });
+  menh2.stars.push({ name: '地劫', type: 'sha' });
+  // Ở đây Phu Thê và các cung Tam Phương của Phu Thê (Phúc Đức, Thiên Di, Quan Lộc? -> Quan Lộc là (branch+4) của Mệnh? Không, kiểm trực tiếp bằng verifyQuestionSuggestionsGate ở cung Phụ Mẫu)
+  // Tìm cung không nằm trong Tam Phương Tứ Chính của Mệnh: ví dụ Phụ Mẫu (branch liền kề Mệnh)
+  const failWrongPalace = verifyQuestionSuggestionsGate(
+    [
+      'Tại cung Mệnh, dấu hiệu nào cho thấy Không Kiếp đang kích hoạt biến động?',
+      'Tại cung Phụ Mẫu, cặp Không Kiếp tạo áp lực gì cho đương số?',
+      'Mốc nào cho thấy áp lực Tài Bạch đã chạm ngưỡng?',
+    ],
+    { chart: chartOnlyMenhHasPair, chapterId: 'chapter_overview' },
+  );
+  assert.equal(failWrongPalace.ok, false);
+  if (!failWrongPalace.ok) {
+    assert.equal(failWrongPalace.failedAt, 'gate_b');
+  }
+
+  // (4) Thứ tự bắt buộc: (a) trước (b) — câu vi phạm cả "có nên" lẫn "Không Kiếp" phải rớt tại gate_a
+  const failOrderAFirst = verifyQuestionSuggestionsGate(
+    [
+      'Đương số có nên tránh cặp Không Kiếp năm nay?',
+      'Dấu hiệu nào phân biệt cát và hung?',
+      'Mốc nào cho thấy vượt ngưỡng?',
+    ],
+    { chart: chartNoKhongKiep, chapterId: 'palaces_core' },
+  );
+  assert.equal(failOrderAFirst.ok, false);
+  if (!failOrderAFirst.ok) {
+    assert.equal(failOrderAFirst.failedAt, 'gate_a');
+  }
+});
+
+await runAsyncTest('[BRIEF 1.7.0 · TEST-22c] Endpoint POST /api/chat-question-suggestions: validate, strip fence+Han, retry 1 lần, rớt 2 lượt trả 422, onInterrupted & meta.interrupted', async () => {
+  const chart = buildNguyenVanAn1995Chart();
+
+  type StreamArgs = Parameters<typeof keyPoolManager.executeStream>[0];
+  const origExecuteStream = keyPoolManager.executeStream.bind(keyPoolManager);
+  let scenario:
+    | 'parse_retry_then_win'
+    | 'both_fail_gate'
+    | 'interrupted_callback'
+    | 'interrupted_meta_only' = 'parse_retry_then_win';
+  let callCount = 0;
+
+  (keyPoolManager as unknown as { executeStream: (opts: StreamArgs) => Promise<unknown> }).executeStream = async (
+    opts: StreamArgs,
+  ) => {
+    callCount += 1;
+    const fakeMeta = {
+      keyId: 'k-suggest',
+      maskedKey: 'AIza...SUGG',
+      label: 'Key Suggest',
+      modelUsed: 'gemini-3.5-flash-lite',
+      usedFallbackModel: false,
+      failoverAttempts: 1,
+      latencyMs: 35,
+      fallbackLegUsed: false,
+    };
+
+    if (scenario === 'interrupted_callback') {
+      opts.onChunk?.('{"suggestions":["Câu bị cắt giữa chừng');
+      opts.onInterrupted?.({
+        reason: 'Hết quota tạm thời trên mọi khóa.',
+        errorCategory: 'RATE_LIMIT_RPM',
+        partialLength: 38,
+        minRemainingCooldownSec: 27,
+      });
+      return { ...fakeMeta, interrupted: true, partialLength: 38 };
+    }
+
+    if (scenario === 'interrupted_meta_only') {
+      opts.onChunk?.('{"suggestions":["Câu bị cắt không gọi callback');
+      return { ...fakeMeta, interrupted: true, partialLength: 42 };
+    }
+
+    if (scenario === 'parse_retry_then_win') {
+      if (callCount === 1) {
+        opts.onChunk?.('Đây không phải JSON hợp lệ');
+      } else {
+        opts.onChunk?.(
+          '```json\n{"suggestions":["Điều kiện nào làm Thiên Cơ 紫微 tại Mệnh phát huy hết mức?","Dấu hiệu nào cho thấy áp lực Quan Lộc đang lấn át?","Mốc nào cho thấy chi tiêu ở Tài Bạch vượt ngưỡng an toàn?"]}\n```',
+        );
+      }
+      return fakeMeta;
+    }
+
+    // both_fail_gate -> luôn dính cấu trúc xin lời khuyên bị cấm
+    opts.onChunk?.(
+      JSON.stringify({
+        suggestions: [
+          'Đương số có nên đầu tư mạnh vào năm nay?',
+          'Dấu hiệu nào phân biệt cơ hội và rủi ro?',
+          'Mốc nào cho thấy áp lực vượt ngưỡng?',
+        ],
+      }),
+    );
+    return fakeMeta;
+  };
+
+  const app = express();
+  registerApiRoutes(app);
+  const server = await new Promise<import('node:http').Server>((resolve) => {
+    const srv = app.listen(0, '127.0.0.1', () => resolve(srv));
+  });
+
+  try {
+    const addr = server.address();
+    if (!addr || typeof addr === 'string') throw new Error('Invalid port');
+    const baseUrl = `http://127.0.0.1:${addr.port}`;
+
+    // (1) Validation 400
+    const rBad = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chart, chapterId: 'invalid_chapter_id', excerpt: 'abc' }),
+    });
+    assert.equal(rBad.status, 400);
+
+    const rBadAsked = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        chapterId: 'palaces_core',
+        excerpt: 'abc',
+        askedQuestions: ['x'.repeat(401)],
+      }),
+    });
+    assert.equal(rBadAsked.status, 400);
+
+    // (2) Lần 1 parse lỗi -> retry đúng 1 lần -> lần 2 strip fence + lọc chữ Hán -> 200
+    scenario = 'parse_retry_then_win';
+    callCount = 0;
+    const rWin = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        contextMode: 'natal',
+        contextKey: 'dossier_palaces_core',
+        sectionTitle: 'Chương 2',
+        excerpt: 'Thiên Cơ tại Mệnh.',
+        chapterId: 'palaces_core',
+      }),
+    });
+    assert.equal(rWin.status, 200);
+    const jWin = (await rWin.json()) as { suggestions: string[]; retryCount: number };
+    assert.equal(callCount, 2);
+    assert.equal(jWin.retryCount, 1);
+    assert.equal(jWin.suggestions.length, 3);
+    assert.equal(jWin.suggestions[0].includes('紫微'), false);
+
+    // (3) Rớt cổng cả 2 lượt -> 422, không trả bộ thiếu câu, không fallback tĩnh
+    scenario = 'both_fail_gate';
+    callCount = 0;
+    const rFail = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        contextMode: 'natal',
+        contextKey: 'dossier_palaces_core',
+        sectionTitle: 'Chương 2',
+        excerpt: 'Thiên Cơ tại Mệnh.',
+        chapterId: 'palaces_core',
+      }),
+    });
+    assert.equal(rFail.status, 422);
+    const jFail = (await rFail.json()) as { error?: string; suggestions?: unknown; retryCount?: number };
+    assert.equal(callCount, 2);
+    assert.equal(jFail.error, 'SUGGESTIONS_VALIDATION_FAILED');
+    assert.equal(jFail.retryCount, 1);
+    assert.equal(jFail.suggestions, undefined);
+
+    // (4) onInterrupted callback -> không retry, không JSON.parse JSON cụt, trả đúng errorCategory + cooldown
+    scenario = 'interrupted_callback';
+    callCount = 0;
+    const rInt = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        contextMode: 'natal',
+        contextKey: 'dossier_palaces_core',
+        sectionTitle: 'Chương 2',
+        excerpt: 'Thiên Cơ tại Mệnh.',
+        chapterId: 'palaces_core',
+      }),
+    });
+    assert.equal(rInt.status, 503);
+    const jInt = (await rInt.json()) as {
+      errorCategory?: string;
+      minRemainingCooldownSec?: number | null;
+    };
+    assert.equal(callCount, 1);
+    assert.equal(jInt.errorCategory, 'RATE_LIMIT_RPM');
+    assert.equal(jInt.minRemainingCooldownSec, 27);
+
+    // (5) finalMeta.interrupted === true (ĐK-HD2-02) -> cũng chặn parse & trả lỗi
+    scenario = 'interrupted_meta_only';
+    callCount = 0;
+    const rMetaInt = await fetch(`${baseUrl}/api/chat-question-suggestions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chart,
+        contextMode: 'natal',
+        contextKey: 'dossier_palaces_core',
+        sectionTitle: 'Chương 2',
+        excerpt: 'Thiên Cơ tại Mệnh.',
+        chapterId: 'palaces_core',
+      }),
+    });
+    assert.equal(rMetaInt.status, 503);
+    assert.equal(callCount, 1);
+
+    // (6) Kiểm tra parseAndSanitizeSuggestionsResponse riêng
+    const pBad = parseAndSanitizeSuggestionsResponse('Không có ngoặc nhọn');
+    assert.equal(pBad.ok, false);
+    const pValid = validateChatQuestionSuggestionsInput({
+      chart,
+      excerpt: '',
+      chapterId: 'year_2026',
+    });
+    assert.equal(pValid.ok, true);
+  } finally {
+    (keyPoolManager as unknown as { executeStream: typeof origExecuteStream }).executeStream = origExecuteStream;
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
+runTest('[BRIEF 1.7.0 · TEST-22d] Cache in-memory (khóa đổi theo excerpt), cooldown tách khỏi lastSentAtMs, và ranh giới UI/HemingView/InsightPanel', () => {
+  const chart = buildNguyenVanAn1995Chart();
+  const chartId = buildChartIdentityKey(chart);
+
+  // (1) Cache in-memory
+  const cache = new ChatSuggestionsMemoryCache();
+  const keyV1 = buildChatSuggestionCacheKey(chartId, 'dossier_palaces_core', 'Nội dung chương bản 1.');
+  const keyV1Again = buildChatSuggestionCacheKey(chartId, 'dossier_palaces_core', 'Nội dung chương bản 1.');
+  const keyV2 = buildChatSuggestionCacheKey(chartId, 'dossier_palaces_core', 'Nội dung chương đã sinh lại bản 2.');
+  assert.equal(keyV1, keyV1Again);
+  assert.notEqual(keyV1, keyV2);
+
+  cache.set(keyV1, ['Q1?', 'Q2?', 'Q3?']);
+  assert.deepEqual(cache.get(keyV1Again), ['Q1?', 'Q2?', 'Q3?']);
+  assert.equal(cache.get(keyV2), null);
+
+  // (2) Cooldown nút "Đổi 3 câu khác" tách hoàn toàn khỏi quotaState.lastSentAtMs
+  const now = 1_700_000_000_000;
+  const quotaState = createInitialChatQuotaState(2, 15, null);
+  const refreshLastAt = now - 2_000;
+  const refreshCooldown = getSuggestionRefreshCooldownRemainingSec(refreshLastAt, now);
+  assert.equal(refreshCooldown, CHAT_COOLDOWN_SECONDS - 2);
+  const quotaEval = evaluateChatQuotaStatus(quotaState, { nowMs: now });
+  assert.equal(quotaEval.cooldownRemainingSec, 0);
+  assert.equal(quotaEval.canSend, true);
+
+  // (3) Kiểm tra source wiring (HemingView & InsightPanel giữ nguyên câu tĩnh, DetailedDossierModal & Drawer dùng nhánh chapterId)
+  const drawerSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/ContextualChatDrawer.tsx'), 'utf8');
+  const modalSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/DetailedDossierModal.tsx'), 'utf8');
+  const hemingSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/HemingView.tsx'), 'utf8');
+  const insightSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/InsightPanel.tsx'), 'utf8');
+
+  assert.ok(drawerSrc.includes('/api/chat-question-suggestions'));
+  assert.ok(drawerSrc.includes('Đổi 3 câu khác'));
+  assert.ok(drawerSrc.includes('Không sinh được gợi ý lúc này — bấm thử lại'));
+  assert.ok(drawerSrc.includes('Chương chưa sinh — gợi ý dựa trên bảng dữ kiện lá số.'));
+  assert.ok(drawerSrc.includes('isDossierBlocked || quotaEval.isCapReached'));
+  assert.equal(drawerSrc.includes('chatSuggestionsCache'), true);
+  assert.equal(drawerSrc.includes('ziwei_chat_suggestions'), false);
+
+  assert.ok(modalSrc.includes('chapterId: selectedSpec.id'));
+  assert.ok(modalSrc.includes('isFallbackFactSheet: !hasChapterText'));
+  assert.ok(modalSrc.includes('starterQuestions: []'));
+  assert.equal(modalSrc.includes('Nếu muốn cải thiện vận thế của phần này, đương số nên ưu tiên điều gì?'), false);
+
+  assert.equal(hemingSrc.includes('chapterId'), false);
+  assert.equal(insightSrc.includes('chapterId'), false);
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

@@ -1008,6 +1008,8 @@ export interface ContextualChatContextPayload {
   factSheetVi: string;
   excerptVi: string;
   starterQuestions: string[];
+  chapterId?: DossierChapterId;
+  isFallbackFactSheet?: boolean;
 }
 
 export interface StoredChatThread {
@@ -1120,6 +1122,98 @@ export const DOSSIER_CHAPTER_SPECS: readonly DossierChapterSpec[] = [
     sectionId: 'horizon_10y',
   },
 ];
+
+export const VALID_DOSSIER_CHAPTER_IDS: readonly DossierChapterId[] = [
+  'chapter_overview',
+  'palaces_core',
+  'palaces_family',
+  'palaces_social_health',
+  'year_2026',
+  'year_2027',
+  'horizon_5y',
+  'horizon_10y',
+];
+
+export function isValidDossierChapterId(value: unknown): value is DossierChapterId {
+  return (
+    typeof value === 'string' &&
+    (VALID_DOSSIER_CHAPTER_IDS as readonly string[]).includes(value)
+  );
+}
+
+const ALL_TWELVE_PALACES_VI: readonly string[] = [
+  'Mệnh Cung',
+  'Huynh Đệ',
+  'Phu Thê',
+  'Tử Nữ',
+  'Tài Bạch',
+  'Tật Ách',
+  'Thiên Di',
+  'Giao Hữu',
+  'Quan Lộc',
+  'Điền Trạch',
+  'Phúc Đức',
+  'Phụ Mẫu',
+];
+
+/**
+ * Ánh xạ tĩnh 8 chương -> phạm vi cung chuẩn hóa phục vụ kiểm KP-3 gợi ý (§3.4(b), ĐK-HD2-01).
+ */
+export const DOSSIER_CHAPTER_SCOPE_PALACES_VI: Record<
+  DossierChapterId,
+  readonly string[]
+> = {
+  chapter_overview: ALL_TWELVE_PALACES_VI,
+  palaces_core: ['Mệnh Cung', 'Quan Lộc', 'Tài Bạch', 'Thiên Di'],
+  palaces_family: ['Phu Thê', 'Tử Nữ', 'Điền Trạch', 'Phúc Đức'],
+  palaces_social_health: ['Phụ Mẫu', 'Huynh Đệ', 'Giao Hữu', 'Tật Ách'],
+  year_2026: ALL_TWELVE_PALACES_VI,
+  year_2027: ALL_TWELVE_PALACES_VI,
+  horizon_5y: ALL_TWELVE_PALACES_VI,
+  horizon_10y: ALL_TWELVE_PALACES_VI,
+};
+
+export function buildChatSuggestionCacheKey(
+  chartIdentityKey: string,
+  contextKey: string,
+  excerpt: string,
+): string {
+  const safeExcerpt = typeof excerpt === 'string' ? excerpt : '';
+  const head = safeExcerpt.slice(0, 64);
+  const tail = safeExcerpt.slice(-64);
+  const excerptSignature = `${safeExcerpt.length}_${head}_${tail}`;
+  return `${chartIdentityKey}::${contextKey}::${excerptSignature}`;
+}
+
+export class ChatSuggestionsMemoryCache {
+  private readonly store = new Map<string, string[]>();
+
+  get(key: string): string[] | null {
+    const found = this.store.get(key);
+    return found ? [...found] : null;
+  }
+
+  set(key: string, suggestions: readonly string[]): void {
+    this.store.set(key, [...suggestions]);
+  }
+
+  clear(): void {
+    this.store.clear();
+  }
+
+  get size(): number {
+    return this.store.size;
+  }
+}
+
+export const chatSuggestionsCache = new ChatSuggestionsMemoryCache();
+
+export function getSuggestionRefreshCooldownRemainingSec(
+  lastRefreshAtMs: number | null,
+  nowMs = Date.now(),
+): number {
+  return getChatCooldownRemainingSec(lastRefreshAtMs, nowMs);
+}
 
 export type DossierChapterStatus =
   | 'idle'
