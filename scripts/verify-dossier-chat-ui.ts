@@ -32,7 +32,18 @@ import {
   shouldRetryForZeroCitations,
 } from '../server/knowledge-base/verifier';
 import { generateWithRetry } from '../server/chapter-retry';
-import { saveDossierSectionToLibrary, buildPeriodCachePatchesFromLibrary } from '../src/lib/chart-library';
+import {
+  buildPeriodCachePatchesFromLibrary,
+  configureChartLibraryRuntimeForTest,
+  createEmptyDossierSummary,
+  getDossierReadState,
+  readLibraryIndexStore,
+  removeAllDossierChaptersFromLibrary,
+  restoreDossierRecordToLibrary,
+  saveDossierSectionToLibrary,
+  subscribeChartLibrary,
+  upsertChartToLibrary,
+} from '../src/lib/chart-library';
 import {
   buildStrictDossierSectionPrompt,
   buildStrictExplanationChatPrompt,
@@ -116,7 +127,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.5.9';
+const EXPECTED_VERSION = '1.6.0';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -2771,6 +2782,282 @@ runTest('[BRIEF 1.5.9 · Nhóm E] Thu thập chương mang cờ critical, giữ 
   assert.ok(modalSrc.includes('đã sửa tự động'));
   assert.ok(panelSrc.includes('retryingForFlags'));
   assert.ok(panelSrc.includes('đã sửa tự động'));
+});
+
+runTest('[BRIEF 1.6.0 · TEST-21] removeAllDossierChaptersFromLibrary & restoreDossierRecordToLibrary: xóa 8 chương, giữ lá số khác, không ghi khi rỗng, hoàn tác deep-equal 8 spec & ranh giới error', () => {
+  // Giới hạn harness: trong Node không có IndexedDB/localStorage/sessionStorage thật của trình duyệt;
+  // TEST-21 tiêm MemoryStorage qua configureChartLibraryRuntimeForTest (có sẵn) để quan sát gương RAM + chỉ mục Thư Viện.
+  // Tầng IDB/hot/session của trình duyệt được kiểm chứng bằng nghiệm thu live ĐK-160-05(2) + Code Inspection deleteDossierRecordFromAllTargets.
+  // Nhánh hydrating (pendingDossierDeletes) kiểm bằng Code Inspection (ĐK-160-2-04), không thêm export setter.
+  const localMem = new MemoryStorage();
+  const sessionMem = new MemoryStorage();
+  configureChartLibraryRuntimeForTest({
+    localStorage: localMem,
+    sessionStorage: sessionMem,
+    resetState: true,
+  });
+
+  try {
+    const form1: BirthFormState = {
+      name: 'Nguyễn Văn An',
+      year: '1995',
+      month: '8',
+      day: '16',
+      clockHour: '10',
+      clockMinute: '30',
+      unknownTime: false,
+      province: 'Việt Nam — Miền Bắc',
+      city: 'Hà Nội',
+      longitude: 105.85,
+      gender: 'male',
+    };
+    const form2: BirthFormState = {
+      name: 'Nữ Mệnh Test 1992',
+      year: '1992',
+      month: '8',
+      day: '20',
+      clockHour: '8',
+      clockMinute: '30',
+      unknownTime: false,
+      province: 'Việt Nam — Miền Bắc',
+      city: 'Hà Nội',
+      longitude: 105.85,
+      gender: 'female',
+    };
+    const form3: BirthFormState = {
+      name: 'Lá Số Mẫu 1988',
+      year: '1988',
+      month: '3',
+      day: '12',
+      clockHour: '14',
+      clockMinute: '15',
+      unknownTime: false,
+      province: 'Việt Nam — Miền Nam',
+      city: 'TP. Hồ Chí Minh',
+      longitude: 106.66,
+      gender: 'male',
+    };
+
+    const chart1 = generateChart(formToBirthInfo(form1));
+    const chart2 = generateChart(formToBirthInfo(form2));
+    const chart3 = generateChart(formToBirthInfo(form3));
+    const key1 = buildChartIdentityKey(chart1);
+    const key2 = buildChartIdentityKey(chart2);
+    const key3 = buildChartIdentityKey(chart3);
+
+    upsertChartToLibrary(form1, { nowMs: 1_700_000_001_000, syncLegacyMirror: false });
+    upsertChartToLibrary(form2, { nowMs: 1_700_000_002_000, syncLegacyMirror: false });
+    upsertChartToLibrary(form3, { nowMs: 1_700_000_003_000, syncLegacyMirror: false });
+
+    // Lưu đủ 8 chương cho chart1 (gồm >= 1 incomplete và >= 1 chương có deterministicRepairs + auditFlags)
+    for (let i = 0; i < DOSSIER_CHAPTER_SPECS.length; i += 1) {
+      const spec = DOSSIER_CHAPTER_SPECS[i];
+      const sKey = buildDossierChapterCacheKey(key1, spec.id);
+      if (spec.id === 'horizon_5y') {
+        saveDossierSectionToLibrary(chart1, spec.id, {
+          chapterId: spec.id,
+          sectionCacheKey: sKey,
+          status: 'incomplete',
+          incompleteText: '### 1. Tổng Quan\nNội dung dở dang 5 năm tới.',
+          interruptedReason: 'Ngắt giữa chừng để test.',
+          error: 'Ngắt giữa chừng để test.',
+          meta: {
+            keyId: 'key-1',
+            maskedKey: 'AIza...0001',
+            label: 'Key 1',
+            modelUsed: 'gemini-2.5-flash',
+            usedFallbackModel: false,
+            failoverAttempts: 1,
+            latencyMs: 1200,
+            interrupted: true,
+          },
+          auditFlags: [
+            {
+              code: 'ZERO_CITATIONS_IN_CHAPTER',
+              severity: 'medium',
+              messageVi: 'Cờ kiểm tra incomplete.',
+            },
+          ],
+          sourceBadge: formatDossierSourceBadge('generated'),
+          updatedAt: 1_700_000_010_000 + i,
+        });
+      } else if (spec.id === 'palaces_core') {
+        saveDossierSectionToLibrary(chart1, spec.id, {
+          chapterId: spec.id,
+          sectionCacheKey: sKey,
+          status: 'completed',
+          text: '### Cung Mệnh (Ất Mão)\nNội dung đã sửa tự động [Nguồn: NH-STAR-001].',
+          meta: {
+            keyId: 'key-2',
+            maskedKey: 'AIza...0002',
+            label: 'Key 2',
+            modelUsed: 'gemini-2.5-pro',
+            usedFallbackModel: false,
+            failoverAttempts: 2,
+            latencyMs: 2400,
+          },
+          auditFlags: [
+            {
+              code: 'PALACE_GANZHI_MISMATCH',
+              severity: 'critical',
+              palaceVi: 'Quan Lộc',
+              messageVi: 'Cờ đối chiếu để kiểm thử deep-equal.',
+            },
+          ],
+          deterministicRepairs: [
+            {
+              code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+              palaceVi: 'Quan Lộc',
+              beforeSentence: 'Cung có Bộ Không Kiếp.',
+              afterSentence: 'Cung có Địa Không, Thiên Không.',
+            },
+          ],
+          reauditedForVersion: APP_VERSION,
+          reauditedAt: 1_700_000_020_000,
+          sourceBadge: formatDossierSourceBadge('generated'),
+          updatedAt: 1_700_000_010_000 + i,
+        });
+      } else {
+        saveDossierSectionToLibrary(chart1, spec.id, {
+          chapterId: spec.id,
+          sectionCacheKey: sKey,
+          status: 'completed',
+          text: `### 1. Mở đầu\nNội dung chuẩn chương ${spec.shortLabelVi}.`,
+          meta: {
+            keyId: 'key-3',
+            maskedKey: 'AIza...0003',
+            label: 'Key 3',
+            modelUsed: 'gemini-2.5-flash',
+            usedFallbackModel: false,
+            failoverAttempts: 1,
+            latencyMs: 1100,
+          },
+          auditFlags: [],
+          reauditedForVersion: APP_VERSION,
+          reauditedAt: 1_700_000_020_000 + i,
+          sourceBadge: formatDossierSourceBadge('cache'),
+          updatedAt: 1_700_000_010_000 + i,
+        });
+      }
+    }
+
+    // Lưu 2 chương cho chart2 để kiểm chứng không động lá số khác
+    saveDossierSectionToLibrary(chart2, 'chapter_overview', {
+      chapterId: 'chapter_overview',
+      sectionCacheKey: buildDossierChapterCacheKey(key2, 'chapter_overview'),
+      status: 'completed',
+      text: '### 1. Tổng Quan\nNội dung chart2 giữ nguyên.',
+      updatedAt: 1_700_000_030_000,
+    });
+    saveDossierSectionToLibrary(chart2, 'year_2026', {
+      chapterId: 'year_2026',
+      sectionCacheKey: buildDossierChapterCacheKey(key2, 'year_2026'),
+      status: 'completed',
+      text: '### 1. Chủ Đề Kỳ Hạn\nLưu niên 2026 chart2 giữ nguyên.',
+      updatedAt: 1_700_000_030_100,
+    });
+
+    const chart2RecordBefore = structuredClone(getDossierReadState(key2, chart2).record);
+    const chart2EntryBefore = structuredClone(
+      readLibraryIndexStore().entries.find((e) => e.chartIdentityKey === key2),
+    );
+
+    // (1) Xóa đủ 8 chương của chart1
+    const delAllRes = removeAllDossierChaptersFromLibrary(chart1, 1_700_000_050_000);
+    assert.equal(delAllRes.ok, true);
+    assert.ok(delAllRes.previousRecord !== null);
+    assert.equal(Object.keys(delAllRes.previousRecord.sections).length, 8);
+    assert.equal(getDossierReadState(key1, chart1).record, null);
+
+    const chart1EntryAfterDelete = readLibraryIndexStore().entries.find(
+      (e) => e.chartIdentityKey === key1,
+    );
+    assert.ok(chart1EntryAfterDelete, 'Entry lá số trong Thư Viện vẫn phải được giữ nguyên');
+    assert.deepStrictEqual(chart1EntryAfterDelete.dossierSummary, createEmptyDossierSummary());
+
+    // (2) Không động lá số khác (chart2 giữ nguyên từng byte)
+    assert.deepStrictEqual(getDossierReadState(key2, chart2).record, chart2RecordBefore);
+    assert.deepStrictEqual(
+      readLibraryIndexStore().entries.find((e) => e.chartIdentityKey === key2),
+      chart2EntryBefore,
+    );
+
+    // (3) Xóa khi không có record -> { ok: false, previousRecord: null }, không ghi, không notify
+    let notifyCount = 0;
+    const unsubscribe = subscribeChartLibrary(() => {
+      notifyCount += 1;
+    });
+    const storeBeforeNoop = JSON.stringify(readLibraryIndexStore());
+    const noopRes = removeAllDossierChaptersFromLibrary(chart1, 1_700_000_060_000);
+    unsubscribe();
+    assert.equal(noopRes.ok, false);
+    assert.equal(noopRes.previousRecord, null);
+    assert.equal(notifyCount, 0);
+    assert.equal(JSON.stringify(readLibraryIndexStore()), storeBeforeNoop);
+    assert.deepStrictEqual(getDossierReadState(key2, chart2).record, chart2RecordBefore);
+
+    // (4) Khôi phục previousRecord qua restoreDossierRecordToLibrary & deep-equal cấp section đủ 8 spec + ranh giới section error
+    const restoreRes = restoreDossierRecordToLibrary(chart1, delAllRes.previousRecord);
+    assert.equal(restoreRes.ok, true);
+    const restoredRecord = getDossierReadState(key1, chart1).record;
+    assert.ok(restoredRecord);
+    for (const spec of DOSSIER_CHAPTER_SPECS) {
+      assert.deepStrictEqual(
+        JSON.parse(JSON.stringify(restoredRecord.sections[spec.id])),
+        delAllRes.previousRecord.sections[spec.id],
+        `Section ${spec.id} sau restore phải khớp từng trường với previousRecord`,
+      );
+    }
+    const chart1EntryAfterRestore = readLibraryIndexStore().entries.find(
+      (e) => e.chartIdentityKey === key1,
+    );
+    assert.equal(chart1EntryAfterRestore?.dossierSummary.completedCount, 7);
+    assert.equal(chart1EntryAfterRestore?.dossierSummary.incompleteCount, 1);
+
+    // Assert ranh giới: section error KHÔNG được lưu vào record khi restore (chỉ khôi phục trong phiên ở modal)
+    const recordWithError = {
+      ...delAllRes.previousRecord,
+      sections: {
+        ...delAllRes.previousRecord.sections,
+        horizon_10y: {
+          chapterId: 'horizon_10y' as const,
+          sectionCacheKey: buildDossierChapterCacheKey(key1, 'horizon_10y'),
+          status: 'error' as const,
+          error: 'Lỗi mạng thử nghiệm.',
+          updatedAt: 1_700_000_070_000,
+        },
+      },
+    };
+    const restoreWithErrorRes = restoreDossierRecordToLibrary(chart1, recordWithError);
+    assert.equal(restoreWithErrorRes.ok, true);
+    const restoredAfterError = getDossierReadState(key1, chart1).record;
+    assert.equal(restoredAfterError?.sections.horizon_10y, undefined);
+
+    // (6) Xóa khi record chỉ có vài chương (3/8) -> xóa sạch, không để section lẻ, dossierSummary rỗng
+    for (const partialId of ['chapter_overview', 'palaces_core', 'year_2027'] as const) {
+      saveDossierSectionToLibrary(chart3, partialId, {
+        chapterId: partialId,
+        sectionCacheKey: buildDossierChapterCacheKey(key3, partialId),
+        status: 'completed',
+        text: `### 1. Chương\nNội dung 3/8 cho ${partialId}.`,
+        updatedAt: 1_700_000_080_000,
+      });
+    }
+    const delPartialRes = removeAllDossierChaptersFromLibrary(chart3, 1_700_000_090_000);
+    assert.equal(delPartialRes.ok, true);
+    assert.equal(Object.keys(delPartialRes.previousRecord?.sections ?? {}).length, 3);
+    assert.equal(getDossierReadState(key3, chart3).record, null);
+    const chart3EntryAfter = readLibraryIndexStore().entries.find(
+      (e) => e.chartIdentityKey === key3,
+    );
+    assert.deepStrictEqual(chart3EntryAfter?.dossierSummary, createEmptyDossierSummary());
+  } finally {
+    configureChartLibraryRuntimeForTest({
+      localStorage: undefined,
+      sessionStorage: undefined,
+      resetState: true,
+    });
+  }
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

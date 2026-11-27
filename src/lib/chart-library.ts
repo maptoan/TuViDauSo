@@ -2449,6 +2449,18 @@ export function removeLibraryEntry(
   return { ok: true };
 }
 
+function deleteDossierRecordFromAllTargets(chartIdentityKey: string): void {
+  inMemoryDossierMirror.delete(chartIdentityKey);
+  removeHotDossierFromLocalStorage(chartIdentityKey);
+  removeSessionMirrorDossier(chartIdentityKey);
+  if (hydrationStatus === 'hydrating') {
+    pendingDossierMutations.delete(chartIdentityKey);
+    pendingDossierDeletes.add(chartIdentityKey);
+  } else if (storageHealth.indexedDbAvailable) {
+    void runtimeIdbAdapter.delete(chartIdentityKey).catch(() => {});
+  }
+}
+
 /**
  * QĐ-L8 (Phương án B tăng cường C1+): Xóa riêng 1 chương đơn lẻ khỏi cả 4 tầng lưu trữ
  * và cập nhật dossierSummary; trả về previousRecord để giao diện hoàn tác trong phiên.
@@ -2478,15 +2490,7 @@ export function removeSingleDossierChapterFromLibrary(
     : null;
 
   if (!nextRecord) {
-    inMemoryDossierMirror.delete(chartIdentityKey);
-    removeHotDossierFromLocalStorage(chartIdentityKey);
-    removeSessionMirrorDossier(chartIdentityKey);
-    if (hydrationStatus === 'hydrating') {
-      pendingDossierMutations.delete(chartIdentityKey);
-      pendingDossierDeletes.add(chartIdentityKey);
-    } else if (storageHealth.indexedDbAvailable) {
-      void runtimeIdbAdapter.delete(chartIdentityKey).catch(() => {});
-    }
+    deleteDossierRecordFromAllTargets(chartIdentityKey);
   } else {
     persistDossierToTargets(nextRecord, chart);
   }
@@ -2505,6 +2509,82 @@ export function removeSingleDossierChapterFromLibrary(
 
   notifyLibraryListeners();
   return { ok: true, previousRecord };
+}
+
+/**
+ * BRIEF 1.6.0 (§5.2): Xóa toàn bộ 8 chương hồ sơ của đúng 1 lá số khỏi cả 4 tầng lưu trữ,
+ * giữ nguyên entry lá số trong Thư Viện với dossierSummary rỗng; trả về previousRecord để hoàn tác.
+ */
+export function removeAllDossierChaptersFromLibrary(
+  chart: ZiweiChart,
+  nowMs = Date.now(),
+): { ok: boolean; previousRecord: StoredDossierRecord | null } {
+  const chartIdentityKey = buildChartIdentityKey(chart);
+  const existingRecord = getBestKnownDossierSync(chartIdentityKey);
+  if (
+    !existingRecord ||
+    !existingRecord.sections ||
+    Object.keys(existingRecord.sections).length === 0
+  ) {
+    return { ok: false, previousRecord: null };
+  }
+
+  const previousRecord = JSON.parse(JSON.stringify(existingRecord)) as StoredDossierRecord;
+  deleteDossierRecordFromAllTargets(chartIdentityKey);
+
+  const store = readLibraryIndexStore();
+  const idx = store.entries.findIndex((e) => e.chartIdentityKey === chartIdentityKey);
+  if (idx >= 0) {
+    const nextEntries = [...store.entries];
+    nextEntries[idx] = {
+      ...nextEntries[idx],
+      dossierSummary: createEmptyDossierSummary(),
+      updatedAt: Math.max(nextEntries[idx].updatedAt, nowMs),
+    };
+    writeLibraryIndexStore({ ...store, entries: nextEntries }, nowMs);
+  }
+
+  notifyLibraryListeners();
+  return { ok: true, previousRecord };
+}
+
+/**
+ * BRIEF 1.6.0 (§5.3): Khôi phục toàn bộ record hồ sơ từ snapshot previousRecord
+ * qua persistDossierToTargets, cập nhật dossierSummary và thông báo 1 lần.
+ */
+export function restoreDossierRecordToLibrary(
+  chart: ZiweiChart,
+  previousRecord: StoredDossierRecord,
+): { ok: boolean } {
+  if (!previousRecord || !previousRecord.sections) {
+    return { ok: false };
+  }
+
+  const chartIdentityKey = buildChartIdentityKey(chart);
+  const nowMs = Date.now();
+  const recordToRestore: StoredDossierRecord = {
+    ...previousRecord,
+    chartIdentityKey,
+  };
+  persistDossierToTargets(recordToRestore, chart);
+  const restoredRecord =
+    getBestKnownDossierSync(chartIdentityKey) ??
+    sanitizeFullDossierRecord(recordToRestore, chartIdentityKey, chart);
+
+  const store = readLibraryIndexStore();
+  const idx = store.entries.findIndex((e) => e.chartIdentityKey === chartIdentityKey);
+  if (idx >= 0) {
+    const nextEntries = [...store.entries];
+    nextEntries[idx] = {
+      ...nextEntries[idx],
+      dossierSummary: computeDossierSummary(restoredRecord),
+      updatedAt: Math.max(nextEntries[idx].updatedAt, nowMs),
+    };
+    writeLibraryIndexStore({ ...store, entries: nextEntries }, nowMs);
+  }
+
+  notifyLibraryListeners();
+  return { ok: true };
 }
 
 /**

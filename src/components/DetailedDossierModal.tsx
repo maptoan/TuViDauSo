@@ -24,6 +24,7 @@ import {
   DualFuseSummary,
   Kp3AuditFlag,
   ParsedAiFailureInfo,
+  StoredDossierRecord,
   buildChartIdentityKey,
   buildDossierChapterCacheKey,
   buildDossierHeaderMetadata,
@@ -62,7 +63,9 @@ import {
 import { hasValidCachedPeriodEntry } from '../lib/key-pool-ui';
 import {
   getDossierReadState,
+  removeAllDossierChaptersFromLibrary,
   removeSingleDossierChapterFromLibrary,
+  restoreDossierRecordToLibrary,
   type LibraryHydrationStatus,
   type LibraryStorageHealth,
 } from '../lib/chart-library';
@@ -172,6 +175,14 @@ export default function DetailedDossierModal({
     chapterState: DossierChapterState;
     periodEntryBackup?: AiPeriodEntry;
   } | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false);
+  const [deletedDossierUndo, setDeletedDossierUndo] = useState<{
+    chartIdentityKey: string;
+    previousRecord: StoredDossierRecord | null;
+    localChaptersSnapshot: Partial<Record<DossierChapterId, DossierChapterState>>;
+    bestPartialSnapshots: Partial<Record<DossierChapterId, DossierChapterState>>;
+    periodEntryBackups: Partial<Record<2026 | 2027, AiPeriodEntry>>;
+  } | null>(null);
   const [autoRunPass, setAutoRunPass] = useState<1 | 2>(1);
   const [autoRunSummary, setAutoRunSummary] = useState<DualFuseSummary | null>(null);
   const [retryingChapterId, setRetryingChapterId] =
@@ -235,6 +246,8 @@ export default function DetailedDossierModal({
       setSelectedChapterId('chapter_overview');
       setConfirmDeleteChapterId(null);
       setDeletedChapterUndo(null);
+      setConfirmDeleteAll(false);
+      setDeletedDossierUndo(null);
       setAutoRunSummary(null);
       setExportBlockPrompt(null);
       setConfirmedCriticalExportIds({});
@@ -1627,10 +1640,124 @@ export default function DetailedDossierModal({
     setDeletedChapterUndo(null);
   };
 
+  const isAnyBusy = autoRunning || activeGeneratingId !== null;
+  const hasAnyDeletableChapter = DOSSIER_CHAPTER_SPECS.some((spec) => {
+    const st = resolvedStatesMap[spec.id];
+    if (!st) return false;
+    return (
+      st.status !== 'idle' ||
+      Boolean(st.text && st.text.trim().length > 0) ||
+      Boolean(st.incompleteText && st.incompleteText.trim().length > 0) ||
+      Boolean(st.error)
+    );
+  });
+  const isDeleteAllActionDisabled =
+    !isHydrated ||
+    isAnyBusy ||
+    reauditingChapterId !== null ||
+    !hasAnyDeletableChapter;
+  const isDeleteAllButtonDisabled = isDeleteAllActionDisabled || confirmDeleteAll;
+
+  const handleConfirmDeleteAllChapters = () => {
+    if (isDeleteAllActionDisabled) return;
+
+    const localChaptersSnapshot: Partial<Record<DossierChapterId, DossierChapterState>> = {
+      ...localChapters,
+    };
+    const bestPartialSnapshots: Partial<Record<DossierChapterId, DossierChapterState>> = {};
+    for (const spec of DOSSIER_CHAPTER_SPECS) {
+      const sKey = buildDossierChapterCacheKey(chartIdentityKey, spec.id);
+      const bpSource = bestPartialMapRef.current.get(sKey) ?? resolvedStatesMap[spec.id];
+      const bpSnap = bpSource ? createBestPartialSnapshot(bpSource) : null;
+      if (bpSnap) {
+        bestPartialSnapshots[spec.id] = bpSnap;
+      }
+    }
+    const key2026 = buildPeriodCacheKeyForYear(chart, 2026);
+    const key2027 = buildPeriodCacheKeyForYear(chart, 2027);
+    const periodEntryBackups: Partial<Record<2026 | 2027, AiPeriodEntry>> = {};
+    if (aiPeriodCacheRef.current[key2026]) {
+      periodEntryBackups[2026] = aiPeriodCacheRef.current[key2026];
+    }
+    if (aiPeriodCacheRef.current[key2027]) {
+      periodEntryBackups[2027] = aiPeriodCacheRef.current[key2027];
+    }
+
+    const { ok, previousRecord } = removeAllDossierChaptersFromLibrary(chart);
+    if (!ok && !hasAnyDeletableChapter) {
+      return;
+    }
+
+    setLocalChapters({});
+    for (const spec of DOSSIER_CHAPTER_SPECS) {
+      bestPartialMapRef.current.delete(
+        buildDossierChapterCacheKey(chartIdentityKey, spec.id),
+      );
+    }
+
+    onAiPeriodCacheChange((prev) => {
+      if (!(key2026 in prev) && !(key2027 in prev)) return prev;
+      const next = { ...prev };
+      delete next[key2026];
+      delete next[key2027];
+      return next;
+    });
+
+    setAutoRunSummary(null);
+    setDeletedChapterUndo(null);
+    setConfirmDeleteAll(false);
+    setConfirmedCriticalExportIds({});
+    setExportBlockPrompt(null);
+    setDeletedDossierUndo({
+      chartIdentityKey,
+      previousRecord,
+      localChaptersSnapshot,
+      bestPartialSnapshots,
+      periodEntryBackups,
+    });
+    setSelectedChapterId('chapter_overview');
+  };
+
+  const handleUndoDeleteAllChapters = () => {
+    if (!deletedDossierUndo || deletedDossierUndo.chartIdentityKey !== chartIdentityKey) {
+      return;
+    }
+    const undoSnapshot = deletedDossierUndo;
+    setDeletedDossierUndo(null);
+
+    if (undoSnapshot.previousRecord) {
+      restoreDossierRecordToLibrary(chart, undoSnapshot.previousRecord);
+    }
+
+    for (const spec of DOSSIER_CHAPTER_SPECS) {
+      const snap = undoSnapshot.bestPartialSnapshots[spec.id];
+      if (snap) {
+        bestPartialMapRef.current.set(
+          buildDossierChapterCacheKey(chartIdentityKey, spec.id),
+          snap,
+        );
+      }
+    }
+
+    const entry2026 = undoSnapshot.periodEntryBackups[2026];
+    const entry2027 = undoSnapshot.periodEntryBackups[2027];
+    if (entry2026 || entry2027) {
+      const key2026 = buildPeriodCacheKeyForYear(chart, 2026);
+      const key2027 = buildPeriodCacheKeyForYear(chart, 2027);
+      onAiPeriodCacheChange((prev) => ({
+        ...prev,
+        ...(entry2026 ? { [key2026]: entry2026 } : {}),
+        ...(entry2027 ? { [key2027]: entry2027 } : {}),
+      }));
+    }
+
+    setLocalChapters(undoSnapshot.localChaptersSnapshot);
+    setSelectedChapterId('chapter_overview');
+  };
+
   if (!open) return null;
 
   const isSelectedBusy = activeGeneratingId === selectedSpec.id;
-  const isAnyBusy = autoRunning || activeGeneratingId !== null;
   const selectedMatrixHtml =
     selectedSpec.sectionId === 'horizon_5y'
       ? matrix5yHtml
@@ -1829,6 +1956,20 @@ export default function DetailedDossierModal({
                   </button>
                 )}
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDeleteChapterId(null);
+                    setConfirmDeleteAll(true);
+                  }}
+                  disabled={isDeleteAllButtonDisabled}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-rose-400 hover:border-rose-500/50 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  title="Xóa toàn bộ nội dung 8 chương luận giải của lá số đang mở"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Xóa toàn bộ (8 chương)</span>
+                </button>
+
                 <div className="w-28 h-2 rounded-full bg-[var(--t-surface)] border border-[var(--t-border)] overflow-hidden">
                   <div
                     className="h-full bg-[var(--t-gold)] transition-all duration-300"
@@ -1924,6 +2065,75 @@ export default function DetailedDossierModal({
                   >
                     Đóng
                   </button>
+                </div>
+              )}
+
+            {confirmDeleteAll && (
+              <div className="rounded-xl p-3 border border-rose-500/50 bg-rose-950/35 text-xs text-rose-100 flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-2 min-w-0 flex-1">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <div>
+                      Xóa nội dung cả 8 chương luận giải của lá số{' '}
+                      <strong>{headerMeta.name}</strong> (gồm 2 chương Lưu Niên 2026/2027)?
+                    </div>
+                    <ul className="list-disc pl-4 space-y-0.5 text-[11px] text-rose-200/90">
+                      <li>
+                        Lá số và các lá số khác trong Thư Viện không bị động. File .MD/.HTML đã xuất trước đó không bị động.
+                      </li>
+                      <li>
+                        Cache luận giải kỳ hạn 2026/2027 dùng chung với tab Vận Hạn cũng bị xóa và sẽ sinh lại khi mở tab đó.
+                      </li>
+                      <li>
+                        Bạn có thể hoàn tác ngay trong phiên mở Hồ Sơ này.
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDeleteAll(false)}
+                    className="px-2.5 py-1 rounded-md border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-[var(--t-text)] cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isDeleteAllActionDisabled}
+                    onClick={handleConfirmDeleteAllChapters}
+                    className="px-2.5 py-1 rounded-md font-semibold bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-45 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    Xác nhận xóa
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {deletedDossierUndo &&
+              deletedDossierUndo.chartIdentityKey === chartIdentityKey && (
+                <div className="rounded-xl p-3 border border-amber-500/45 bg-amber-950/30 text-xs text-amber-100 flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    Đã xóa toàn bộ luận giải 8 chương của lá số này.
+                  </span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleUndoDeleteAllChapters}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-semibold bg-[var(--t-gold)] text-slate-950 hover:opacity-95 cursor-pointer"
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span>Hoàn tác</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeletedDossierUndo(null)}
+                      className="p-1 text-amber-300/70 hover:text-amber-100 cursor-pointer"
+                      title="Ẩn thông báo"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               )}
           </header>
@@ -2071,11 +2281,12 @@ export default function DetailedDossierModal({
                       selectedState.status === 'incomplete') && (
                       <button
                         type="button"
-                        onClick={() =>
+                        onClick={() => {
+                          setConfirmDeleteAll(false);
                           setConfirmDeleteChapterId((curr) =>
                             curr === selectedSpec.id ? null : selectedSpec.id,
-                          )
-                        }
+                          );
+                        }}
                         disabled={!isHydrated || isAnyBusy}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border border-[var(--t-border)] bg-[var(--t-bg)] text-[var(--t-text2)] hover:text-rose-400 hover:border-rose-500/50 disabled:opacity-45 disabled:cursor-not-allowed transition-colors cursor-pointer whitespace-nowrap shrink-0"
                         title="Xóa riêng nội dung chương này khỏi Hồ Sơ"

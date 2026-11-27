@@ -2,12 +2,27 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.5.9` *(đồng bộ với `/VERSION` và `package.json`)*
-- **Cập nhật lần cuối**: `26/11/2026`
+- **Áp dụng cho phiên bản ứng dụng**: `1.6.0` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Cập nhật lần cuối**: `27/11/2026`
 - **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/chapter-retry.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`)
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.6.0] — 27/11/2026
+
+### Nút "Xóa Toàn Bộ Luận Giải Chi Tiết (8 Chương)" & Hoàn Tác Trong Phiên (`BRIEF-1.6.0-v2`)
+- **Tầng lưu trữ hồ sơ (`src/lib/chart-library.ts`)**:
+  - Tách helper nội bộ `deleteDossierRecordFromAllTargets(chartIdentityKey)` từ nhánh xóa sạch 4 tầng (`inMemoryDossierMirror`, `hot localStorage`, `session LRU`, `IndexedDB` / `pendingDossierDeletes` khi `hydrating`) để tái dùng chung cho cả `removeSingleDossierChapterFromLibrary` và `removeAllDossierChaptersFromLibrary`.
+  - Bổ sung `removeAllDossierChaptersFromLibrary(chart, nowMs?)` kiểm tra sự tồn tại của record trước khi xóa (trả `{ ok: false, previousRecord: null }` và không ghi/notify khi rỗng), xóa sạch cả 4 tầng, giữ nguyên entry lá số trong Thư Viện với `dossierSummary` rỗng (`createEmptyDossierSummary()`), trả `previousRecord` deep-copy.
+  - Bổ sung `restoreDossierRecordToLibrary(chart, previousRecord)` khôi phục toàn bộ section `completed`/`incomplete` (giữ nguyên `auditFlags`, `deterministicRepairs`, `reauditedForVersion`, `reauditedAt`, `meta`, `sourceBadge`) qua `persistDossierToTargets`, cập nhật `dossierSummary` và phát thông báo 1 lần.
+- **Giao diện modal Hồ Sơ 8 Chương (`src/components/DetailedDossierModal.tsx`)**:
+  - Thêm nút `"Xóa toàn bộ (8 chương)"` tại nhóm trái header ngay sau nút `Tự động tạo trọn bộ`, kèm hộp xác nhận tại chỗ liệt kê hệ quả (không đụng lá số khác/file đã xuất; xóa cache kỳ hạn 2026/2027 dùng chung với tab Vận Hạn; cho phép hoàn tác trong phiên) và banner hoàn tác toàn bộ trong phiên (`deletedDossierUndo`).
+  - Áp dụng cặp khóa tách biệt `isDeleteAllActionDisabled` (cho nút `Xác nhận xóa` + guard `handleConfirmDeleteAllChapters`) và `isDeleteAllButtonDisabled` (gồm `confirmDeleteAll`, cho nút chính trên header), tránh mở chồng 2 hộp xác nhận đơn chương/toàn bộ, dọn `confirmedCriticalExportIds`, `exportBlockPrompt`, `autoRunSummary`, `deletedChapterUndo`, cả 8 khóa KP-6 và 2 khóa `aiPeriodCache` 2026/2027 trong 1 lần updater; reset `confirmDeleteAll` và `deletedDossierUndo` khi đổi lá số.
+- **Kiểm định & Đồng bộ phiên bản (`scripts/verify-dossier-chat-ui.ts`, `VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md`)**:
+  - Cập nhật `EXPECTED_VERSION = '1.6.0'`, đồng bộ 3 chiều `1.6.0` và bổ sung `TEST-21` kiểm chứng `removeAllDossierChaptersFromLibrary` + `restoreDossierRecordToLibrary` (xóa 8 chương, giữ nguyên lá số khác, không ghi/notify khi rỗng, khôi phục deep-equal 8 spec kèm `incomplete` + `deterministicRepairs` + `auditFlags` và ranh giới không lưu section `error`, xóa khi chỉ có 3/8 chương).
 
 ---
 
