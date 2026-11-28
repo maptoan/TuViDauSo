@@ -342,9 +342,11 @@ const PALACE_NAMES_PATTERN =
   'Mệnh\\s+Cung|Mệnh|Huynh\\s+Đệ|Phu\\s+Thê|Tử\\s+Nữ|Tử\\s+Tức|Tài\\s+Bạch|Tật\\s+Ách|Thiên\\s+Di|Giao\\s+Hữu|Nô\\s+Bộc|Quan\\s+Lộc|Điền\\s+Trạch|Phúc\\s+Đức|Phụ\\s+Mẫu';
 
 const PALACE_GANZHI_MENTION_RE = new RegExp(
-  `(?<!\\p{L})Cung\\s+(?!Lưu\\b|Đại\\s+Hạn\\b|Tiểu\\s+Hạn\\b)(${PALACE_NAMES_PATTERN})\\s*(?:\\(\\s*(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})\\s*\\)|(?:tại|ở|đóng\\s+(?:tại|ở))\\s+(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})(?!\\p{L}))`,
+  `(?<!\\p{L})(?:(Cung\\s+)(?!Lưu\\b|Đại\\s+Hạn\\b|Tiểu\\s+Hạn\\b)(${PALACE_NAMES_PATTERN})\\s+(?:tại|ở|đóng\\s+(?:tại|ở))\\s+(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})(?!\\p{L})|(?:(Cung\\s+)(?!Lưu\\b|Đại\\s+Hạn\\b|Tiểu\\s+Hạn\\b))?(${PALACE_NAMES_PATTERN})\\s*\\(\\s*(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN}|${STEM_NAMES_PATTERN})\\s*\\))`,
   'giu',
 );
+
+const BARE_PERIOD_PALACE_PREFIX_RE = /(?:Lưu|Đại\s+Hạn|Tiểu\s+Hạn)\s*$/iu;
 
 export function verifyPalaceGanZhiMentions(
   text: string,
@@ -359,20 +361,33 @@ export function verifyPalaceGanZhiMentions(
     PALACE_GANZHI_MENTION_RE.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = PALACE_GANZHI_MENTION_RE.exec(block)) !== null) {
-      const rawPalace = (m[1] ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+      const isParensBranch = Boolean(m[6]);
+      if (isParensBranch && !m[5]) {
+        const immediatePrefix = block.slice(0, m.index);
+        if (BARE_PERIOD_PALACE_PREFIX_RE.test(immediatePrefix)) {
+          continue;
+        }
+      }
+
+      const rawPalace = (isParensBranch ? m[6] : m[2] ?? '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
       const palaceVi = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace);
       if (!palaceVi) continue;
 
       const expectedGanZhi = palaceGanZhiMap[palaceVi];
       if (!expectedGanZhi) continue;
 
-      const rawStem = (m[2] ?? m[4] ?? '').trim().toLowerCase();
-      const rawBranch = (m[3] ?? m[5] ?? '').trim().toLowerCase();
+      const rawStem = (isParensBranch ? m[7] : m[3] ?? '').trim().toLowerCase();
+      const rawSecond = (isParensBranch ? m[8] : m[4] ?? '').trim().toLowerCase();
       const foundStem = STEM_CANONICAL_BY_LOWER.get(rawStem);
-      const foundBranch = BRANCH_CANONICAL_BY_LOWER.get(rawBranch);
-      if (!foundStem || !foundBranch) continue;
+      const foundSecond =
+        BRANCH_CANONICAL_BY_LOWER.get(rawSecond) ??
+        (isParensBranch ? STEM_CANONICAL_BY_LOWER.get(rawSecond) : undefined);
+      if (!foundStem || !foundSecond) continue;
 
-      const foundGanZhi = `${foundStem} ${foundBranch}`;
+      const foundGanZhi = `${foundStem} ${foundSecond}`;
       if (foundGanZhi.toLowerCase() !== expectedGanZhi.trim().toLowerCase()) {
         const dedup = `${palaceVi}::${foundGanZhi}::${expectedGanZhi}`;
         if (seen.has(dedup)) continue;
@@ -1448,8 +1463,8 @@ export function shouldRetryForZeroCitations(params: {
 export const RETRY_MIN_LENGTH_RATIO = 0.8;
 
 /**
- * 1.5.9 (A): Quyết định sinh lại khi chương 2–6 hoàn tất (không bị ngắt) nhưng vẫn còn
- * ít nhất 1 cờ `severity: 'critical'` (cơ chế chung theo severity, không hardcode riêng tên cờ).
+ * 1.8.1 (QĐ-KP3-01): Quyết định sinh lại khi chương hồ sơ 1–8 hoàn tất (không bị ngắt) nhưng vẫn còn
+ * ít nhất 1 cờ `severity: 'critical'` (cơ chế chung theo severity, loại trừ chế độ chat).
  */
 export function shouldRetryForCriticalFlags(params: {
   auditFlags: readonly Kp3AuditFlag[];
@@ -1458,7 +1473,12 @@ export function shouldRetryForCriticalFlags(params: {
   alreadyRetried: boolean;
 }): boolean {
   if (params.wasInterrupted || params.alreadyRetried) return false;
-  if (params.chapterMode !== 'palace_group' && params.chapterMode !== 'period') {
+  if (
+    params.chapterMode !== 'palace_group' &&
+    params.chapterMode !== 'period' &&
+    params.chapterMode !== 'overview' &&
+    params.chapterMode !== 'horizon'
+  ) {
     return false;
   }
   return params.auditFlags.some((flag) => flag.severity === 'critical');
@@ -1997,9 +2017,236 @@ function repairIllegalKhongKiepInText(
   };
 }
 
+const GANZHI_LOCATED_PARENS_TAIL_RE = new RegExp(
+  `\\(\\s*(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN}|${STEM_NAMES_PATTERN})\\s*\\)$`,
+  'iu',
+);
+
+const GANZHI_LOCATED_PREP_TAIL_RE = new RegExp(
+  `(${STEM_NAMES_PATTERN})\\s+(${BRANCH_NAMES_PATTERN})$`,
+  'iu',
+);
+
+function buildGanzhiRetryInstructions(
+  flags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+): string {
+  const palaceGanZhiMap = derivePalaceGanZhiMapFromChart(chart);
+  const seenPalaces = new Set<string>();
+  const directives: string[] = [];
+
+  for (const flag of flags) {
+    if (flag.code !== 'PALACE_GANZHI_MISMATCH' || flag.severity !== 'critical') {
+      continue;
+    }
+    const rawPalace = flag.palaceVi?.trim();
+    if (!rawPalace) continue;
+    const canonicalPalace =
+      NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace.toLowerCase()) ?? rawPalace;
+    if (seenPalaces.has(canonicalPalace)) continue;
+    seenPalaces.add(canonicalPalace);
+
+    const expectedGanZhi = palaceGanZhiMap[canonicalPalace];
+    if (!expectedGanZhi) continue;
+
+    directives.push(
+      `Lần sinh trước ghi sai Can Chi của cung ${canonicalPalace}. Theo đúng lá số, cung ${canonicalPalace} mang Can Chi (${expectedGanZhi}). Lần này BẮT BUỘC ghi đúng Can Chi (${expectedGanZhi}) cho cung ${canonicalPalace}; tuyệt đối không gán Can Chi khác.`,
+    );
+  }
+
+  return directives.join('\n');
+}
+
+function repairPalaceGanZhiInText(
+  text: string,
+  flags: readonly Kp3AuditFlag[],
+  chart: ZiweiChart,
+  _options?: VerifyCitationAuditOptions & {
+    validCitationIdsSetUpper?: ReadonlySet<string>;
+  },
+): DeterministicRepairResult {
+  const emptyResult: DeterministicRepairResult = {
+    repairedText: text,
+    repairs: [],
+    unrepairableCases: [],
+  };
+  if (!text || !chart?.palaces?.length) return emptyResult;
+
+  const criticalFlags = flags.filter(
+    (f) => f.code === 'PALACE_GANZHI_MISMATCH' && f.severity === 'critical',
+  );
+  if (criticalFlags.length === 0) return emptyResult;
+
+  const palaceGanZhiMap = derivePalaceGanZhiMapFromChart(chart);
+  const targetPalaces = new Set<string>();
+  const flagsByCanonicalPalace = new Map<string, Kp3AuditFlag[]>();
+  const unrepairableCases: UnrepairableCriticalCase[] = [];
+
+  for (const flag of criticalFlags) {
+    const rawPalace = flag.palaceVi?.trim() ?? '';
+    const canonicalPalace =
+      NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace.toLowerCase()) ?? rawPalace;
+    if (!canonicalPalace || !palaceGanZhiMap[canonicalPalace]) {
+      unrepairableCases.push({
+        palaceVi: canonicalPalace || '(không rõ)',
+        sentence: flag.excerpt ?? flag.messageVi,
+        reason: 'missing_expected_ganzhi',
+      });
+      continue;
+    }
+    targetPalaces.add(canonicalPalace);
+    const list = flagsByCanonicalPalace.get(canonicalPalace) ?? [];
+    list.push(flag);
+    flagsByCanonicalPalace.set(canonicalPalace, list);
+  }
+
+  if (targetPalaces.size === 0) {
+    return { repairedText: text, repairs: [], unrepairableCases };
+  }
+
+  const repairs: DeterministicRepairRecord[] = [];
+  const repairedPalaces = new Set<string>();
+  const lines = text.normalize('NFC').split('\n');
+  let inMetaBlock = false;
+
+  const updatedLines = lines.map((line) => {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inMetaBlock) inMetaBlock = false;
+      return line;
+    }
+
+    if (
+      trimmed.startsWith('> 📚') ||
+      trimmed.startsWith('> ⚠️') ||
+      trimmed.startsWith('> 📌')
+    ) {
+      inMetaBlock = true;
+      return line;
+    }
+    if (inMetaBlock) {
+      if (trimmed.startsWith('>')) return line;
+      inMetaBlock = false;
+    }
+    if (isGeneratedMetaOrNoticeBlock(trimmed)) {
+      return line;
+    }
+
+    const tokens = line.split(/(?<=(?<!\d)[.!?])(\s+)/u);
+    let lineChanged = false;
+
+    for (let i = 0; i < tokens.length; i += 2) {
+      const sentence = tokens[i];
+      if (!sentence || !sentence.trim()) continue;
+
+      PALACE_GANZHI_MENTION_RE.lastIndex = 0;
+      const replacements: Array<{
+        start: number;
+        end: number;
+        replacement: string;
+        palaceVi: string;
+      }> = [];
+
+      let m: RegExpExecArray | null;
+      while ((m = PALACE_GANZHI_MENTION_RE.exec(sentence)) !== null) {
+        const isParensBranch = Boolean(m[6]);
+        if (isParensBranch && !m[5]) {
+          const immediatePrefix = sentence.slice(0, m.index);
+          if (BARE_PERIOD_PALACE_PREFIX_RE.test(immediatePrefix)) {
+            continue;
+          }
+        }
+
+        const rawPalace = (isParensBranch ? m[6] : m[2] ?? '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+        const palaceVi = NATAL_PALACE_CANONICAL_BY_LOWER.get(rawPalace);
+        if (!palaceVi || !targetPalaces.has(palaceVi)) continue;
+
+        const expectedGanZhi = palaceGanZhiMap[palaceVi];
+        if (!expectedGanZhi) continue;
+
+        const rawStem = (isParensBranch ? m[7] : m[3] ?? '').trim().toLowerCase();
+        const rawSecond = (isParensBranch ? m[8] : m[4] ?? '').trim().toLowerCase();
+        const foundStem = STEM_CANONICAL_BY_LOWER.get(rawStem);
+        const foundSecond =
+          BRANCH_CANONICAL_BY_LOWER.get(rawSecond) ??
+          (isParensBranch ? STEM_CANONICAL_BY_LOWER.get(rawSecond) : undefined);
+        if (!foundStem || !foundSecond) continue;
+
+        const foundGanZhi = `${foundStem} ${foundSecond}`;
+        if (foundGanZhi.toLowerCase() === expectedGanZhi.trim().toLowerCase()) {
+          continue;
+        }
+
+        const matchedSegment = m[0];
+        const replacedSegment = isParensBranch
+          ? matchedSegment.replace(GANZHI_LOCATED_PARENS_TAIL_RE, `(${expectedGanZhi})`)
+          : matchedSegment.replace(GANZHI_LOCATED_PREP_TAIL_RE, expectedGanZhi);
+
+        if (replacedSegment !== matchedSegment) {
+          replacements.push({
+            start: m.index,
+            end: m.index + matchedSegment.length,
+            replacement: replacedSegment,
+            palaceVi,
+          });
+        }
+      }
+
+      if (replacements.length > 0) {
+        replacements.sort((a, b) => a.start - b.start);
+        let repairedSentence = '';
+        let cursor = 0;
+        let lastPalace = replacements[0].palaceVi;
+        for (const rep of replacements) {
+          if (rep.start < cursor) continue;
+          repairedSentence += sentence.slice(cursor, rep.start) + rep.replacement;
+          cursor = rep.end;
+          lastPalace = rep.palaceVi;
+          repairedPalaces.add(rep.palaceVi);
+        }
+        repairedSentence += sentence.slice(cursor);
+
+        if (repairedSentence !== sentence) {
+          repairs.push({
+            code: 'PALACE_GANZHI_MISMATCH',
+            palaceVi: lastPalace,
+            beforeSentence: sentence.trim(),
+            afterSentence: repairedSentence.trim(),
+          });
+          tokens[i] = repairedSentence;
+          lineChanged = true;
+        }
+      }
+    }
+
+    return lineChanged ? tokens.join('') : line;
+  });
+
+  for (const [palaceVi, palaceFlags] of flagsByCanonicalPalace.entries()) {
+    if (!repairedPalaces.has(palaceVi)) {
+      for (const f of palaceFlags) {
+        unrepairableCases.push({
+          palaceVi,
+          sentence: f.excerpt ?? f.messageVi,
+          reason: 'palace_ganzhi_not_located',
+        });
+      }
+    }
+  }
+
+  return {
+    repairedText: updatedLines.join('\n'),
+    repairs,
+    unrepairableCases,
+  };
+}
+
 /**
- * 1.5.9 (§3.6): Registry mở rộng theo mã cờ critical.
- * Bản 1.5.9 chỉ cài handler cho ILLEGAL_STAR_PAIR_KHONG_KIEP; các mã khác giữ mở cho các bản sau.
+ * 1.8.1 (§3.6): Registry mở rộng theo mã cờ critical.
+ * Cài đặt handler cho ILLEGAL_STAR_PAIR_KHONG_KIEP và PALACE_GANZHI_MISMATCH.
  */
 const CRITICAL_FLAG_HANDLERS: Partial<
   Record<Kp3AuditFlagCode, CriticalFlagHandler>
@@ -2008,7 +2255,15 @@ const CRITICAL_FLAG_HANDLERS: Partial<
     buildRetryInstruction: buildKhongKiepRetryInstructions,
     applyDeterministicRepair: repairIllegalKhongKiepInText,
   },
+  PALACE_GANZHI_MISMATCH: {
+    buildRetryInstruction: buildGanzhiRetryInstructions,
+    applyDeterministicRepair: repairPalaceGanZhiInText,
+  },
 };
+
+export function hasDeterministicRepairHandler(code: Kp3AuditFlagCode): boolean {
+  return Boolean(CRITICAL_FLAG_HANDLERS[code]?.applyDeterministicRepair);
+}
 
 /**
  * 1.5.9 (§3.2): Tạo chỉ thị sinh lại riêng theo các cờ critical thực sự phát sinh từ verifier & lá số.

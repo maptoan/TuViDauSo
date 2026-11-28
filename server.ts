@@ -1412,20 +1412,33 @@ export function registerApiRoutes(app: express.Express) {
           }
         }
 
+        const criticalFlags = chosenAudit.auditFlags.filter(
+          (f) => f.severity === 'critical',
+        );
+        const initialCriticalCodes = retryResult.initialAuditFlags
+          .filter((f) => f.severity === 'critical')
+          .map((f) => f.code);
+        const finalCriticalCodes = criticalFlags.map((f) => f.code);
+
         if (retryResult.retryCount > 0 || retryResult.deterministicRepairs.length > 0) {
           console.log(
             `[interpret-dossier-section] Retry summary (${validated.sectionId}):`,
             JSON.stringify({
+              sectionId: validated.sectionId,
+              chapterMode,
               retryCount: retryResult.retryCount,
               retryReasons: retryResult.retryReasons,
+              initialCriticalCodes,
+              finalCriticalCodes,
               wordCounts: retryResult.wordCounts,
               deterministicRepairsCount: retryResult.deterministicRepairs.length,
+              at: new Date().toISOString(),
             }),
           );
         }
         if (retryResult.unrepairableCases.length > 0) {
           console.warn(
-            `[interpret-dossier-section] Unrepairable Không Kiếp cases (${validated.sectionId}):`,
+            `[interpret-dossier-section] Unrepairable critical cases (${validated.sectionId}):`,
             JSON.stringify(retryResult.unrepairableCases),
           );
         }
@@ -1437,13 +1450,21 @@ export function registerApiRoutes(app: express.Express) {
           chosenBodyForSep.length,
         );
 
-        const criticalFlags = chosenAudit.auditFlags.filter(
-          (f) => f.severity === 'critical',
-        );
         if (criticalFlags.length > 0) {
           console.warn(
             `[interpret-dossier-section] KP-3 critical flags (${criticalFlags.length}):`,
-            JSON.stringify(criticalFlags),
+            JSON.stringify({
+              sectionId: validated.sectionId,
+              chapterMode,
+              retryCount: retryResult.retryCount,
+              retryReasons: retryResult.retryReasons,
+              initialCriticalCodes,
+              finalCriticalCodes,
+              deterministicRepairs: retryResult.deterministicRepairs.length,
+              unrepairableCases: retryResult.unrepairableCases.length,
+              flags: criticalFlags,
+              at: new Date().toISOString(),
+            }),
           );
         }
         sendSseJson(res, {
@@ -1536,6 +1557,25 @@ export function registerApiRoutes(app: express.Express) {
       return;
     }
 
+    const logAuditSectionCriticalFlags = (
+      sectionIdLabel: string,
+      chapterMode: 'overview' | 'palace_group' | 'period' | 'horizon',
+      audit: ReturnType<typeof verifyAcademicCitationsAndClaims>,
+    ) => {
+      const criticalFlags = audit.auditFlags.filter((f) => f.severity === 'critical');
+      if (criticalFlags.length === 0) return;
+      console.warn(
+        `[audit-dossier-section] KP-3 critical flags (${criticalFlags.length}):`,
+        JSON.stringify({
+          sectionId: sectionIdLabel,
+          chapterMode,
+          criticalCodes: criticalFlags.map((f) => f.code),
+          flags: criticalFlags,
+          at: new Date().toISOString(),
+        }),
+      );
+    };
+
     const chart = body.chart;
     const palaceGanZhiMap = buildPalaceGanZhiMap(chart);
     const hasPeriodContext = body.periodContext !== undefined && body.periodContext !== null;
@@ -1589,6 +1629,7 @@ export function registerApiRoutes(app: express.Express) {
         palaceGanZhiMap,
       });
 
+      logAuditSectionCriticalFlags(resolvedSectionId ?? pCtx.periodId ?? 'period', 'period', audit);
       res.setHeader('Cache-Control', 'no-store');
       res.json({
         auditFlags: audit.auditFlags,
@@ -1620,6 +1661,7 @@ export function registerApiRoutes(app: express.Express) {
         palaceGanZhiMap,
       });
 
+      logAuditSectionCriticalFlags(body.sectionId, 'period', audit);
       res.setHeader('Cache-Control', 'no-store');
       res.json({
         auditFlags: audit.auditFlags,
@@ -1657,6 +1699,7 @@ export function registerApiRoutes(app: express.Express) {
       palaceGanZhiMap,
     });
 
+    logAuditSectionCriticalFlags(sectionId, chapterMode, audit);
     res.setHeader('Cache-Control', 'no-store');
     res.json({
       auditFlags: audit.auditFlags,
@@ -1759,7 +1802,12 @@ export function registerApiRoutes(app: express.Express) {
         if (criticalFlags.length > 0) {
           console.warn(
             `[interpret-chat] KP-3 critical flags (${criticalFlags.length}):`,
-            JSON.stringify(criticalFlags),
+            JSON.stringify({
+              chapterMode: 'chat',
+              criticalCodes: criticalFlags.map((f) => f.code),
+              flags: criticalFlags,
+              at: new Date().toISOString(),
+            }),
           );
         }
         sendSseJson(res, {

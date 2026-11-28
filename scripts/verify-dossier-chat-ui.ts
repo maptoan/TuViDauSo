@@ -13,7 +13,7 @@ import {
   scrubInvalidCitationTags,
   verifyAndEnsureCompletePeriodSiHua,
 } from '../src/lib/ziwei/text-sanitizer';
-import { formatChartSummaryVi } from '../src/lib/ziwei/vi-i18n';
+import { formatChartSummaryVi, translatePalaceName, VI_BRANCHES, VI_STEMS } from '../src/lib/ziwei/vi-i18n';
 import { formToBirthInfo, searchParamsToForm } from '../src/lib/ziwei/share';
 import type { BirthFormState } from '../src/lib/ziwei/types';
 import { shouldRefreshKeyPoolSnapshot } from '../src/lib/key-pool-ui';
@@ -139,7 +139,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.8.0';
+const EXPECTED_VERSION = '1.8.1';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -2131,6 +2131,7 @@ runTest('[BRIEF 1.5.7 · ĐK-157-P06/P07] Truyền reauditedForVersion/reaudited
   }
   exportStates.year_2026 = resolvedCleared;
   const exportMd = buildDossierMarkdownExport(chart, exportStates);
+  assert.ok(!exportMd.includes('0 cờ kiểm chứng'));
   assert.ok(!exportMd.includes('0 cờ cảnh báo'));
   assert.ok(!exportMd.includes('Kiểm chứng lại ngày'));
 
@@ -2138,7 +2139,7 @@ runTest('[BRIEF 1.5.7 · ĐK-157-P06/P07] Truyền reauditedForVersion/reaudited
   const panelSrc = fs.readFileSync(path.resolve(process.cwd(), 'src/components/InsightPanel.tsx'), 'utf8');
   for (const src of [modalSrc, panelSrc]) {
     assert.ok(src.includes('Kiểm tra lại'));
-    assert.ok(src.includes('0 cờ cảnh báo'));
+    assert.ok(src.includes('0 cờ kiểm chứng'));
     assert.ok(src.includes('retryingForCitations'));
     assert.ok(src.includes('replaceChapterText'));
     assert.ok(src.includes('/api/audit-dossier-section'));
@@ -2375,7 +2376,7 @@ runTest('[BRIEF 1.5.8 · T2-2] X5 phút đọc + X6 Bảng Thuật Ngữ 11 mụ
   assert.equal(sihuaCheck.patchedText.includes('Tổng Hợp Đầy Đủ Tứ Hóa Kỳ Hạn'), false);
 });
 
-runTest('[BRIEF 1.5.9 · TEST-18] shouldRetryForCriticalFlags chỉ kích hoạt với cờ severity=critical ở palace_group/period', () => {
+runTest('[BRIEF 1.8.1 · TEST-18] shouldRetryForCriticalFlags chỉ kích hoạt với cờ severity=critical ở palace_group/period/overview/horizon', () => {
   const criticalFlags = [
     {
       code: 'ILLEGAL_STAR_PAIR_KHONG_KIEP' as const,
@@ -2437,7 +2438,7 @@ runTest('[BRIEF 1.5.9 · TEST-18] shouldRetryForCriticalFlags chỉ kích hoạt
     }),
     false,
   );
-  for (const mode of ['overview', 'horizon', 'chat'] as const) {
+  for (const mode of ['overview', 'horizon'] as const) {
     assert.equal(
       shouldRetryForCriticalFlags({
         auditFlags: criticalFlags,
@@ -2445,9 +2446,18 @@ runTest('[BRIEF 1.5.9 · TEST-18] shouldRetryForCriticalFlags chỉ kích hoạt
         wasInterrupted: false,
         alreadyRetried: false,
       }),
-      false,
+      true,
     );
   }
+  assert.equal(
+    shouldRetryForCriticalFlags({
+      auditFlags: criticalFlags,
+      chapterMode: 'chat',
+      wasInterrupted: false,
+      alreadyRetried: false,
+    }),
+    false,
+  );
 });
 
 runTest('[BRIEF 1.5.9 · TEST-19] chooseBetterAudit: ưu tiên 0 mã critical mới -> ít cờ critical -> anti-deletion >= 80% từ -> nhiều trích dẫn -> hòa giữ gốc', () => {
@@ -3565,6 +3575,208 @@ runTest('[BRIEF 1.7.0 · TEST-22d] Cache in-memory (khóa đổi theo excerpt), 
 
   assert.equal(hemingSrc.includes('chapterId'), false);
   assert.equal(insightSrc.includes('chapterId'), false);
+});
+
+runTest('[BRIEF 1.8.1 · TEST-23a] shouldRetryForZeroCitations giữ nguyên phạm vi palace_group/period (khớp W5 verifier.ts:1405-1414)', () => {
+  // LƯU Ý: shouldRetryForZeroCitations chỉ áp dụng cho palace_group/period vì W5 (ZERO_CITATIONS_IN_CHAPTER)
+  // tại verifier.ts:1405-1414 chỉ đặt cờ cho 2 mode này. Nếu một ngày W5 được nới sang overview/horizon
+  // thì TEST-23a phải được cập nhật đồng thời trong cùng đợt.
+  for (const mode of ['overview', 'horizon', 'chat'] as const) {
+    assert.equal(
+      shouldRetryForZeroCitations({
+        validCitationIds: [],
+        allowedEntriesCount: 5,
+        chapterMode: mode,
+        wasInterrupted: false,
+        alreadyRetried: false,
+      }),
+      false,
+    );
+  }
+  for (const mode of ['palace_group', 'period'] as const) {
+    assert.equal(
+      shouldRetryForZeroCitations({
+        validCitationIds: [],
+        allowedEntriesCount: 5,
+        chapterMode: mode,
+        wasInterrupted: false,
+        alreadyRetried: false,
+      }),
+      true,
+    );
+  }
+});
+
+await runAsyncTest('[BRIEF 1.8.1 · TEST-23b] generateWithRetry (mock 0 token AI) ở overview: retry PALACE_GANZHI_MISMATCH, sửa xác định chung & unrepairable export gate', async () => {
+  resetKnowledgeBaseCache();
+  loadKnowledgeBase();
+
+  const chart = buildNguyenVanAn1995Chart();
+  const gzMap: Record<string, string> = {};
+  for (const p of chart.palaces) {
+    gzMap[translatePalaceName(p.name)] = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+  }
+  const actualPhuTheGz = gzMap['Phu Thê'];
+  assert.ok(actualPhuTheGz);
+  const wrongPhuTheGz = actualPhuTheGz === 'Canh Sửu' ? 'Giáp Tý' : 'Canh Sửu';
+
+  const kb = retrieveKnowledgeForDossierSection(chart, 'chapter_overview');
+  assert.ok(kb.entries.length > 0);
+  const sampleEntry = kb.entries[0];
+
+  // (i) overview dính PALACE_GANZHI_MISMATCH -> retry mang chỉ thị Can Chi, lần 2 sửa đúng -> 0 critical, initialAuditFlags ghi nhận
+  {
+    let seenPrompt = '';
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt tổng quan',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart,
+        sectionId: 'chapter_overview',
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      },
+      chapterMode: 'overview',
+      maxRetries: 2,
+      executeAttempt: async ({ attemptIndex, prompt }) => {
+        if (attemptIndex === 1) seenPrompt = prompt;
+        return {
+          rawText:
+            attemptIndex === 0
+              ? `Tổng quan lá số cho thấy Cung Phu Thê (${wrongPhuTheGz}) có nhiều chuyển biến [Nguồn: ${sampleEntry.id}].`
+              : `Tổng quan lá số cho thấy Cung Phu Thê (${actualPhuTheGz}) có nhiều chuyển biến [Nguồn: ${sampleEntry.id}].`,
+          wasInterrupted: false,
+        };
+      },
+    });
+    assert.equal(res.retryCount, 1);
+    assert.deepEqual(res.retryReasons, ['critical_flags']);
+    assert.ok(seenPrompt.includes(`cung Phu Thê mang Can Chi (${actualPhuTheGz})`));
+    assert.equal(res.initialAuditFlags.length, 1);
+    assert.equal(res.initialAuditFlags[0].code, 'PALACE_GANZHI_MISMATCH');
+    assert.equal(res.deterministicRepairs.length, 0);
+    assert.equal(
+      res.chosenAudit?.auditFlags.filter((f) => f.severity === 'critical').length,
+      0,
+    );
+  }
+
+  // (ii) Cổng sửa xác định chung (maxRetries: 0): kích hoạt ngay cho PALACE_GANZHI_MISMATCH (không hardcode KhongKiep)
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt tổng quan',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart,
+        sectionId: 'chapter_overview',
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      },
+      chapterMode: 'overview',
+      maxRetries: 0,
+      executeAttempt: async () => ({
+        rawText: `Bản đầu ghi nhầm Phu Thê (${wrongPhuTheGz}) cần chỉnh [Nguồn: ${sampleEntry.id}].`,
+        wasInterrupted: false,
+      }),
+    });
+    assert.equal(res.retryCount, 0);
+    assert.equal(res.deterministicRepairs.length, 1);
+    assert.equal(res.deterministicRepairs[0].code, 'PALACE_GANZHI_MISMATCH');
+    assert.ok(res.chosenBodyText.includes(`Phu Thê (${actualPhuTheGz})`));
+    assert.equal(
+      res.chosenAudit?.auditFlags.filter((f) => f.severity === 'critical').length,
+      0,
+    );
+  }
+
+  // (iii) Retry vẫn ghi sai -> sửa xác định cứu sạch cờ critical và ghi nhận replacedFromInitial = true
+  {
+    const res = await generateWithRetry({
+      basePrompt: 'Prompt tổng quan',
+      citationRetryAddendum: '\n\n[RETRY_CIT]',
+      allowedEntries: kb.entries,
+      verifyOptions: {
+        chart,
+        sectionId: 'chapter_overview',
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      },
+      chapterMode: 'overview',
+      maxRetries: 2,
+      executeAttempt: async () => ({
+        rawText: `Tổng quan nhắc lại Cung Phu Thê (${wrongPhuTheGz}) xuyên suốt vận trình [Nguồn: ${sampleEntry.id}].`,
+        wasInterrupted: false,
+      }),
+    });
+    assert.equal(res.retryCount, 1);
+    assert.equal(res.replacedFromInitial, true);
+    assert.equal(res.deterministicRepairs.length, 1);
+    assert.equal(res.deterministicRepairs[0].code, 'PALACE_GANZHI_MISMATCH');
+    assert.ok(res.chosenBodyText.includes(`Cung Phu Thê (${actualPhuTheGz})`));
+    assert.equal(
+      res.chosenAudit?.auditFlags.filter((f) => f.severity === 'critical').length,
+      0,
+    );
+  }
+
+  // (iv) Giả lập biến thể không sửa được còn cờ PALACE_GANZHI_MISMATCH -> collectCriticalChaptersForExport chặn chương overview
+  {
+    const chartKey = buildChartIdentityKey(chart);
+    const states = {} as Record<DossierChapterId, DossierChapterState>;
+    for (const spec of DOSSIER_CHAPTER_SPECS) {
+      states[spec.id] = {
+        chapterId: spec.id,
+        sectionCacheKey: buildDossierChapterCacheKey(chartKey, spec.id),
+        status: 'completed',
+        text: `Nội dung chuẩn cho ${spec.shortLabelVi}.`,
+      };
+    }
+    states.chapter_overview.auditFlags = [
+      {
+        code: 'PALACE_GANZHI_MISMATCH',
+        severity: 'critical',
+        palaceVi: 'Phu Thê',
+        messageVi: `Cung Phu Thê bị ghi sai thành ${wrongPhuTheGz} (đúng: ${actualPhuTheGz}).`,
+      },
+    ];
+    const criticalChapters = collectCriticalChaptersForExport(states);
+    assert.equal(criticalChapters.length, 1);
+    assert.equal(criticalChapters[0].chapterId, 'chapter_overview');
+  }
+
+  resetKnowledgeBaseCache();
+});
+
+runTest('[BRIEF 1.8.1 · TEST-23c] Kiểm tra UI nhãn "0 cờ kiểm chứng" & phân loại sửa tự động động theo record.code (cô lập "Không Kiếp")', () => {
+  const modalSrc = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/DetailedDossierModal.tsx'),
+    'utf8',
+  );
+  const panelSrc = fs.readFileSync(
+    path.resolve(process.cwd(), 'src/components/InsightPanel.tsx'),
+    'utf8',
+  );
+
+  for (const src of [modalSrc, panelSrc]) {
+    assert.ok(src.includes('0 cờ kiểm chứng'));
+    assert.equal(src.includes('0 cờ cảnh báo'), false);
+    assert.ok(src.includes('PALACE_GANZHI_MISMATCH'));
+    assert.ok(src.includes('ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+    assert.ok(src.includes('lỗi dữ kiện lá số'));
+
+    const repairBlockStart = src.lastIndexOf('deterministicRepairs.length > 0');
+    assert.ok(repairBlockStart !== -1);
+    const repairBlockSnippet = src.slice(repairBlockStart, repairBlockStart + 1800);
+    assert.ok(repairBlockSnippet.includes("code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'"));
+    assert.ok(repairBlockSnippet.includes("code === 'PALACE_GANZHI_MISMATCH'"));
+    // Chuỗi "Không Kiếp" chỉ được nằm bên trong nhánh ILLEGAL_STAR_PAIR_KHONG_KIEP
+    const khongKiepIdx = repairBlockSnippet.indexOf('Không Kiếp');
+    const branchStartIdx = repairBlockSnippet.indexOf("code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'");
+    const nextBranchIdx = repairBlockSnippet.indexOf("code === 'PALACE_GANZHI_MISMATCH'");
+    assert.ok(khongKiepIdx > branchStartIdx && khongKiepIdx < nextBranchIdx);
+  }
 });
 
 console.log(`\nKết quả verify-dossier-chat-ui: ${passed}/${total} bài kiểm chứng ĐẠT.`);

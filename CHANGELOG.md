@@ -2,12 +2,34 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.8.0` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.8.1` *(đồng bộ với `/VERSION` và `package.json`)*
 - **Cập nhật lần cuối**: `28/11/2026`
 - **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/chat-suggestions.ts`, `server/chapter-retry.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`), `BRIEF-1.8.0` (`A1`, `P-C`, `ĐK-B5-07`)
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`), `BRIEF-1.8.0` (`A1`, `P-C`, `ĐK-B5-07`), `BRIEF-1.8.1` (`QĐ-KP3-01..03`, `TEST-23a..c`, `Test 10`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.8.1] — 28/11/2026
+
+### Mở Rộng Retry & Tự Động Sửa `PALACE_GANZHI_MISMATCH`, Nới Regex W1 (`D1+D2`), Đổi Nhãn Kiểm Chứng & Log Server (`BRIEF-1.8.1`)
+- **Mở rộng Retry A sang `overview` / `horizon` (`QĐ-KP3-01`, `server/knowledge-base/verifier.ts`)**:
+  - `shouldRetryForCriticalFlags` mở cho cả `'overview'` và `'horizon'` (phủ toàn bộ chương 1–8; `'chat'` giữ `false`).
+  - `shouldRetryForZeroCitations` giữ nguyên phạm vi `'palace_group' | 'period'` (khớp W5).
+- **Handler `PALACE_GANZHI_MISMATCH` & mở cổng sửa xác định chung (`server/knowledge-base/verifier.ts`, `server/chapter-retry.ts`)**:
+  - Bổ sung `buildGanzhiRetryInstructions`, `repairPalaceGanZhiInText` (giữ nguyên Can Chi đúng, miễn trừ kỳ hạn & khối meta `> 📚`/`> ⚠️`/`> 📌`), đăng ký vào `CRITICAL_FLAG_HANDLERS.PALACE_GANZHI_MISMATCH` và xuất `hasDeterministicRepairHandler(code)`.
+  - `server/chapter-retry.ts` mở cổng sửa xác định theo `hasDeterministicRepairHandler(f.code)` thay vì chỉ riêng `"Không Kiếp"`, đồng thời ghi nhận `initialAuditFlags` trên `GenerateWithRetryResult`.
+- **Nới regex detector W1 (`QĐ-KP3-03`, `server/knowledge-base/verifier.ts`)**:
+  - **D1**: Cho phép bỏ tiền tố `"Cung"` CHỈ ở dạng ngoặc đơn (`Mệnh (Canh Dần)`, `Quan Lộc (Bính Ngọ)`), giữ bắt buộc `Cung\s+` cho dạng giới từ `tại|ở|đóng (?:tại|ở)`, kèm guard tiền tố kỳ hạn trần sát trước `/(?:Lưu|Đại\s+Hạn|Tiểu\s+Hạn)\s*$/iu`. Đã kiểm tra sạch toàn bộ mẫu prompt/fact sheet/few-shot trước khi bật.
+  - **D2**: Cho phép token thứ 2 trong ngoặc nhận `<BRANCH>|<STEM>` (bắt lỗi lặp Thiên Can như `Phụ Mẫu (Ất Ất)`).
+- **Chuẩn hóa nhãn UI & phân loại sửa tự động (`src/components/DetailedDossierModal.tsx`, `src/components/InsightPanel.tsx`)**:
+  - Đổi `"0 cờ cảnh báo"` → `"0 cờ kiểm chứng"` ở nhánh xác nhận kiểm chứng lại trên cả Hồ Sơ 8 Chương và Vận Hạn.
+  - Bỏ chuỗi hardcode `"Không Kiếp"` ở thông báo sửa tự động, phân loại động theo `record.code` (`ILLEGAL_STAR_PAIR_KHONG_KIEP`, `PALACE_GANZHI_MISMATCH`, và fallback `"lỗi dữ kiện lá số"`).
+- **Log server có cấu trúc (`server.ts`)**:
+  - Mở rộng log `[interpret-dossier-section]` với `chapterMode`, `retryCount`, `retryReasons`, `initialCriticalCodes`, `finalCriticalCodes`, `deterministicRepairs`, `unrepairableCases`, `at`; bổ sung cảnh báo `[audit-dossier-section] KP-3 critical flags` ở cả 3 nhánh `/api/audit-dossier-section` và thêm `chapterMode: 'chat'` vào `/api/interpret-chat`.
+- **Kiểm định & Đồng bộ phiên bản (`scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-chat-ui.ts`, `VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md`)**:
+  - Bổ sung Gate C `D-1..D-12` & `[Test 10]` trong `verify-knowledge-base.ts`; cập nhật `TEST-18` và bổ sung `TEST-23a..c` trong `verify-dossier-chat-ui.ts`; đồng bộ 3 chiều `1.8.1`.
 
 ---
 

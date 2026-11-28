@@ -2498,7 +2498,7 @@ export default function DetailedDossierModal({
                   <span className="inline-flex items-center gap-1.5 font-medium">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                     <span>
-                      Đã kiểm chứng lại (v{selectedState.reauditedForVersion || APP_VERSION}): 0 cờ cảnh báo
+                      Đã kiểm chứng lại (v{selectedState.reauditedForVersion || APP_VERSION}): 0 cờ kiểm chứng
                     </span>
                   </span>
                   <span className="text-[11px] font-mono text-emerald-300/80">
@@ -2509,19 +2509,36 @@ export default function DetailedDossierModal({
 
               {selectedState.status !== 'loading' &&
                 selectedState.deterministicRepairs &&
-                selectedState.deterministicRepairs.length > 0 && (
-                  <div className="rounded-xl px-3.5 py-2.5 border border-sky-500/40 bg-sky-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-sky-200">
-                    <span className="inline-flex items-center gap-1.5 font-medium">
-                      <ShieldCheck className="w-3.5 h-3.5 text-sky-300 shrink-0" />
-                      <span>
-                        Đã sửa tự động {selectedState.deterministicRepairs.length} câu gọi nhầm &quot;Không Kiếp&quot; theo đúng Tam Phương Tứ Chính trước khi lưu.
+                selectedState.deterministicRepairs.length > 0 &&
+                (() => {
+                  const countsByCode = new Map<string, number>();
+                  for (const rec of selectedState.deterministicRepairs) {
+                    countsByCode.set(rec.code, (countsByCode.get(rec.code) ?? 0) + 1);
+                  }
+                  const parts: string[] = [];
+                  for (const [code, count] of countsByCode.entries()) {
+                    if (code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP') {
+                      parts.push(`${count} câu gọi nhầm "Không Kiếp" theo đúng Tam Phương Tứ Chính`);
+                    } else if (code === 'PALACE_GANZHI_MISMATCH') {
+                      parts.push(`${count} câu ghi sai Can Chi cung theo đúng lá số`);
+                    } else {
+                      parts.push(`${count} câu lỗi dữ kiện lá số`);
+                    }
+                  }
+                  return (
+                    <div className="rounded-xl px-3.5 py-2.5 border border-sky-500/40 bg-sky-950/20 text-xs flex flex-wrap items-center justify-between gap-2 text-sky-200">
+                      <span className="inline-flex items-center gap-1.5 font-medium">
+                        <ShieldCheck className="w-3.5 h-3.5 text-sky-300 shrink-0" />
+                        <span>
+                          Đã sửa tự động {parts.join(' và ')} trước khi lưu.
+                        </span>
                       </span>
-                    </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-sky-400/40 bg-sky-950/50 text-sky-200">
-                      đã sửa tự động · chỉ hiển thị trên màn hình
-                    </span>
-                  </div>
-                )}
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded border border-sky-400/40 bg-sky-950/50 text-sky-200">
+                        đã sửa tự động · chỉ hiển thị trên màn hình
+                      </span>
+                    </div>
+                  );
+                })()}
 
               {/* Chapter Main Body by State */}
               {selectedState.status === 'loading' && (

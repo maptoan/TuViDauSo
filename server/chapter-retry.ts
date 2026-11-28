@@ -2,12 +2,14 @@ import type {
   CitationAuditResult,
   DeterministicRepairRecord,
   DistilledKnowledgeEntry,
+  Kp3AuditFlag,
 } from './knowledge-base/types.ts';
 import {
   applyDeterministicCriticalFlagRepairs,
   buildCriticalFlagRetryAddendum,
   chooseBetterAudit,
   countAuditWords,
+  hasDeterministicRepairHandler,
   shouldRetryForCriticalFlags,
   shouldRetryForZeroCitations,
   type UnrepairableCriticalCase,
@@ -60,6 +62,7 @@ export interface GenerateWithRetryResult<TMeta = unknown> {
   chosenBodyText: string;
   chosenMeta?: TMeta;
   chosenAudit: CitationAuditResult | null;
+  initialAuditFlags: Kp3AuditFlag[];
   pendingAddendumToStream: string;
   replacedFromInitial: boolean;
   wasInterrupted: boolean;
@@ -117,6 +120,7 @@ export async function generateWithRetry<TMeta = unknown>(
       chosenBodyText: initialAttempt.rawText,
       chosenMeta: initialAttempt.meta,
       chosenAudit: null,
+      initialAuditFlags: [],
       pendingAddendumToStream: '',
       replacedFromInitial: false,
       wasInterrupted: initialAttempt.wasInterrupted,
@@ -137,6 +141,9 @@ export async function generateWithRetry<TMeta = unknown>(
     initialTransformed.bodyText,
     params.allowedEntries,
     params.verifyOptions,
+  );
+  const initialAuditFlags = initialAudit.auditFlags.filter(
+    (f) => f.severity === 'critical',
   );
   const initialWordCount = countAuditWords(initialTransformed.bodyText);
 
@@ -268,9 +275,7 @@ export async function generateWithRetry<TMeta = unknown>(
   if (
     params.verifyOptions.chart &&
     chosenAudit.auditFlags.some(
-      (f) =>
-        f.severity === 'critical' &&
-        f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP',
+      (f) => f.severity === 'critical' && hasDeterministicRepairHandler(f.code),
     )
   ) {
     const repairOutcome = applyDeterministicCriticalFlagRepairs(
@@ -308,6 +313,7 @@ export async function generateWithRetry<TMeta = unknown>(
     chosenBodyText,
     chosenMeta,
     chosenAudit,
+    initialAuditFlags,
     pendingAddendumToStream,
     replacedFromInitial,
     wasInterrupted: false,

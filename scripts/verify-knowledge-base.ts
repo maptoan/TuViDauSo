@@ -31,6 +31,7 @@ import {
   applyDeterministicCriticalFlagRepairs,
   buildCriticalFlagRetryAddendum,
   chooseBetterAudit,
+  hasDeterministicRepairHandler,
   listSanFangStarsVi,
   verifyAcademicCitationsAndClaims,
   verifyDaXianStemsInText,
@@ -1236,6 +1237,82 @@ async function runVerification() {
       );
       assert.strictEqual(integratedAudit.palaceGanZhiMismatches.length, 1);
       assert.strictEqual(integratedAudit.palaceGanZhiMismatches[0].expectedGanZhi, 'Bính Ngọ');
+
+      // D-1..D-12 (BRIEF 1.8.1 · QĐ-KP3-03 — D1 + D2 mở rộng regex W1):
+      const expectedTuNu = palaceGanZhiMap['Tử Nữ'];
+      const expectedGiaoHuu = palaceGanZhiMap['Giao Hữu'];
+      const expectedPhuMau = palaceGanZhiMap['Phụ Mẫu'];
+      assert.ok(expectedTuNu && expectedTuNu !== 'Canh Dần');
+      assert.ok(expectedGiaoHuu && expectedGiaoHuu !== 'Canh Dần');
+      assert.ok(expectedPhuMau && expectedPhuMau !== 'Ất Ất');
+
+      // D-1: Bỏ "Cung" trong ngoặc — Mệnh (Canh Dần) -> bắt sai (Nhâm Dần)
+      const d1 = verifyPalaceGanZhiMentions('Xét Mệnh (Canh Dần) gặp tuần triệt.', palaceGanZhiMap);
+      assert.strictEqual(d1.length, 1);
+      assert.strictEqual(d1[0].palaceVi, 'Mệnh Cung');
+      assert.strictEqual(d1[0].foundGanZhi, 'Canh Dần');
+      assert.strictEqual(d1[0].expectedGanZhi, 'Nhâm Dần');
+
+      // D-2: Bỏ "Cung" với tên đầy đủ Mệnh Cung (Canh Dần)
+      const d2 = verifyPalaceGanZhiMentions('Mệnh Cung (Canh Dần) tọa thủ.', palaceGanZhiMap);
+      assert.strictEqual(d2.length, 1);
+      assert.strictEqual(d2[0].palaceVi, 'Mệnh Cung');
+
+      // D-3 & D-12: Bí danh Tử Tức (Canh Dần) -> Tử Nữ và bí danh Nô Bộc (Canh Dần) -> Giao Hữu
+      const d3 = verifyPalaceGanZhiMentions('Tử Tức (Canh Dần) và Nô Bộc (Canh Dần) tương hội.', palaceGanZhiMap);
+      assert.strictEqual(d3.length, 2);
+      assert.strictEqual(d3[0].palaceVi, 'Tử Nữ');
+      assert.strictEqual(d3[0].expectedGanZhi, expectedTuNu);
+      assert.strictEqual(d3[1].palaceVi, 'Giao Hữu');
+      assert.strictEqual(d3[1].expectedGanZhi, expectedGiaoHuu);
+
+      // D-4: Đúng Can Chi không có "Cung" -> 0 finding
+      assert.strictEqual(verifyPalaceGanZhiMentions('Quan Lộc (Bính Ngọ) đắc địa.', palaceGanZhiMap).length, 0);
+
+      // D-5: Cung Lưu Quan Lộc (Canh Ngọ). -> miễn trừ kỳ hạn
+      assert.strictEqual(verifyPalaceGanZhiMentions('Cung Lưu Quan Lộc (Canh Ngọ).', palaceGanZhiMap).length, 0);
+
+      // D-6: D2 — 2 Thiên Can liên tiếp trong ngoặc (Ất Ất) -> bắt cả có/không "Cung"
+      const d6a = verifyPalaceGanZhiMentions('Cung Phụ Mẫu (Ất Ất) có cát tinh.', palaceGanZhiMap);
+      assert.strictEqual(d6a.length, 1);
+      assert.strictEqual(d6a[0].palaceVi, 'Phụ Mẫu');
+      assert.strictEqual(d6a[0].foundGanZhi, 'Ất Ất');
+      assert.strictEqual(d6a[0].expectedGanZhi, expectedPhuMau);
+
+      const d6b = verifyPalaceGanZhiMentions('Phụ Mẫu (Ất Ất) có cát tinh.', palaceGanZhiMap);
+      assert.strictEqual(d6b.length, 1);
+      assert.strictEqual(d6b[0].palaceVi, 'Phụ Mẫu');
+      assert.strictEqual(d6b[0].foundGanZhi, 'Ất Ất');
+
+      // D-7: Dạng đóng tại / đóng ở có "Cung"
+      const d7a = verifyPalaceGanZhiMentions('Cung Quan Lộc đóng tại Canh Ngọ.', palaceGanZhiMap);
+      assert.strictEqual(d7a.length, 1);
+      assert.strictEqual(d7a[0].palaceVi, 'Quan Lộc');
+      const d7b = verifyPalaceGanZhiMentions('Cung Quan Lộc đóng ở Canh Ngọ.', palaceGanZhiMap);
+      assert.strictEqual(d7b.length, 1);
+      assert.strictEqual(d7b[0].palaceVi, 'Quan Lộc');
+
+      // D-8: Ranh giới chặt D1 — dạng giới từ không có "Cung" ("Quan Lộc tại Canh Ngọ") KHÔNG kích hoạt
+      assert.strictEqual(verifyPalaceGanZhiMentions('Quan Lộc tại Canh Ngọ.', palaceGanZhiMap).length, 0);
+
+      // D-9: Ranh giới chặt D2 — dạng giới từ không chấp nhận <STEM> <STEM>
+      assert.strictEqual(verifyPalaceGanZhiMentions('Cung Phụ Mẫu tại Ất Ất.', palaceGanZhiMap).length, 0);
+
+      // D-10: Tiền tố kỳ hạn trần (không có "Cung") đứng sát tên cung -> vẫn miễn trừ
+      assert.strictEqual(
+        verifyPalaceGanZhiMentions(
+          'Lưu Quan Lộc (Canh Ngọ), Đại Hạn Tài Bạch (Canh Ngọ) và Tiểu Hạn Mệnh (Canh Ngọ).',
+          palaceGanZhiMap,
+        ).length,
+        0,
+      );
+
+      // D-11: Tiền tố kỳ hạn đứng xa (có dấu phẩy xen giữa) -> vẫn bắt sai bản mệnh
+      const d11 = verifyPalaceGanZhiMentions('Lưu Niên 2026, Mệnh (Canh Mão) biến động.', palaceGanZhiMap);
+      assert.strictEqual(d11.length, 1);
+      assert.strictEqual(d11[0].palaceVi, 'Mệnh Cung');
+      assert.strictEqual(d11[0].foundGanZhi, 'Canh Mão');
+      assert.strictEqual(d11[0].expectedGanZhi, 'Nhâm Dần');
     }
 
     // ── Gate D (BRIEF 1.5.5 v2): X1, X2a–X2h, X3, Z4, Z5a–Z5d ────────────────
@@ -2339,6 +2416,157 @@ async function runVerification() {
 
       resetKnowledgeBaseCache();
       console.log('  -> ĐẠT [BRIEF 1.8.0 — ĐK-B5-07 + A1 + P-C]: Lọc giới tính (5/5 token + thường), cắt 200 ký tự & giữ chỗ Tầng 2 đạt 100%.');
+    }
+
+    // ── [Test 10] BRIEF 1.8.1 — Handler PALACE_GANZHI_MISMATCH (retry addendum, sửa xác định & unrepairableCases) ──
+    {
+      console.log('\n[BRIEF 1.8.1 · Test 10] Kiểm thử handler PALACE_GANZHI_MISMATCH & cổng sửa xác định chung...');
+      const sampleChart1977 = generateChart({
+        name: 'Mẫu 1977',
+        year: 1977,
+        month: 7,
+        day: 26,
+        hour: 5,
+        gender: 'male',
+      });
+      const gzMap: Record<string, string> = {};
+      for (const p of sampleChart1977.palaces) {
+        gzMap[translatePalaceName(p.name)] = `${VI_STEMS[p.stem]} ${VI_BRANCHES[p.branch]}`;
+      }
+      const expectedQuanLoc = gzMap['Quan Lộc'];
+      const expectedMenh = gzMap['Mệnh Cung'];
+      const expectedPhuMau = gzMap['Phụ Mẫu'];
+      assert.strictEqual(expectedQuanLoc, 'Bính Ngọ');
+      assert.strictEqual(expectedMenh, 'Nhâm Dần');
+
+      // (i) Kiểm tra registry handler
+      assert.strictEqual(hasDeterministicRepairHandler('PALACE_GANZHI_MISMATCH'), true);
+      assert.strictEqual(hasDeterministicRepairHandler('ILLEGAL_STAR_PAIR_KHONG_KIEP'), true);
+      assert.strictEqual(hasDeterministicRepairHandler('DAXIAN_STEM_MISMATCH'), false);
+
+      // (ii) Chỉ thị retry buildCriticalFlagRetryAddendum theo đúng lá số
+      const flagsForRetry = verifyAcademicCitationsAndClaims(
+        'Xét Cung Quan Lộc (Canh Ngọ) và Mệnh (Canh Dần).',
+        [],
+        { chart: sampleChart1977, chapterMode: 'overview', palaceGanZhiMap: gzMap },
+      ).auditFlags;
+      const retryAddendum = buildCriticalFlagRetryAddendum(flagsForRetry, sampleChart1977);
+      assert.ok(retryAddendum.includes(`cung Quan Lộc mang Can Chi (${expectedQuanLoc})`));
+      assert.ok(retryAddendum.includes(`cung Mệnh Cung mang Can Chi (${expectedMenh})`));
+
+      // (iii) Sửa xác định các biến thể D1 + D2 + heading + giữ thẻ [Nguồn: ...]
+      const mixedWrongText = [
+        '### Cung Quan Lộc (Canh Ngọ)',
+        'Xét Quan Lộc (Canh Ngọ) và Mệnh (Canh Dần) [Nguồn: NH-STAR-001].',
+        'Ngoài ra Cung Phụ Mẫu (Ất Ất) cùng Cung Quan Lộc đóng tại Canh Ngọ và Phụ Mẫu (Ất Ất).',
+        'Cung Lưu Quan Lộc (Canh Ngọ) và Lưu Quan Lộc (Canh Ngọ) không đổi.',
+        'Đại Hạn Tài Bạch (Canh Ngọ) giữ nguyên.',
+        '> 📚 Nguồn đối chiếu giữ nguyên dù có Cung Quan Lộc (Canh Ngọ).',
+      ].join('\n');
+
+      const preAudit = verifyAcademicCitationsAndClaims(mixedWrongText, [], {
+        chart: sampleChart1977,
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      });
+      assert.ok(preAudit.auditFlags.some((f) => f.code === 'PALACE_GANZHI_MISMATCH' && f.severity === 'critical'));
+
+      const repairRes = applyDeterministicCriticalFlagRepairs(
+        mixedWrongText,
+        preAudit.auditFlags,
+        sampleChart1977,
+        { chart: sampleChart1977, chapterMode: 'overview', palaceGanZhiMap: gzMap },
+      );
+
+      assert.ok(repairRes.repairs.length >= 3);
+      assert.ok(repairRes.repairs.every((r) => r.code === 'PALACE_GANZHI_MISMATCH'));
+      assert.ok(repairRes.repairedText.includes(`### Cung Quan Lộc (${expectedQuanLoc})`));
+      assert.ok(repairRes.repairedText.includes(`Quan Lộc (${expectedQuanLoc})`));
+      assert.ok(repairRes.repairedText.includes(`Mệnh (${expectedMenh}) [Nguồn: NH-STAR-001]`));
+      assert.ok(repairRes.repairedText.includes(`Cung Phụ Mẫu (${expectedPhuMau})`));
+      assert.ok(repairRes.repairedText.includes(`Phụ Mẫu (${expectedPhuMau})`));
+      assert.ok(repairRes.repairedText.includes(`Cung Quan Lộc đóng tại ${expectedQuanLoc}`));
+      // (iv) Miễn trừ kỳ hạn & (v) meta block giữ nguyên
+      assert.ok(repairRes.repairedText.includes('Cung Lưu Quan Lộc (Canh Ngọ)'));
+      assert.ok(repairRes.repairedText.includes('Lưu Quan Lộc (Canh Ngọ)'));
+      assert.ok(repairRes.repairedText.includes('Đại Hạn Tài Bạch (Canh Ngọ)'));
+      assert.ok(repairRes.repairedText.includes('> 📚 Nguồn đối chiếu giữ nguyên dù có Cung Quan Lộc (Canh Ngọ).'));
+
+      // Hậu kiểm lại bản đã sửa -> 0 cờ critical PALACE_GANZHI_MISMATCH
+      const postAudit = verifyAcademicCitationsAndClaims(repairRes.repairedText, [], {
+        chart: sampleChart1977,
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      });
+      assert.strictEqual(
+        postAudit.auditFlags.filter((f) => f.code === 'PALACE_GANZHI_MISMATCH').length,
+        0,
+      );
+
+      // (vi) Cờ PALACE_GANZHI_MISMATCH nhưng không định vị được trong text -> ghi unrepairableCases
+      const unrepairableRes = applyDeterministicCriticalFlagRepairs(
+        'Văn bản không chứa tên cung Can Chi nào.',
+        [
+          {
+            code: 'PALACE_GANZHI_MISMATCH',
+            severity: 'critical',
+            palaceVi: 'Quan Lộc',
+            messageVi: 'Sai Can Chi giả lập',
+            excerpt: 'Quan Lộc (Canh Ngọ)',
+          },
+        ],
+        sampleChart1977,
+      );
+      assert.strictEqual(unrepairableRes.repairs.length, 0);
+      assert.strictEqual(unrepairableRes.unrepairableCases.length, 1);
+      assert.strictEqual(unrepairableRes.unrepairableCases[0].reason, 'palace_ganzhi_not_located');
+
+      // (vii) Gộp cả 2 cờ critical (ILLEGAL_STAR_PAIR_KHONG_KIEP + PALACE_GANZHI_MISMATCH) trong cùng chương
+      const dualText =
+        '### Cung Quan Lộc (Canh Ngọ)\nTại Quan Lộc (Canh Ngọ) có Bộ Không Kiếp tác động mạnh.';
+      const dualPre = verifyAcademicCitationsAndClaims(dualText, [], {
+        chart: sampleChart1977,
+        chapterMode: 'palace_group',
+        palaceGanZhiMap: gzMap,
+      });
+      assert.ok(dualPre.auditFlags.some((f) => f.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+      assert.ok(dualPre.auditFlags.some((f) => f.code === 'PALACE_GANZHI_MISMATCH'));
+      const dualRepaired = applyDeterministicCriticalFlagRepairs(
+        dualText,
+        dualPre.auditFlags,
+        sampleChart1977,
+        { chart: sampleChart1977, chapterMode: 'palace_group', palaceGanZhiMap: gzMap },
+      );
+      assert.ok(dualRepaired.repairs.some((r) => r.code === 'ILLEGAL_STAR_PAIR_KHONG_KIEP'));
+      assert.ok(dualRepaired.repairs.some((r) => r.code === 'PALACE_GANZHI_MISMATCH'));
+      const dualPost = verifyAcademicCitationsAndClaims(dualRepaired.repairedText, [], {
+        chart: sampleChart1977,
+        chapterMode: 'palace_group',
+        palaceGanZhiMap: gzMap,
+      });
+      assert.strictEqual(
+        dualPost.auditFlags.filter((f) => f.severity === 'critical').length,
+        0,
+      );
+
+      // (viii) Không sửa nhầm Can Chi đúng khi đứng cạnh Can Chi sai
+      const mixedSameSentence = `Quan Lộc (${expectedQuanLoc}) tốt nhưng Mệnh (Canh Dần) cần chú ý.`;
+      const mixedPre = verifyAcademicCitationsAndClaims(mixedSameSentence, [], {
+        chart: sampleChart1977,
+        chapterMode: 'overview',
+        palaceGanZhiMap: gzMap,
+      });
+      const mixedRepair = applyDeterministicCriticalFlagRepairs(
+        mixedSameSentence,
+        mixedPre.auditFlags,
+        sampleChart1977,
+      );
+      assert.strictEqual(
+        mixedRepair.repairedText,
+        `Quan Lộc (${expectedQuanLoc}) tốt nhưng Mệnh (${expectedMenh}) cần chú ý.`,
+      );
+
+      console.log('  -> ĐẠT [BRIEF 1.8.1 · Test 10]: Handler PALACE_GANZHI_MISMATCH & cổng sửa xác định chung đạt 100%.');
     }
   }
 
