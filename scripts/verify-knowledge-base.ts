@@ -18,7 +18,9 @@ import {
 } from '../server/knowledge-base/loader.ts';
 import {
   KB_BUDGET_LIMITS,
+  TIER2_RESERVATION_MIN_SCORE,
   checkEffectiveStarInPalace,
+  isEntryGenderMismatch,
   retrieveKnowledgeForChat,
   retrieveKnowledgeForDossierSection,
   retrieveKnowledgeForPeriod,
@@ -2067,6 +2069,276 @@ async function runVerification() {
 
       resetKnowledgeBaseCache();
       console.log('  -> ĐẠT [BRIEF 1.5.9 — Nhóm B + §3.3 + Nhóm C]: Addendum, Chọn bản & Sửa xác định Không Kiếp đạt 100%.');
+    }
+
+    // 9. BRIEF 1.8.0 · ĐK-B5-07: Lọc lệch giới tính (P-C ii), Cắt conditionsVi 200 (P-C i) & Giữ chỗ Tầng 2 (A1)
+    {
+      console.log('\n[Test 9] Kiểm thử BRIEF 1.8.0 (ĐK-B5-07 lọc giới tính, cắt conditionsVi 200 & giữ chỗ Tầng 2 A1)...');
+      resetKnowledgeBaseCache();
+      const snap = loadKnowledgeBase();
+      const byId = new Map(snap.entries.map((e) => [e.id, e]));
+
+      const star054 = byId.get('NH-STAR-054');
+      const star050 = byId.get('NH-STAR-050');
+      const star067 = byId.get('NH-STAR-067');
+      const sihua008 = byId.get('NH-SIHUA-008');
+      const star036 = byId.get('NH-STAR-036');
+      const lowerOnlyEntry = byId.get('NH-ILL-020');
+      assert.ok(star054 && star050 && star067 && sihua008 && star036 && lowerOnlyEntry);
+
+      // 9.1 ĐK-B5-07 Unit: 5 mục có token viết hoa + 1 mục chỉ nhắc dạng thường + giới tính chưa xác định
+      assert.strictEqual(isEntryGenderMismatch(star054, 'male'), true);
+      assert.strictEqual(isEntryGenderMismatch(star054, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(star050, 'male'), true);
+      assert.strictEqual(isEntryGenderMismatch(star050, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(sihua008, 'male'), true);
+      assert.strictEqual(isEntryGenderMismatch(sihua008, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(star067, 'male'), false);
+      assert.strictEqual(isEntryGenderMismatch(star067, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(star036, 'male'), false);
+      assert.strictEqual(isEntryGenderMismatch(star036, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(lowerOnlyEntry, 'male'), false);
+      assert.strictEqual(isEntryGenderMismatch(lowerOnlyEntry, 'female'), false);
+      assert.strictEqual(isEntryGenderMismatch(star054, undefined), false);
+      assert.strictEqual(isEntryGenderMismatch(star054, null), false);
+
+      // 9.2 ĐK-B5-07 Tích hợp ở tầng ứng viên (dùng conditionsVi gốc của cả 6 mục thật)
+      const maleChart = generateChart({
+        name: 'Nam ĐK-B5-07',
+        year: 1990,
+        month: 5,
+        day: 15,
+        hour: 9,
+        gender: 'male',
+      });
+      const femaleChart = generateChart({
+        name: 'Nữ ĐK-B5-07',
+        year: 1990,
+        month: 5,
+        day: 15,
+        hour: 9,
+        gender: 'female',
+      });
+      const genderProbeCorpus = [star054, star050, star067, sihua008, star036, lowerOnlyEntry].map(
+        (entry) => ({
+          ...entry,
+          retrievalKeys: {
+            ...entry.retrievalKeys,
+            palacesVi: ['Mệnh Cung'],
+            topicTags: ['ban-menh'],
+          },
+        }),
+      );
+
+      const maleRes = retrieveKnowledgeForDossierSection(maleChart, 'chapter_overview', {
+        entries: genderProbeCorpus,
+        maxEntries: 20,
+        maxChars: 50_000,
+      });
+      const maleIds = maleRes.entries.map((e) => e.id);
+      assert.ok(!maleIds.includes('NH-STAR-054'));
+      assert.ok(!maleIds.includes('NH-STAR-050'));
+      assert.ok(!maleIds.includes('NH-SIHUA-008'));
+      assert.ok(maleIds.includes('NH-STAR-067'));
+      assert.ok(maleIds.includes('NH-STAR-036'));
+      assert.ok(maleIds.includes('NH-ILL-020'));
+
+      const femaleRes = retrieveKnowledgeForDossierSection(femaleChart, 'chapter_overview', {
+        entries: genderProbeCorpus,
+        maxEntries: 20,
+        maxChars: 50_000,
+      });
+      const femaleIds = femaleRes.entries.map((e) => e.id);
+      for (const id of ['NH-STAR-054', 'NH-STAR-050', 'NH-STAR-067', 'NH-SIHUA-008', 'NH-STAR-036', 'NH-ILL-020']) {
+        assert.ok(femaleIds.includes(id), `Lá số nữ phải giữ lại ${id}`);
+      }
+
+      // Khi chart = null (giới tính chưa xác định), không lọc mục giới tính
+      const periodCtx2026 = buildYunxianPeriodContext(maleChart, { mode: 'liunian', year: 2026 })!;
+      const nullChartCorpus = genderProbeCorpus.map((e) => ({
+        ...e,
+        retrievalKeys: { ...e.retrievalKeys, topicTags: ['van-han'] },
+      }));
+      const nullPeriodRes = retrieveKnowledgeForPeriod(null, periodCtx2026, {
+        entries: nullChartCorpus,
+        maxEntries: 20,
+        maxChars: 50_000,
+      });
+      assert.ok(nullPeriodRes.entries.some((e) => e.id === 'NH-STAR-054'));
+      assert.ok(nullPeriodRes.entries.some((e) => e.id === 'NH-SIHUA-008'));
+
+      // 9.3 P-C(i): Rút conditionsVi trong prompt còn <= 200 ký tự + '…' khi bị cắt
+      const lines = femaleRes.promptBlockMarkdown.split('\n');
+      const extractCond = (id: string) => {
+        const line = lines.find((l) => l.startsWith(`- [${id}]`));
+        assert.ok(line, `Phải tìm thấy dòng prompt của ${id}`);
+        const idx = line.indexOf(' Điều kiện: ');
+        assert.ok(idx >= 0, `${id} phải có phần Điều kiện`);
+        return line.slice(idx + ' Điều kiện: '.length);
+      };
+      const condSihua008 = extractCond('NH-SIHUA-008');
+      assert.ok(condSihua008.length <= 200, `conditionsVi cắt phải <= 200 (thực tế: ${condSihua008.length})`);
+      assert.ok(condSihua008.endsWith('…'));
+      const condStar050 = extractCond('NH-STAR-050');
+      assert.strictEqual(condStar050, star050.conditionsVi!.trim());
+      assert.ok(!condStar050.endsWith('…'));
+
+      // 9.4 A1: Giữ chỗ 1 mục Tầng 2 (score >= 575) cho hồ sơ + vận hạn, KHÔNG giữ chỗ cho chat
+      assert.strictEqual(TIER2_RESERVATION_MIN_SCORE, 575);
+      const mingPal = maleChart.palaces.find((p) => p.branch === maleChart.mingGongBranch)!;
+      const mingStar = translateStarName((mingPal.stars.find((s) => s.type === 'major') ?? mingPal.stars[0]).name);
+      const t1DominantHorizon = Array.from({ length: 8 }, (_, idx) =>
+        makeEntry(`NH-STAR-91${idx}`, {
+          starsVi: [mingStar],
+          palacesVi: ['Mệnh Cung'],
+          topicTags: ['van-han'],
+          targetDossierSections: ['horizon_5y', 'year_2026'],
+          scopeTier: 'tier1_core',
+          priorityTier: 1,
+          summaryVi: `Mục Tầng 1 chiếm trần ${idx} phân tích tinh hệ Mệnh Cung cùng Tứ Hóa vận hạn.`,
+        }),
+      );
+      const t2At575 = makeEntry('NH-METH-901', {
+        topicTags: ['van-han'],
+        targetDossierSections: ['horizon_5y', 'year_2026'],
+        category: '07-methodology',
+        scopeTier: 'tier2_extended',
+        priorityTier: 2,
+      });
+      const a1Corpus = [...t1DominantHorizon, t2At575];
+
+      const horizonA1 = retrieveKnowledgeForDossierSection(maleChart, 'horizon_5y', {
+        entries: a1Corpus,
+      });
+      assert.ok(horizonA1.entries.length <= KB_BUDGET_LIMITS.horizon_5y.maxEntries);
+      assert.ok(horizonA1.charCount <= KB_BUDGET_LIMITS.horizon_5y.maxChars);
+      assert.ok(
+        horizonA1.entries.some((e) => e.id === 'NH-METH-901'),
+        'Hồ sơ horizon_5y phải giữ chỗ được 1 mục Tầng 2 đạt ngưỡng 575',
+      );
+
+      const periodA1 = retrieveKnowledgeForPeriod(maleChart, periodCtx2026, {
+        entries: a1Corpus,
+      });
+      assert.ok(periodA1.entries.length <= KB_BUDGET_LIMITS.period.maxEntries);
+      assert.ok(periodA1.charCount <= KB_BUDGET_LIMITS.period.maxChars);
+      assert.ok(
+        periodA1.entries.some((e) => e.id === 'NH-METH-901'),
+        'Vận hạn period phải giữ chỗ được 1 mục Tầng 2 đạt ngưỡng 575',
+      );
+
+      // Chat bị loại khỏi giữ chỗ A1
+      const chatT1Dominant = Array.from({ length: 6 }, (_, idx) =>
+        makeEntry(`NH-STAR-92${idx}`, {
+          starsVi: [mingStar],
+          palacesVi: ['Mệnh Cung'],
+          topicTags: ['ban-menh'],
+          scopeTier: 'tier1_core',
+          priorityTier: 1,
+        }),
+      );
+      const chatT2Lower = makeEntry('NH-METH-902', {
+        palacesVi: ['Mệnh Cung'],
+        topicTags: ['ban-menh'],
+        category: '07-methodology',
+        scopeTier: 'tier2_extended',
+        priorityTier: 2,
+      }); // score = 200 + 200 + 25 = 425 (hoặc >= 575 nếu thêm section) -> kiểm chứng thêm 1 bản >= 575
+      const chatT2High = makeEntry('NH-METH-903', {
+        palacesVi: ['Mệnh Cung'],
+        topicTags: ['ban-menh'],
+        sihuaCombos: [{ mutagenVi: 'Hóa Lộc' }],
+        category: '07-methodology',
+        scopeTier: 'tier2_extended',
+        priorityTier: 2,
+      });
+      const chatNoReserve = retrieveKnowledgeForChat(
+        {
+          chart: maleChart,
+          contextMode: 'natal',
+          sectionTitle: 'Mệnh Cung',
+          question: `Sao ${mingStar} tại cung Mệnh và Hóa Lộc có ý nghĩa gì cho bản mệnh?`,
+        },
+        { entries: [...chatT1Dominant, chatT2Lower, chatT2High] },
+      );
+      assert.ok(chatNoReserve.entries.length <= KB_BUDGET_LIMITS.chat.maxEntries);
+      assert.ok(
+        chatNoReserve.entries.every((e) => e.scopeTier === 'tier1_core'),
+        'Luồng chat không được kích hoạt giữ chỗ A1 vượt mặt Tầng 1',
+      );
+
+      // Dưới ngưỡng 575 (score = 265) KHÔNG được giữ chỗ
+      const t1OverviewDominant = Array.from({ length: 8 }, (_, idx) =>
+        makeEntry(`NH-STAR-93${idx}`, {
+          starsVi: [mingStar],
+          palacesVi: ['Mệnh Cung'],
+          topicTags: ['ban-menh'],
+          targetDossierSections: ['chapter_overview'],
+          scopeTier: 'tier1_core',
+          priorityTier: 1,
+        }),
+      );
+      const t2Below575 = makeEntry('NH-METH-904', {
+        topicTags: ['ban-menh'],
+        targetDossierSections: ['chapter_overview'],
+        category: '07-methodology',
+        scopeTier: 'tier2_extended',
+        priorityTier: 2,
+      }); // score = 200 + 40 + 25 = 265 < 575
+      const overviewBelow = retrieveKnowledgeForDossierSection(maleChart, 'chapter_overview', {
+        entries: [...t1OverviewDominant, t2Below575],
+      });
+      assert.ok(!overviewBelow.entries.some((e) => e.id === 'NH-METH-904'));
+
+      // Vòng quota có khoảng trống thừa (1 cung không có mục khớp) -> chèn giữ chỗ Tầng 2 ngay sau vòng cung
+      const socialQuotaCorpus = [
+        ...Array.from({ length: 3 }, (_, idx) =>
+          makeEntry(`NH-STAR-94${idx}`, {
+            palacesVi: ['Phụ Mẫu'],
+            topicTags: ['phu-mau'],
+            targetDossierSections: ['palaces_social_health'],
+            scopeTier: 'tier1_core',
+            priorityTier: 1,
+          }),
+        ),
+        ...Array.from({ length: 3 }, (_, idx) =>
+          makeEntry(`NH-STAR-95${idx}`, {
+            palacesVi: ['Huynh Đệ'],
+            topicTags: ['huynh-de'],
+            targetDossierSections: ['palaces_social_health'],
+            scopeTier: 'tier1_core',
+            priorityTier: 1,
+          }),
+        ),
+        ...Array.from({ length: 3 }, (_, idx) =>
+          makeEntry(`NH-STAR-96${idx}`, {
+            palacesVi: ['Giao Hữu'],
+            topicTags: ['giao-huu'],
+            targetDossierSections: ['palaces_social_health'],
+            scopeTier: 'tier1_core',
+            priorityTier: 1,
+          }),
+        ),
+        // Cố tình để trống cung Tật Ách ở Tầng 1, chỉ có 1 mục Tầng 2 khớp qua sao/cung hoặc tag+section >= 575
+        makeEntry('NH-ILL-905', {
+          starsVi: [firstStarVi(jiePalace)],
+          palacesVi: ['Tật Ách'],
+          topicTags: ['suc-khoe'],
+          targetDossierSections: ['palaces_social_health'],
+          category: '05-illness',
+          scopeTier: 'tier2_extended',
+          priorityTier: 2,
+        }),
+      ];
+      const socialRes = retrieveKnowledgeForDossierSection(maleChart, 'palaces_social_health', {
+        entries: socialQuotaCorpus,
+      });
+      assert.ok(socialRes.entries.length <= KB_BUDGET_LIMITS.palaces_social_health.maxEntries);
+      assert.ok(socialRes.charCount <= KB_BUDGET_LIMITS.palaces_social_health.maxChars);
+      assert.ok(socialRes.entries.some((e) => e.id === 'NH-ILL-905'));
+
+      resetKnowledgeBaseCache();
+      console.log('  -> ĐẠT [BRIEF 1.8.0 — ĐK-B5-07 + A1 + P-C]: Lọc giới tính (5/5 token + thường), cắt 200 ký tự & giữ chỗ Tầng 2 đạt 100%.');
     }
   }
 

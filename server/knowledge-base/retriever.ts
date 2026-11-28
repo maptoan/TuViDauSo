@@ -406,9 +406,44 @@ export function scoreKnowledgeEntry(
   };
 }
 
+export const TIER2_RESERVATION_MIN_SCORE = 575;
+const MAX_CONDITIONS_PROMPT_CHARS = 200;
+
+function truncateConditionsForPrompt(conditionsVi: string | undefined): string {
+  const trimmed = conditionsVi?.trim();
+  if (!trimmed) return '';
+  if (trimmed.length <= MAX_CONDITIONS_PROMPT_CHARS) return trimmed;
+  return `${trimmed.slice(0, MAX_CONDITIONS_PROMPT_CHARS - 1).trimEnd()}…`;
+}
+
+export function isEntryGenderMismatch(
+  entry: Pick<DistilledKnowledgeEntry, 'conditionsVi'>,
+  chartGender?: 'male' | 'female' | null,
+): boolean {
+  if (chartGender !== 'male' && chartGender !== 'female') return false;
+  const rawConditions = entry.conditionsVi;
+  if (!rawConditions) return false;
+
+  // Step 1: Only trigger when original conditionsVi has capitalized "Nam mệnh" or "Nữ mệnh"
+  const hasCapitalMale = rawConditions.includes('Nam mệnh');
+  const hasCapitalFemale = rawConditions.includes('Nữ mệnh');
+  if (!hasCapitalMale && !hasCapitalFemale) return false;
+
+  // Step 2: Once triggered, check both genders case-insensitively so dual-gender entries are preserved
+  const lowerConditions = rawConditions.normalize('NFC').toLowerCase();
+  const mentionsMale = lowerConditions.includes('nam mệnh');
+  const mentionsFemale = lowerConditions.includes('nữ mệnh');
+  if (mentionsMale && mentionsFemale) return false;
+
+  if (mentionsFemale && !mentionsMale) return chartGender === 'male';
+  if (mentionsMale && !mentionsFemale) return chartGender === 'female';
+  return false;
+}
+
 function formatEntryForPrompt(entry: DistilledKnowledgeEntry): string {
   const tierLabel = `T${entry.priorityTier}`;
-  const condPart = entry.conditionsVi ? ` Điều kiện: ${entry.conditionsVi}` : '';
+  const truncatedConditions = truncateConditionsForPrompt(entry.conditionsVi);
+  const condPart = truncatedConditions ? ` Điều kiện: ${truncatedConditions}` : '';
   return `- [${entry.id}] **${entry.sourceRef.groupTitleVi}** (${entry.sourceRef.workTitleVi} · ${tierLabel}): ${entry.summaryVi}${condPart}`;
 }
 
@@ -417,6 +452,7 @@ function packEntriesWithinBudget(
   maxEntries: number,
   maxChars: number,
   perPalaceQuota?: { palacesVi: readonly string[]; minPerPalace: number; maxPerPalace: number },
+  tier2Reservation?: { minScore: number },
 ): {
   selected: KnowledgeScoredEntry[];
   promptBlockMarkdown: string;
@@ -444,6 +480,29 @@ function packEntriesWithinBudget(
     return true;
   };
 
+  const hasQualifyingTier2Selected = (): boolean =>
+    tier2Reservation
+      ? chosen.some(
+          (c) =>
+            c.entry.scopeTier === 'tier2_extended' &&
+            c.score >= tier2Reservation.minScore,
+        )
+      : true;
+
+  const tryReserveTier2 = (): boolean => {
+    if (!tier2Reservation || hasQualifyingTier2Selected()) return false;
+    for (const candidate of positive) {
+      if (
+        candidate.entry.scopeTier === 'tier2_extended' &&
+        candidate.score >= tier2Reservation.minScore &&
+        !chosenIds.has(candidate.entry.id)
+      ) {
+        if (tryAdd(candidate)) return true;
+      }
+    }
+    return false;
+  };
+
   if (perPalaceQuota && perPalaceQuota.palacesVi.length > 0) {
     // Round-robin phân bổ đều quota cho từng cung trong nhóm 4 cung (ĐN / QĐ-N6)
     const countByPalace = new Map<string, number>();
@@ -452,6 +511,7 @@ function packEntriesWithinBudget(
     }
 
     for (let round = 0; round < perPalaceQuota.maxPerPalace; round++) {
+      let roundHasSurplus = false;
       for (const palaceVi of perPalaceQuota.palacesVi) {
         if (chosen.length >= maxEntries) break;
         const currCount = countByPalace.get(palaceVi) ?? 0;
@@ -465,9 +525,19 @@ function packEntriesWithinBudget(
         );
         if (match && tryAdd(match)) {
           countByPalace.set(palaceVi, currCount + 1);
+        } else {
+          roundHasSurplus = true;
         }
       }
+
+      if (roundHasSurplus && tier2Reservation && !hasQualifyingTier2Selected()) {
+        tryReserveTier2();
+      }
     }
+  }
+
+  if (tier2Reservation && !hasQualifyingTier2Selected()) {
+    tryReserveTier2();
   }
 
   for (const item of positive) {
@@ -619,8 +689,13 @@ export function retrieveKnowledgeForDossierSection(
     );
   }
 
-  const scored = corpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
-  const packed = packEntriesWithinBudget(scored, maxEntries, maxChars, perPalaceQuota);
+  const filteredCorpus = corpus.filter(
+    (entry) => !isEntryGenderMismatch(entry, chart.birthInfo?.gender),
+  );
+  const scored = filteredCorpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
+  const packed = packEntriesWithinBudget(scored, maxEntries, maxChars, perPalaceQuota, {
+    minScore: TIER2_RESERVATION_MIN_SCORE,
+  });
 
   if (packed.selected.length === 0) {
     return buildEmptyResult(
@@ -731,8 +806,13 @@ export function retrieveKnowledgeForPeriod(
     );
   }
 
-  const scored = corpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
-  const packed = packEntriesWithinBudget(scored, maxEntries, maxChars);
+  const filteredCorpus = corpus.filter(
+    (entry) => !isEntryGenderMismatch(entry, chart?.birthInfo?.gender),
+  );
+  const scored = filteredCorpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
+  const packed = packEntriesWithinBudget(scored, maxEntries, maxChars, undefined, {
+    minScore: TIER2_RESERVATION_MIN_SCORE,
+  });
 
   if (packed.selected.length === 0) {
     return buildEmptyResult(
@@ -1064,7 +1144,16 @@ export function retrieveKnowledgeForChat(
     );
   }
 
-  const scored = corpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
+  const chartAGender = params.chart.birthInfo?.gender;
+  const chartBGender = params.chartB?.birthInfo?.gender;
+  const effectiveChatGender =
+    params.contextMode === 'heming' && chartBGender && chartBGender !== chartAGender
+      ? undefined
+      : chartAGender;
+  const filteredCorpus = corpus.filter(
+    (entry) => !isEntryGenderMismatch(entry, effectiveChatGender),
+  );
+  const scored = filteredCorpus.map((entry) => scoreKnowledgeEntry(entry, ctx));
   const packed = packEntriesWithinBudget(scored, maxEntries, maxChars);
 
   if (packed.selected.length === 0) {

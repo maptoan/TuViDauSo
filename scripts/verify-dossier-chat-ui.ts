@@ -139,7 +139,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.7.0';
+const EXPECTED_VERSION = '1.8.0';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();

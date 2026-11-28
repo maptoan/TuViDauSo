@@ -2,12 +2,27 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.7.0` *(đồng bộ với `/VERSION` và `package.json`)*
-- **Cập nhật lần cuối**: `27/11/2026`
+- **Áp dụng cho phiên bản ứng dụng**: `1.8.0` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Cập nhật lần cuối**: `28/11/2026`
 - **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/chat-suggestions.ts`, `server/chapter-retry.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`)
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`), `BRIEF-1.8.0` (`A1`, `P-C`, `ĐK-B5-07`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.8.0] — 28/11/2026
+
+### Cải Thiện Độ Tới Được Kho Tri Thức (A1) & Chuẩn Hóa Lọc/Rút Gọn `conditionsVi` (P-C) (`BRIEF-1.8.0`)
+- **A1 — Cơ chế giữ chỗ cho mục Tầng 2 (`server/knowledge-base/retriever.ts`)**:
+  - Bổ sung `TIER2_RESERVATION_MIN_SCORE = 575` và tham số giữ chỗ trong `packEntriesWithinBudget` cho luồng hồ sơ (`retrieveKnowledgeForDossierSection`) và vận hạn (`retrieveKnowledgeForPeriod`), loại trừ luồng chat (`retrieveKnowledgeForChat`), giữ nguyên toàn bộ trần `KB_BUDGET_LIMITS`.
+  - Với nhóm cung có `perPalaceQuota`, chèn lượt giữ chỗ ngay sau mỗi vòng cung có phần thừa quota (`roundHasSurplus`); nếu mọi vòng cung đều kín hoặc luồng không có vòng quota, thử giữ chỗ 1 lần trước vòng lấp đầy theo điểm.
+- **P-C — Rút gọn `conditionsVi` & lọc lệch giới tính (`server/knowledge-base/retriever.ts`)**:
+  - `(i)` Rút gọn `conditionsVi` trong `formatEntryForPrompt` xuống tối đa `200` ký tự (thêm `…` khi bị cắt), không dùng ngưỡng `160`.
+  - `(ii)` Bổ sung `isEntryGenderMismatch` lọc ở tầng ứng viên (trước `formatEntryForPrompt`, dùng `conditionsVi` gốc): chỉ kích hoạt khi có token viết hoa `"Nam mệnh"` hoặc `"Nữ mệnh"`, rồi kiểm tra cả hai giới không phân biệt hoa/thường để không lọc mục hai giới (`NH-STAR-067`, `NH-STAR-036`) và không lọc nhầm các mục chỉ nhắc giới tính ở dạng thường; giữ nguyên khi giới tính lá số chưa xác định hoặc chế độ `heming` ghép đôi khác giới.
+- **Kiểm định & Đồng bộ phiên bản (`scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-chat-ui.ts`, `VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md`)**:
+  - Giữ nguyên ca âm tính `K1-31` (`NH-METH-024`), bổ sung `[Test 9]` (`ĐK-B5-07` phủ đủ 5 mục token viết hoa + mục dạng thường + cắt 200 ký tự + giữ chỗ A1).
+  - Đồng bộ 3 chiều `1.8.0` và cập nhật `EXPECTED_VERSION = '1.8.0'` tại `scripts/verify-dossier-chat-ui.ts`.
 
 ---
 
