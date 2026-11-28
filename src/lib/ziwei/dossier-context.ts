@@ -407,6 +407,18 @@ export function buildPalaceGroupFactSheetVi(
   lines.push(`• Đương số: ${genderLabelVi}`);
   lines.push(`• **Ngữ cảnh Đại Hạn hiện tại**: ${sihuaInfo.currentDaXianLabelVi}`);
 
+  const curDaXianIdx =
+    typeof chart.currentDaXianIndex === 'number' ? chart.currentDaXianIndex : -1;
+  const allowedDaXianBranches = new Set<number>();
+  if (curDaXianIdx >= 0 && curDaXianIdx < chart.daXians.length) {
+    allowedDaXianBranches.add(chart.daXians[curDaXianIdx].palaceBranch);
+    if (curDaXianIdx + 1 < chart.daXians.length) {
+      allowedDaXianBranches.add(chart.daXians[curDaXianIdx + 1].palaceBranch);
+    }
+  } else if (chart.daXians.length > 0) {
+    allowedDaXianBranches.add(chart.daXians[0].palaceBranch);
+  }
+
   for (const canonicalKey of spec.palaceKeys) {
     const aliases = spec.aliases[canonicalKey] ?? [canonicalKey];
     const p = findPalaceByCanonicalKey(chart, canonicalKey, aliases);
@@ -485,16 +497,18 @@ export function buildPalaceGroupFactSheetVi(
       siHuaTags.push('[Tứ Hóa Đại Hạn] Chưa vào Đại Hạn nên không kích hoạt Tứ Hóa Đại Hạn.');
     }
 
-    // 3. Tham khảo phi hóa từ can cung hiện tại sang các cung khác (cho phân tích liên cung)
-    const palaceFlyTransforms = getSiHuaByStem(p.stem);
+    // 3. Tham khảo phi hóa từ can cung hiện tại sang các cung khác (A1: chỉ nạp cho cung Mệnh)
     const flyNotes: string[] = [];
-    for (const sh of ['禄', '忌'] as SiHua[]) {
-      const targetStarCn = palaceFlyTransforms[sh];
-      const targetPal = chart.palaces.find((x) => x.stars.some((st) => st.name === targetStarCn));
-      if (targetPal) {
-        flyNotes.push(
-          `[Phi Tinh Can Cung ${natalPalaceNameVi} (${VI_STEMS[p.stem]})] ${translateStarName(targetStarCn)} Hóa ${translateSiHua(sh)} nhập ${translatePalaceName(targetPal.name)} (${VI_BRANCHES[targetPal.branch]})`,
-        );
+    if (p.isMingGong) {
+      const palaceFlyTransforms = getSiHuaByStem(p.stem);
+      for (const sh of ['禄', '忌'] as SiHua[]) {
+        const targetStarCn = palaceFlyTransforms[sh];
+        const targetPal = chart.palaces.find((x) => x.stars.some((st) => st.name === targetStarCn));
+        if (targetPal) {
+          flyNotes.push(
+            `[Phi Tinh Can Cung ${natalPalaceNameVi} (${VI_STEMS[p.stem]})] ${translateStarName(targetStarCn)} Hóa ${translateSiHua(sh)} nhập ${translatePalaceName(targetPal.name)} (${VI_BRANCHES[targetPal.branch]})`,
+          );
+        }
       }
     }
 
@@ -533,7 +547,7 @@ export function buildPalaceGroupFactSheetVi(
       return dx ? ([dx.startAge, dx.endAge] as [number, number]) : null;
     })();
     let daXianPeriodSiHuaLine = '';
-    if (daXianRange) {
+    if (daXianRange && allowedDaXianBranches.has(p.branch)) {
       const dxStemVi = VI_STEMS[p.stem] ?? '';
       const periodTransforms = getSiHuaByStem(p.stem);
       const periodSiHuaParts = (['禄', '权', '科', '忌'] as SiHua[])
@@ -1061,8 +1075,8 @@ export function buildDossierSectionFactSheetVi(
         sectionId,
         titleVi: grp.groupTitleVi,
         factSheetMarkdown: grp.factSheetMarkdown,
-        expectedMinWords: 1000,
-        expectedMaxWords: 1400,
+        expectedMinWords: 800,
+        expectedMaxWords: 1100,
         palaceNamesVi: grp.palaces.map((p) => p.natalPalaceNameVi),
       };
     }
@@ -1072,8 +1086,8 @@ export function buildDossierSectionFactSheetVi(
         sectionId,
         titleVi: grp.groupTitleVi,
         factSheetMarkdown: grp.factSheetMarkdown,
-        expectedMinWords: 1000,
-        expectedMaxWords: 1400,
+        expectedMinWords: 800,
+        expectedMaxWords: 1100,
         palaceNamesVi: grp.palaces.map((p) => p.natalPalaceNameVi),
       };
     }
@@ -1083,8 +1097,8 @@ export function buildDossierSectionFactSheetVi(
         sectionId,
         titleVi: grp.groupTitleVi,
         factSheetMarkdown: grp.factSheetMarkdown,
-        expectedMinWords: 1000,
-        expectedMaxWords: 1400,
+        expectedMinWords: 800,
+        expectedMaxWords: 1100,
         palaceNamesVi: grp.palaces.map((p) => p.natalPalaceNameVi),
       };
     }
@@ -1094,8 +1108,8 @@ export function buildDossierSectionFactSheetVi(
         sectionId,
         titleVi: 'Chiến Lược Trung Hạn 5 Năm (2026–2030)',
         factSheetMarkdown: horizon.factSheetMarkdown,
-        expectedMinWords: 750,
-        expectedMaxWords: 1100,
+        expectedMinWords: 1600,
+        expectedMaxWords: 1900,
         horizon,
       };
     }
@@ -1105,8 +1119,8 @@ export function buildDossierSectionFactSheetVi(
         sectionId,
         titleVi: 'Đại Cục Tầm Nhìn 10 Năm (2026–2035)',
         factSheetMarkdown: `${horizon.compactMatrixMarkdown}\n\n${horizon.factSheetMarkdown}`,
-        expectedMinWords: 750,
-        expectedMaxWords: 1100,
+        expectedMinWords: 1500,
+        expectedMaxWords: 1700,
         horizon,
       };
     }

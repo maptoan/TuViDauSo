@@ -139,7 +139,7 @@ import {
   upsertLruSessionEntry,
 } from '../src/lib/dossier-chat-ui';
 
-const EXPECTED_VERSION = '1.8.1';
+const EXPECTED_VERSION = '1.9.0';
 
 class MemoryStorage implements StorageLike {
   private map = new Map<string, string>();
@@ -852,9 +852,47 @@ runTest('[PHA 2 · TEST-5] QĐ-G5 S5 (giờ chưa rõ) + Làm sạch cache cũ T
   assert.equal(execSummary.length, 5);
   assert.ok(execSummary[0].includes('Đương số') && execSummary[0].includes('cung Mệnh'));
   assert.ok(execSummary[1].includes('đương số'));
-  assert.ok(execSummary[2].includes('Tứ Hóa bản mệnh'));
+  assert.ok(
+    execSummary[2].includes('Lộc tại') &&
+      execSummary[2].includes('Quyền tại') &&
+      execSummary[2].includes('Khoa tại') &&
+      execSummary[2].includes('Hóa Kỵ'),
+    'GAP-1: câu 3 KLN phải nêu rõ vị trí Lộc/Quyền/Khoa/Kỵ bằng tiếng thường',
+  );
   assert.ok(execSummary[3].includes('2026'));
   assert.ok(execSummary[4].includes('2027'));
+
+  // GAP-1 kiểm bổ sung trên cả lá An và lá Saint: 5 câu tiếng thường, 0 mẫu kỹ thuật cũ, mỗi câu <= 60 từ, tổng 100..200 từ
+  const saintChart = generateChart({
+    name: 'Saint Test',
+    year: 1977,
+    month: 7,
+    day: 26,
+    hour: 5,
+    gender: 'male',
+    city: 'Hà Nội',
+    longitude: 105.85,
+  });
+  for (const [chartLabel, summary] of [
+    ['An', execSummary],
+    ['Saint', buildDeterministicExecutiveSummaryVi(saintChart)],
+  ] as const) {
+    assert.equal(summary.length, 5, `${chartLabel}: KLN phải đủ 5 câu`);
+    const joinedSummary = summary.join(' ');
+    assert.equal(joinedSummary.includes('Bốn sao Tứ Hóa bản mệnh (Can '), false, `${chartLabel}: còn chuỗi kỹ thuật cũ`);
+    assert.equal(
+      joinedSummary.includes('cần thận trọng và kiểm soát rủi ro kỹ lưỡng'),
+      false,
+      `${chartLabel}: còn câu chung chung cũ`,
+    );
+    assert.equal(/\bbạn\b/iu.test(joinedSummary), false, `${chartLabel}: không dùng ngôi "bạn"`);
+    for (let idx = 0; idx < summary.length; idx++) {
+      const wCount = countWordsUtf8(summary[idx]);
+      assert.ok(wCount <= 60, `${chartLabel} câu ${idx + 1} vượt 60 từ (${wCount})`);
+    }
+    const totalWords = countWordsUtf8(joinedSummary);
+    assert.ok(totalWords >= 100 && totalWords <= 200, `${chartLabel}: tổng từ KLN ngoài trần 100..200 (${totalWords})`);
+  }
 
   assert.deepEqual(BRANCH_GRID_POS[5], { row: 1, col: 1 }); // Tỵ góc trên trái
   assert.deepEqual(BRANCH_GRID_POS[8], { row: 1, col: 4 }); // Thân góc trên phải
@@ -1046,8 +1084,9 @@ runTest('[PHA 3 · TEST-8] Server Prompt Builders chứa luật Cung Lưu, đủ
   assert.ok(dossierGroupBuilt.systemInstruction.includes('TUYỆT ĐỐI KHÔNG viết dạng thường hóa sai quy chuẩn'));
 
   const horizonBuilt = buildStrictDossierSectionPrompt(anChart, 'horizon_5y');
-  assert.ok(horizonBuilt.systemInstruction.includes('Cung Lưu <Tên Cung>'));
-  assert.ok(horizonBuilt.systemInstruction.includes('đủ cả 4 sao Lưu Tứ Hóa'));
+  assert.ok(horizonBuilt.systemInstruction.includes('Cung Lưu {A}'));
+  assert.ok(horizonBuilt.systemInstruction.includes('Hóa NỔI BẬT nhất của năm'));
+  assert.ok(horizonBuilt.systemInstruction.includes('KHÔNG liệt kê đủ 4 Hóa trong khối năm'));
 });
 
 runTest('[BỔ SUNG QĐ-G5 · TEST-9] Nối dây origInput trong formToBirthInfo (10:30, unknownTime, Tý muộn 23:30)', () => {

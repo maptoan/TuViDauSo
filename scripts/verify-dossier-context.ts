@@ -437,19 +437,24 @@ async function runTests() {
       includeHorizonEnd: 2035,
     });
 
-    // A1: Tứ Hóa Đại Hạn theo kỳ ở fact sheet nhóm cung
+    // A1 (GAP-2 1.9.0): Fact-sheet nhóm cung chỉ nạp dòng Kỳ của 2 cung Đại Hạn hiện tại + kế tiếp, và flyNotes chỉ nạp ở cung Mệnh
     assert.ok(
-      fam1977.includes('[Tứ Hóa Đại Hạn Kỳ 24–33 (đóng tại Phu Thê · Can Nhâm)]'),
-      'palaces_family phải có dòng Tứ Hóa Đại Hạn Kỳ 24–33 tại Phu Thê Can Nhâm',
+      !fam1977.includes('[Tứ Hóa Đại Hạn Kỳ '),
+      'palaces_family không được nạp dòng Tứ Hóa Đại Hạn Kỳ (chỉ hiện tại + kế tiếp)',
     );
-    assert.ok(fam1977.includes('Thiên Lương Hóa Lộc → Quan Lộc'));
-    assert.ok(fam1977.includes('Tử Vi Hóa Quyền → Phụ Mẫu'));
-    assert.ok(fam1977.includes('Tả Phù Hóa Khoa → Tật Ách'));
-    assert.ok(fam1977.includes('Vũ Khúc Hóa Kỵ → Tử Nữ'));
     assert.ok(
       core1977.includes('[Tứ Hóa Đại Hạn Kỳ 44–53 (đóng tại Tài Bạch · Can Canh)]'),
       'palaces_core phải có dòng Tứ Hóa Đại Hạn Kỳ 44–53 tại Tài Bạch Can Canh',
     );
+    assert.ok(
+      soc1977.includes('[Tứ Hóa Đại Hạn Kỳ 54–63 (đóng tại Tật Ách · Can Kỷ)]'),
+      'palaces_social_health phải có dòng Tứ Hóa Đại Hạn Kỳ 54–63 tại Tật Ách Can Kỷ',
+    );
+    assert.equal((core1977.match(/\[Tứ Hóa Đại Hạn Kỳ /g) ?? []).length, 1);
+    assert.equal((soc1977.match(/\[Tứ Hóa Đại Hạn Kỳ /g) ?? []).length, 1);
+    assert.ok(core1977.includes('[Phi Tinh Can Cung Mệnh Cung'));
+    assert.ok(!fam1977.includes('[Phi Tinh Can Cung '));
+    assert.ok(!soc1977.includes('[Phi Tinh Can Cung '));
     assert.ok(!ov1977.includes('[Tứ Hóa Đại Hạn Kỳ '), 'chapter_overview không chèn dòng từng kỳ A1');
     assert.ok(!chat1977.includes('[Tứ Hóa Đại Hạn Kỳ '), 'bảng chat không chèn dòng từng kỳ A1');
 
@@ -461,7 +466,7 @@ async function runTests() {
 
     // A3 & A6 prompt rules
     const famPrompt1977 = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
-    assert.ok(famPrompt1977.systemInstruction.includes('Thẻ [Tứ Hóa Đại Hạn HIỆN TẠI ...] chỉ áp dụng cho kỳ hiện tại'));
+    assert.ok(famPrompt1977.systemInstruction.includes('Chỉ viết dòng Kỳ của kỳ hiện tại và kỳ kế tiếp'));
     assert.ok(famPrompt1977.systemInstruction.includes('đương số nam thì không dùng khuôn diễn đạt dành cho nữ'));
 
     // A4: Can Chi đầy đủ trên dòng sao lưu trong yunxian-context
@@ -615,9 +620,9 @@ async function runTests() {
       'Y6d/P7: không chèn Can Chi vào dynamicStarsSummaryVi',
     );
 
-    // Z1 + P4: prompt nhóm cung chỉ phân tích Đại Hạn hiện tại và kế tiếp + Không Kiếp
+    // Z1 + P4 + GAP-2: prompt nhóm cung chỉ viết dòng Kỳ hiện tại/kế tiếp + Không Kiếp
     const groupPrompt = buildStrictDossierSectionPrompt(sample1977, 'palaces_family');
-    assert.ok(groupPrompt.systemInstruction.includes('Chỉ phân tích Đại Hạn hiện tại và kế tiếp'));
+    assert.ok(groupPrompt.systemInstruction.includes('Chỉ viết dòng Kỳ của kỳ hiện tại và kỳ kế tiếp'));
     assert.ok(groupPrompt.systemInstruction.includes('chỉ cặp Địa Không + Địa Kiếp'));
 
     // Z2 & Z4: prompt kỳ hạn chứa sàn 900–1.300 từ, tên sao+độ sáng, Không Kiếp, và KHÔNG hardcode 1977
@@ -844,7 +849,11 @@ async function runTests() {
       assert.ok(sys.includes('≤ 30 từ'), `${label}: thiếu chỉ thị P1 ≤ 30 từ`);
       assert.ok(sys.includes('≤ 60 từ'), `${label}: thiếu chỉ thị P1 ≤ 60 từ`);
       assert.ok(sys.includes('≤ 120 từ'), `${label}: thiếu chỉ thị P1 ≤ 120 từ`);
+      assert.ok(sys.includes('≤ 100 từ'), `${label}: thiếu chỉ thị P5 mỗi gạch ≤ 100 từ`);
       assert.ok(sys.includes('vì sao'), `${label}: thiếu chỉ thị P2 vì sao`);
+      assert.ok(sys.includes('sao tốt / sao xấu'), `${label}: thiếu chỉ thị P3 sao tốt / sao xấu`);
+      assert.ok(sys.includes('tối đa 1 nhãn [Độ sáng]'), `${label}: thiếu chỉ thị P3 tối đa 1 nhãn độ sáng`);
+      assert.ok(sys.includes('không in thô'), `${label}: thiếu chỉ thị P3 ẩn nhãn kỹ thuật`);
       assert.ok(sys.includes('đương số'), `${label}: thiếu chỉ thị P7 đương số`);
       assert.ok(sys.includes('CẤM dùng "bạn"'), `${label}: thiếu chỉ thị P7 cấm "bạn"`);
       assert.ok(sys.includes('1 tên duy nhất'), `${label}: thiếu chỉ thị D2 cách cục 1 tên duy nhất`);
@@ -857,23 +866,79 @@ async function runTests() {
       assert.ok(built.systemInstruction.includes('không thêm thông tin ngoài gốc'));
     }
 
-    // Kiểm tra riêng P2/P4/P9 nhóm cung
+    // Kiểm tra riêng P2/P4/P9 nhóm cung + GAP-2
     for (const groupBuilt of [coreBuilt, famBuilt, socBuilt]) {
       assert.ok(groupBuilt.systemInstruction.includes('kết luận in đậm'));
       assert.ok(groupBuilt.systemInstruction.includes('chỉ giữ nhãn [Đại hạn'));
-      assert.ok(groupBuilt.systemInstruction.includes('mọi đoạn phi tinh còn lại BỎ'));
+      assert.ok(groupBuilt.systemInstruction.includes('Chỉ viết dòng Kỳ của kỳ hiện tại và kỳ kế tiếp'));
+      assert.ok(groupBuilt.systemInstruction.includes('mọi đoạn phi tinh 11 cung còn lại BỎ'));
       assert.ok(groupBuilt.systemInstruction.includes('150–250 từ MỖI cung'));
       assert.ok(groupBuilt.systemInstruction.includes('800–1.100 từ'));
     }
 
-    // Kiểm tra P6 & P9 ch.1, ch.7, ch.8, kỳ hạn
+    // Kiểm tra P5/P6/P9 + GAP-3/4/5/7 trên ch.1, ch.7, ch.8, kỳ hạn
     assert.ok(ovBuilt.systemInstruction.includes('900–1.100 từ'));
+    assert.equal(ovBuilt.systemInstruction.includes('Ngũ Hành Cục'), false, 'GAP-7: prompt ch.1 không chứa Ngũ Hành Cục');
+    assert.ok(ovBuilt.systemInstruction.includes('Không lặp lại Kim Tứ Cục / Mệnh Chủ / Thân Chủ'));
     assert.ok(h5Built.systemInstruction.includes('1.600–1.900 từ'));
+    assert.ok(h5Built.systemInstruction.includes('Cấm lặp câu "Lưu Niên đi qua cung chức năng phụ trợ của Đại Hạn"'));
+    assert.ok(h5Built.systemInstruction.includes('Hóa NỔI BẬT nhất của năm'));
+    assert.ok(h5Built.systemInstruction.includes('KHÔNG liệt kê đủ 4 Hóa trong khối năm'));
     assert.ok(h10Built.systemInstruction.includes('1.500–1.700 từ'));
     assert.ok(h10Built.systemInstruction.includes('chỉ viết 5 khối năm sau ch.7'));
     assert.ok(periodBuilt.systemInstruction.includes('900–1.300 từ'));
+    assert.ok(periodBuilt.systemInstruction.includes('4 gạch đầu dòng'), 'D-1 P5: period có 4 gạch đầu dòng');
 
-    // Kiểm tra chat prompt giữ nguyên không chứa chỉ thị mới 1.5.8
+    // GAP-4: Can năm vs Can Chi cung rõ ràng trên period, ch.7, ch.8
+    for (const hBuilt of [periodBuilt, h5Built, h10Built]) {
+      assert.ok(hBuilt.systemInstruction.includes('Tên cung LUÔN giữ can-chi'));
+      assert.ok(hBuilt.systemInstruction.includes('KHÔNG ghi can năm'));
+    }
+
+    // GAP-6: expectedMinWords / expectedMaxWords khớp mục tiêu prompt
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'chapter_overview').expectedMinWords, 750);
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'chapter_overview').expectedMaxWords, 1100);
+    for (const gSec of ['palaces_core', 'palaces_family', 'palaces_social_health'] as const) {
+      const gCtx = buildDossierSectionFactSheetVi(sample1977, gSec);
+      assert.equal(gCtx.expectedMinWords, 800);
+      assert.equal(gCtx.expectedMaxWords, 1100);
+    }
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'horizon_5y').expectedMinWords, 1600);
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'horizon_5y').expectedMaxWords, 1900);
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'horizon_10y').expectedMinWords, 1500);
+    assert.equal(buildDossierSectionFactSheetVi(sample1977, 'horizon_10y').expectedMaxWords, 1700);
+
+    // GAP-2 bổ sung: lá An (16/08/1995) & lá trẻ em (2024 chưa vào Đại Hạn) chỉ nạp Kỳ đúng quy tắc
+    const an1995 = generateChart({
+      name: 'Nguyễn Văn An',
+      year: 1995,
+      month: 8,
+      day: 16,
+      hour: 7,
+      gender: 'male',
+      city: 'Hà Nội',
+      longitude: 105.85,
+    });
+    const anAllGroupMd = (['core', 'family', 'social_health'] as const)
+      .map((g) => buildPalaceGroupFactSheetVi(an1995, g).factSheetMarkdown)
+      .join('\n');
+    assert.equal((anAllGroupMd.match(/\[Tứ Hóa Đại Hạn Kỳ /g) ?? []).length, 2, 'Lá An chỉ nạp đúng 2 dòng Kỳ');
+    assert.equal((anAllGroupMd.match(/\[Phi Tinh Can Cung /g) ?? []).length, 2, 'Lá An chỉ nạp flyNotes (Lộc/Kỵ) ở cung Mệnh');
+
+    const child2024 = generateChart({
+      name: 'Bé 2024',
+      year: 2024,
+      month: 6,
+      day: 15,
+      hour: 4,
+      gender: 'male',
+    });
+    const childAllGroupMd = (['core', 'family', 'social_health'] as const)
+      .map((g) => buildPalaceGroupFactSheetVi(child2024, g).factSheetMarkdown)
+      .join('\n');
+    assert.equal((childAllGroupMd.match(/\[Tứ Hóa Đại Hạn Kỳ /g) ?? []).length, 1, 'Lá chưa vào Đại Hạn chỉ nạp 1 dòng Kỳ đầu tiên');
+
+    // Kiểm tra chat prompt giữ nguyên không chứa chỉ thị mới 1.5.8/1.9.0
     const chatBuilt = buildStrictExplanationChatPrompt({
       chart: sample1977,
       contextMode: 'natal',
@@ -884,7 +949,7 @@ async function runTests() {
     });
     assert.equal(chatBuilt.systemInstruction.includes('CẤM dùng "bạn"'), false);
     assert.equal(chatBuilt.systemInstruction.includes('chỉ viết 5 khối năm sau ch.7'), false);
-    assert.equal(chatBuilt.systemInstruction.includes('mọi đoạn phi tinh còn lại BỎ'), false);
+    assert.equal(chatBuilt.systemInstruction.includes('mọi đoạn phi tinh 11 cung còn lại BỎ'), false);
 
     // Đo 7 bề mặt Fact Sheet giữ nguyên trần 1.5.7
     const fsOv = buildNatalOverviewFactSheetVi(sample1977).factSheetMarkdown.length;

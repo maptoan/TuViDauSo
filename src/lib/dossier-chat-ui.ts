@@ -40,6 +40,7 @@ import {
 } from './ziwei/vi-i18n';
 import { hasValidCachedPeriodEntry } from './key-pool-ui';
 import { APP_VERSION } from './app-version';
+import { STAR_DESCRIPTIONS } from './ziwei/constants';
 
 export { APP_VERSION };
 
@@ -2174,8 +2175,65 @@ export function buildDossierQuickHeaderLines(chart: ZiweiChart): {
   return { mingLine, shenLine, daXianLine };
 }
 
+function formatMingStrengthClauseVi(mingPal: Palace): string {
+  const majors = mingPal.stars.filter((s) => s.type === 'major').map((s) => s.name);
+  const starPool = majors.length > 0 ? majors : (mingPal.borrowedStars ?? []);
+  if (starPool.length === 0) return '';
+
+  const phrases = starPool
+    .slice(0, 2)
+    .map((cn) => {
+      const kw = STAR_DESCRIPTIONS[cn]?.keywords;
+      if (!kw) return null;
+      const parts = kw
+        .split('·')
+        .map((x) => x.trim().toLowerCase())
+        .filter(Boolean);
+      const limit = starPool.length > 1 ? 2 : 3;
+      return parts.slice(0, limit).join(', ');
+    })
+    .filter((x): x is string => Boolean(x));
+
+  if (phrases.length === 0) return '';
+  const prefix = majors.length > 0 ? 'điểm mạnh nổi bật là' : 'điểm tựa nổi bật (mượn sao đối cung) là';
+  return ` — ${prefix} ${phrases.join(' và ')}`;
+}
+
+function getNextYearAdviceFromKyPalaceVi(natalPalaceNameVi: string): string {
+  switch (natalPalaceNameVi) {
+    case 'Mệnh':
+    case 'Mệnh Cung':
+      return 'giữ nhịp sống ổn định, tránh ôm đồm quá sức.';
+    case 'Huynh Đệ':
+      return 'giữ chừng mực trong quan hệ anh em, bạn bè thân cận và tránh đứng ra bảo lãnh tài chính.';
+    case 'Phu Thê':
+      return 'lắng nghe và trao đổi thẳng thắn trong gia đạo, tránh nóng vội khi bàn chuyện lớn.';
+    case 'Tử Tức':
+      return 'dành thời gian theo sát con cái hoặc các kế hoạch hợp tác mới, làm từng bước chắc.';
+    case 'Tài Bạch':
+      return 'giữ tiền chắc, tránh hùn hạp lớn và đọc kỹ giấy tờ trước khi quyết định chi tiêu.';
+    case 'Tật Ách':
+      return 'chú ý giữ gìn sức khỏe, ngủ nghỉ điều độ và tránh làm việc quá tải.';
+    case 'Thiên Di':
+      return 'cẩn trọng khi đi xa, giao dịch bên ngoài và kiểm tra kỹ thông tin đối tác.';
+    case 'Giao Hữu':
+    case 'Nô Bộc':
+      return 'chọn lọc người hợp tác, giữ rạch ròi tiền bạc với bạn bè và không đứng ra bảo lãnh.';
+    case 'Quan Lộc':
+      return 'tập trung làm chắc việc đang có, đọc kỹ điều khoản công việc và tránh nhảy việc vội vàng.';
+    case 'Điền Trạch':
+      return 'thận trọng với các khoản chi cho nhà cửa, đất đai và kiểm tra kỹ giấy tờ pháp lý.';
+    case 'Phúc Đức':
+      return 'giữ tâm thế bình tĩnh, tránh để lo âu chi phối các quyết định thực tế.';
+    case 'Phụ Mẫu':
+      return 'quan tâm sức khỏe người lớn trong nhà và giữ thái độ mềm mỏng khi trao đổi với cấp trên.';
+    default:
+      return 'giữ nhịp làm việc chắc chắn và kiểm tra kỹ các cam kết quan trọng.';
+  }
+}
+
 /**
- * P10 (Nhánh B 1.5.8): Khối Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu tự nhiên).
+ * P10 (Nhánh B 1.9.0): Khối Kết Luận Nhanh — Cốt Tủy Lá Số (5 Câu tiếng thường).
  * Dùng ngôi xưng "đương số" (0 lần "bạn"), chỉ chứa dữ kiện xác định từ engine.
  */
 export function buildDeterministicExecutiveSummaryVi(
@@ -2192,6 +2250,7 @@ export function buildDeterministicExecutiveSummaryVi(
   const mingPal = chart.palaces.find((p) => p.branch === chart.mingGongBranch) ?? chart.palaces[0];
   const shenPal = chart.palaces.find((p) => p.branch === chart.shenGongBranch) ?? chart.palaces[0];
   const mingMajorsDesc = formatPalaceMajorsSummaryPlain(mingPal);
+  const mingStrengthClause = formatMingStrengthClauseVi(mingPal);
   const shenPalaceNameVi = translatePalaceName(shenPal.name);
 
   const timeClause = info.hasExactBirthTime
@@ -2200,25 +2259,32 @@ export function buildDeterministicExecutiveSummaryVi(
       : `lúc ${info.clockTimeVi} (giờ ${info.hourBranchNameVi})`
     : `trong trường hợp chưa rõ giờ đồng hồ gốc (tạm an giờ ${info.hourBranchNameVi})`;
 
-  const sentence1 =
-    mingPal.branch === shenPal.branch
-      ? `Đương số (${info.yinYang}, ${info.ju}) sinh ngày ${info.solar} ${timeClause}, có cung Mệnh và cung Thân đồng cung tại ${VI_BRANCHES[mingPal.branch]} (${VI_STEMS[mingPal.stem]} ${VI_BRANCHES[mingPal.branch]}) với chính tinh ${mingMajorsDesc}.`
-      : `Đương số (${info.yinYang}, ${info.ju}) sinh ngày ${info.solar} ${timeClause}, có cung Mệnh đóng tại ${VI_BRANCHES[mingPal.branch]} (${VI_STEMS[mingPal.stem]} ${VI_BRANCHES[mingPal.branch]}) với chính tinh ${mingMajorsDesc}, còn cung Thân của đương số đóng tại cung ${shenPalaceNameVi} ở ${VI_BRANCHES[shenPal.branch]}.`;
+  const sentence1 = `Đương số sinh ngày ${info.solar} ${timeClause}, có cung Mệnh tại ${VI_BRANCHES[mingPal.branch]} với chính tinh ${mingMajorsDesc}${mingStrengthClause}.`;
 
   const sentence2 = getShenPalaceMeaningSentenceVi(shenPal.name, shenPalaceNameVi);
 
   const natalStemIdx = chart.lunarInfo.yearStem;
-  const natalStemVi = VI_STEMS[natalStemIdx] ?? '';
-  const natalGanZhiVi = `${natalStemVi} ${VI_BRANCHES[chart.lunarInfo.yearBranch] ?? ''}`;
   const natalTransforms = getSiHuaByStem(natalStemIdx);
-  const describeNatalTransform = (key: SiHua): string => {
+  const locateNatalTransform = (key: SiHua): { starVi: string; palNameVi: string; palCleanKey: string } => {
     const starCn = natalTransforms[key];
     const starVi = starCn ? translateStarName(starCn) : 'Không rõ';
     const pal = starCn ? chart.palaces.find((p) => p.stars.some((s) => s.name === starCn)) : undefined;
-    const palVi = pal ? translatePalaceName(pal.name) : 'chưa rõ cung';
-    return `${starVi} Hóa ${translateSiHua(key)} tại ${palVi}`;
+    const palNameVi = pal ? translatePalaceName(pal.name) : 'chưa rõ cung';
+    const palCleanKey = pal ? pal.name.replace(/宫$/u, '') : '';
+    return { starVi, palNameVi, palCleanKey };
   };
-  const sentence3 = `Bốn sao Tứ Hóa bản mệnh (Can ${natalStemVi} năm ${natalGanZhiVi}) của đương số gồm ${describeNatalTransform('禄')}, ${describeNatalTransform('权')}, ${describeNatalTransform('科')}, và ${describeNatalTransform('忌')}.`;
+  const natalLoc = locateNatalTransform('禄');
+  const natalQuyen = locateNatalTransform('权');
+  const natalKhoa = locateNatalTransform('科');
+  const natalKy = locateNatalTransform('忌');
+  const mainAxisKeys = new Set(['命', '财帛', '官禄', '迁移']);
+  const allThreeOnMainAxis =
+    mainAxisKeys.has(natalLoc.palCleanKey) &&
+    mainAxisKeys.has(natalQuyen.palCleanKey) &&
+    mainAxisKeys.has(natalKhoa.palCleanKey);
+  const sentence3 = allThreeOnMainAxis
+    ? `Ba luồng thuận lợi chính của đương số hội tụ trên trục Mệnh – Tài – Quan – Di: Lộc tại ${natalLoc.palNameVi} (${natalLoc.starVi}), Quyền tại ${natalQuyen.palNameVi} (${natalQuyen.starVi}), Khoa tại ${natalKhoa.palNameVi} (${natalKhoa.starVi}); còn điểm cần lưu tâm nằm ở ${natalKy.palNameVi} (${natalKy.starVi} Hóa Kỵ).`
+    : `Ba luồng thuận lợi chính của đương số phân bổ qua Lộc tại ${natalLoc.palNameVi} (${natalLoc.starVi}), Quyền tại ${natalQuyen.palNameVi} (${natalQuyen.starVi}), Khoa tại ${natalKhoa.palNameVi} (${natalKhoa.starVi}); còn điểm dễ vướng bận nằm ở ${natalKy.palNameVi} (${natalKy.starVi} Hóa Kỵ).`;
 
   const nominalAgeFocus = focusYear - chart.lunarInfo.lunarYear + 1;
   const dxIdxFocus = resolveEffectiveDaXianIndex(chart, 'liunian', focusYear);
@@ -2227,7 +2293,7 @@ export function buildDeterministicExecutiveSummaryVi(
     dxIdxFocus >= 0 && chart.daXians[dxIdxFocus]
       ? `đại hạn ${chart.daXians[dxIdxFocus].startAge}–${chart.daXians[dxIdxFocus].endAge} tuổi tại cung ${translatePalaceName(chart.daXians[dxIdxFocus].palaceName)}`
       : 'trạng thái chưa vào Đại Hạn';
-  const sentence4 = `Năm ${focusYear} (${nominalAgeFocus} tuổi âm${pCtxFocus ? `, năm ${pCtxFocus.ganZhiVi}` : ''}), đương số đang ở ${dxFocusLabel}${pCtxFocus ? ` với Lưu Mệnh đóng tại ${VI_BRANCHES[pCtxFocus.branchIndex]} kích hoạt trực tiếp cung gốc ${pCtxFocus.activatedPalace.natalPalaceNameVi}` : ''}.`;
+  const sentence4 = `Năm ${focusYear} (${nominalAgeFocus} tuổi âm), đương số đang ở ${dxFocusLabel}${pCtxFocus ? `, trọng tâm năm dồn vào cung ${pCtxFocus.activatedPalace.natalPalaceNameVi} nơi Lưu Mệnh đi qua` : ''}.`;
 
   const nominalAgeNext = nextYear - chart.lunarInfo.lunarYear + 1;
   const dxIdxNext = resolveEffectiveDaXianIndex(chart, 'liunian', nextYear);
@@ -2240,13 +2306,10 @@ export function buildDeterministicExecutiveSummaryVi(
       : dxIdxNext !== dxIdxFocus && chart.daXians[dxIdxNext]
         ? ` (chuyển sang đại hạn ${chart.daXians[dxIdxNext].startAge}–${chart.daXians[dxIdxNext].endAge} tuổi tại cung ${translatePalaceName(chart.daXians[dxIdxNext].palaceName)})`
         : '';
-  const locText = lnLoc
-    ? `${lnLoc.starNameVi} tại Cung ${lnLoc.periodPalaceRoleVi} (trùng ${lnLoc.natalPalaceNameVi})`
-    : 'trục thuận lợi của Lưu Niên';
-  const kyText = lnKy
-    ? `${lnKy.starNameVi} tại Cung ${lnKy.periodPalaceRoleVi} (trùng ${lnKy.natalPalaceNameVi})`
-    : 'trục cần đề phòng';
-  const sentence5 = `Sang năm ${nextYear} (${nominalAgeNext} tuổi âm${pCtxNext ? `, năm ${pCtxNext.ganZhiVi}` : ''})${dxNextNote}, Lưu Lộc rơi vào ${locText} nhưng Lưu Kỵ rơi vào ${kyText}, nên đương số cần thận trọng và kiểm soát rủi ro kỹ lưỡng.`;
+  const locPalLabel = lnLoc ? `${lnLoc.natalPalaceNameVi} (${lnLoc.starNameVi})` : 'trục thuận lợi của Lưu Niên';
+  const kyPalLabel = lnKy ? `${lnKy.natalPalaceNameVi} (${lnKy.starNameVi})` : 'trục cần lưu tâm';
+  const adviceClause = getNextYearAdviceFromKyPalaceVi(lnKy?.natalPalaceNameVi ?? '');
+  const sentence5 = `Sang năm ${nextYear} (${nominalAgeNext} tuổi âm)${dxNextNote}, Lưu Lộc mở cơ hội ở cung ${locPalLabel} còn Lưu Kỵ dồn áp lực vào cung ${kyPalLabel}, nên đương số cần ${adviceClause}`;
 
   return [sentence1, sentence2, sentence3, sentence4, sentence5];
 }

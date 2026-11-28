@@ -2,12 +2,29 @@
 
 - **Loại tài liệu**: `[Tài liệu Sống — Nhật ký Phát hành Theo Chuẩn Semantic Versioning]`
 - **Trạng thái hiệu lực**: `ĐANG HIỆU LỰC (ACTIVE)`
-- **Áp dụng cho phiên bản ứng dụng**: `1.8.1` *(đồng bộ với `/VERSION` và `package.json`)*
+- **Áp dụng cho phiên bản ứng dụng**: `1.9.0` *(đồng bộ với `/VERSION` và `package.json`)*
 - **Cập nhật lần cuối**: `28/11/2026`
 - **Mã nguồn đối chiếu (Code SSOT)**: `VERSION`, `package.json`, `src/lib/app-version.ts`, `server.ts`, `server/chat-suggestions.ts`, `server/chapter-retry.ts`, `server/key-pool/*`, `server/knowledge-base/*`, `src/lib/ziwei/dossier-context.ts`, `src/lib/ziwei/yunxian-context.ts`, `scripts/kb-*.ts`, `scripts/verify-key-pool.ts`, `scripts/verify-knowledge-base.ts`, `scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `scripts/verify-dossier-readability.ts`, `scripts/verify-yunxian.ts`, `src/lib/ziwei/text-sanitizer.ts`, `src/lib/dossier-chat-ui.ts`, `src/lib/key-pool-ui.ts`, `src/lib/chart-library.ts`, `src/components/KeyPoolModal.tsx`, `src/components/DetailedDossierModal.tsx`, `src/components/ContextualChatDrawer.tsx`, `src/components/HemingView.tsx`, `src/components/InsightPanel.tsx`
-- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`), `BRIEF-1.8.0` (`A1`, `P-C`, `ĐK-B5-07`), `BRIEF-1.8.1` (`QĐ-KP3-01..03`, `TEST-23a..c`, `Test 10`)
+- **Quyết định liên quan**: `QĐ-1..QĐ-6`, `F1–F7`, `QĐ-G1..QĐ-G6`, `QĐ-H1..QĐ-H7`, `QĐ-D1..QĐ-D6`, `QĐ-L1..QĐ-L9`, `ĐC-1..ĐC-6`, `LK-01..LK-10`, `QĐ-M1..QĐ-M6`, `DM-01..DM-13`, `QĐ-N1..QĐ-N8`, `NK-01..NK-12`, `ĐN-1..ĐN-10`, `QĐ-F1..QĐ-F4`, `FS2-01..FS2-07`, `ĐK-151-01..ĐK-151-18`, `ĐK-152-01..ĐK-152-12`, `BRIEF-1.5.3`, `BRIEF-1.5.4` (`ĐK-154-01..06`), `BRIEF-1.5.5-v2` (`ĐK-155-01..06`, `ĐK-155-P1..P10`), `BRIEF-1.5.6-v2` (`P01–P18`, `ĐK-V2-1`, `ĐK-NT-7`), `BRIEF-1.5.7-v2` (`ĐK-157-P01..P08`, `ĐK-157-01..07`), `BRIEF-1.5.8-v2` (`Q1–Q8`, `P1–P12`, `X1–X9`, `T1–T4`, `E-01..E-03`), `BRIEF-1.5.9` (`L1`, `A+B+C+E`, `§3.1–§3.6`, `TEST-18..TEST-20`), `BRIEF-1.6.0-v2` (`ĐK-160-A..H`, `ĐK-160-2-01..06`, `ĐK-160-01..06`, `TEST-21`), `BRIEF-1.7.0-v2` (`ĐK-HD1-01..06`, `ĐK-HD2-01..03`, `ĐK-HD-01..07`, `TEST-22`), `BRIEF-1.8.0` (`A1`, `P-C`, `ĐK-B5-07`), `BRIEF-1.8.1` (`QĐ-KP3-01..03`, `TEST-23a..c`, `Test 10`), `BRIEF-1.9.0` (`GAP-1..GAP-7`, `D-1`, `D-2`, `Q-NB-01..03`)
 
 > Ghi chú định dạng theo chuẩn **Keep a Changelog** và **Semantic Versioning** (`QĐ-D5-A`). Các tài liệu thiết kế, phản biện và chẩn đoán chi tiết của từng đợt trước đây đã được lưu trữ bất biến trong `docs/archive/`.
+
+---
+
+## [1.9.0] — 28/11/2026
+
+### Cải Tiến Prompt Hồ Sơ & Kết Luận Nhanh Nhánh B (`GAP-1..GAP-7`, `D-1`, `D-2`)
+- **GAP-1 (`src/lib/dossier-chat-ui.ts`)**: Viết lại `buildDeterministicExecutiveSummaryVi` thành 5 câu tiếng thường (~150 từ, ngôi "đương số", không dùng mẫu liệt kê kỹ thuật cũ và bỏ câu chung chung / superlative `Q-NB-01(b)`), lời khuyên câu 5 lấy trực tiếp theo cung Lưu Kỵ năm kế tiếp.
+- **GAP-2 (`src/lib/ziwei/dossier-context.ts`, `server.ts`)**:
+  - `buildPalaceGroupFactSheetVi` chỉ nạp dòng `[Tứ Hóa Đại Hạn Kỳ ...]` cho Đại Hạn hiện tại + kế tiếp (hoặc `daXians[0]` khi chưa vào Đại Hạn); chỉ nạp `flyNotes` (`[Phi Tinh Can Cung ...]`) cho cung Mệnh (`A1`).
+  - Cập nhật prompt nhóm cung trong `server.ts` yêu cầu viết câu thường cho 2 kỳ và chỉ giữ phi tinh cung Mệnh.
+- **GAP-3, GAP-4, GAP-5, GAP-7, D-1 (`server.ts`)**:
+  - Ch.7 (`horizon_5y`): thêm lệnh cấm lặp câu `"Lưu Niên đi qua cung chức năng phụ trợ của Đại Hạn"` (`GAP-3`) và chỉ nêu 1–2 Hóa nổi bật nhất trong khối năm, không lặp lại bảng 4 Hóa đã có ở Phụ lục B.2 (`GAP-5`).
+  - Làm rõ quy tắc can năm vs can-chi cung (`Q-NB-02(a)`) trên period, ch.7, ch.8 (`GAP-4`): giữ can-chi trong tên cung, tiêu đề năm không ghi can năm.
+  - Ch.1 (`chapter_overview`): bỏ `"Ngũ Hành Cục · "` khỏi tiêu đề §1 và cấm lặp lại Kim Tứ Cục / Mệnh Chủ / Thân Chủ trong thân bài (`GAP-7`).
+  - Ghi rõ ánh xạ P1–P9 (`D-1`, gồm P3 chuẩn thuật ngữ/ẩn nhãn thô, P5 định dạng gạch đầu dòng, P6 chỉ viết 5 khối năm sau ch.7) tại comment trong `server.ts`.
+- **GAP-6 (`src/lib/ziwei/dossier-context.ts`)**: Căn chỉnh `expectedMinWords`/`expectedMaxWords` của `palaces_*` (`800–1100`), `horizon_5y` (`1600–1900`) và `horizon_10y` (`1500–1700`) khớp mục tiêu prompt.
+- **Kiểm định & Đồng bộ phiên bản (`scripts/verify-dossier-context.ts`, `scripts/verify-dossier-chat-ui.ts`, `VERSION`, `package.json`, `src/lib/app-version.ts`, `CHANGELOG.md`)**: Cập nhật và bổ sung test cho `GAP-1..GAP-7`, `D-1`, đồng bộ 3 chiều `1.9.0`.
 
 ---
 
